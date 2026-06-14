@@ -2,11 +2,215 @@
   "mcpServers": {
     "agentation": {
       "command": "npx",
-      "args": [
-        "-y",
-        "agentation-mcp",
-        "server"
-      ]
+      "args": ["-y", "agentation-mcp", "server"]
+    },
+    "filesystem": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/home/mohammadirfan"],
+      "url": "npx://-y/@modelcontextprotocol/server-filesystem"
+    },
+    "github": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-github"],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "${env:GITHUB_PERSONAL_ACCESS_TOKEN}"
+      },
+      "url": "npx://-y/@modelcontextprotocol/server-github"
+    },
+    "playwright": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@playwright/mcp@latest"],
+      "url": "npx://-y/@playwright/mcp@latest"
+    },
+    "postgres": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-postgres"],
+      "env": {
+        "DATABASE_URL": "${env:DATABASE_URL}"
+      },
+      "url": "npx://-y/@modelcontextprotocol/server-postgres"
+    },
+    "supabase": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@supabase/mcp-server-supabase"],
+      "env": {
+        "SUPABASE_ACCESS_TOKEN": "${env:SUPABASE_ACCESS_TOKEN}"
+      },
+      "url": "npx://-y/@supabase/mcp-server-supabase"
+    },
+    "firecrawl": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "firecrawl-mcp"],
+      "env": {
+        "FIRECRAWL_API_KEY": "${env:FIRECRAWL_API_KEY}"
+      },
+      "url": "npx://-y/firecrawl-mcp"
+    },
+    "sequential-thinking": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-sequential-thinking"],
+      "url": "npx://-y/@modelcontextprotocol/server-sequential-thinking"
+    },
+    "brave-search": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-brave-search"],
+      "env": {
+        "BRAVE_API_KEY": "${env:BRAVE_API_KEY}"
+      },
+      "url": "npx://-y/@modelcontextprotocol/server-brave-search"
+    },
+    "context7": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@upstash/context7-mcp"],
+      "url": "npx://-y/@upstash/context7-mcp"
+    },
+    "browserbase": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@browserbasehq/mcp"],
+      "env": {
+        "BROWSERBASE_API_KEY": "${env:BROWSERBASE_API_KEY}",
+        "BROWSERBASE_PROJECT_ID": "${env:BROWSERBASE_PROJECT_ID}"
+      },
+      "url": "npx://-y/@browserbasehq/mcp"
+    },
+    "sentry": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@sentry/mcp-server"],
+      "env": {
+        "SENTRY_AUTH_TOKEN": "${env:SENTRY_AUTH_TOKEN}"
+      },
+      "url": "npx://-y/@sentry/mcp-server"
+    },
+    "linear": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@linear/mcp-server"],
+      "env": {
+        "LINEAR_API_KEY": "${env:LINEAR_API_KEY}"
+      },
+      "url": "npx://-y/@linear/mcp-server"
+    },
+    "docker": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "docker-mcp"],
+      "url": "npx://-y/docker-mcp"
+    },
+    "cloudflare": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@cloudflare/mcp-server"],
+      "env": {
+        "CLOUDFLARE_API_TOKEN": "${env:CLOUDFLARE_API_TOKEN}",
+        "CLOUDFLARE_ACCOUNT_ID": "${env:CLOUDFLARE_ACCOUNT_ID}"
+      },
+      "url": "npx://-y/@cloudflare/mcp-server"
+    },
+    "memory": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "memory-mcp"],
+      "url": "npx://-y/memory-mcp"
+    },
+    "neon": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@neondatabase/mcp-server"],
+      "env": {
+        "NEON_API_KEY": "${env:NEON_API_KEY}"
+      },
+      "url": "npx://-y/@neondatabase/mcp-server"
+    },
+    "redis": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "redis-mcp-server"],
+      "env": {
+        "REDIS_URL": "${env:REDIS_URL}"
+      },
+      "url": "npx://-y/redis-mcp-server"
+    },
+    "pty": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "pty-mcp-server"],
+      "url": "npx://-y/pty-mcp-server"
+    },
+    "notion": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@notionhq/notion-mcp-server"],
+      "env": {
+        "NOTION_API_KEY": "${env:NOTION_API_KEY}"
+      },
+      "url": "npx://-y/@notionhq/notion-mcp-server"
+    },
+    "obsidian": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "obsidian-mcp-server"],
+      "env": {
+        "OBSIDIAN_VAULT_PATH": "${env:OBSIDIAN_VAULT_PATH}"
+      },
+      "url": "npx://-y/obsidian-mcp-server"
+    },
+    "vercel": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "vercel-mcp"],
+      "env": {
+        "VERCEL_TOKEN": "${env:VERCEL_TOKEN}"
+      },
+      "url": "npx://-y/vercel-mcp"
+    },
+    "elasticsearch": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "elasticsearch-mcp"],
+      "env": {
+        "ELASTICSEARCH_URL": "${env:ELASTICSEARCH_URL}",
+        "ELASTICSEARCH_API_KEY": "${env:ELASTICSEARCH_API_KEY}"
+      },
+      "url": "npx://-y/elasticsearch-mcp"
+    },
+    "qdrant": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "qdrant-mcp-server"],
+      "env": {
+        "QDRANT_URL": "${env:QDRANT_URL}",
+        "QDRANT_API_KEY": "${env:QDRANT_API_KEY}"
+      },
+      "url": "npx://-y/qdrant-mcp-server"
+    },
+    "markdownify": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "markdownify-mcp"],
+      "url": "npx://-y/markdownify-mcp"
+    },
+    "shadcn": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@shadcn-ui/mcp"],
+      "url": "npx://-y/@shadcn-ui/mcp"
+    },
+    "knowledge-graph-memory": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-memory"],
+      "url": "npx://-y/@modelcontextprotocol/server-memory"
     }
   }
 }

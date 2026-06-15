@@ -343,17 +343,7 @@ export default function CompetitionRegisterPage() {
         setErrorMsg("Project Title must be at least 5 characters long.");
         return false;
       }
-      
-      const isVercelEnvironment =
-        typeof window !== "undefined" &&
-        (window.location.hostname.includes("vercel") ||
-         process.env.NEXT_PUBLIC_VERCEL === "true" ||
-         process.env.NEXT_PUBLIC_TEST_MODE === "true");
-
-      if (!pdfFile && !isVercelEnvironment) {
-        setErrorMsg("Project PDF report is required for this competition.");
-        return false;
-      }
+      // PDF report file upload is optional / bypassed on Vercel deployment
     }
 
     return true;
@@ -1044,13 +1034,13 @@ export default function CompetitionRegisterPage() {
                   />
 
                   <FileDropzone
-                    label="Project PDF Report"
+                    label="Project PDF Report (Optional)"
                     accept="application/pdf"
                     maxSizeMB={5}
-                    required={true}
+                    required={false}
                     value={pdfFile}
                     onChange={setPdfFile}
-                    helperText="Upload your project proposal in PDF format"
+                    helperText="Optional. Upload your project proposal in PDF format"
                     disabled={formLoading}
                   />
 

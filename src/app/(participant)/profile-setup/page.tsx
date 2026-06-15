@@ -139,10 +139,6 @@ export default function ProfileSetupWizard() {
   };
 
   const onSubmit = async (data: WizardFormData) => {
-    if (!idFront) {
-      setIdFrontError("Student ID front card image is required.");
-      return;
-    }
     setLoading(true);
     setErrorMsg(null);
 
@@ -158,18 +154,20 @@ export default function ProfileSetupWizard() {
         throw new Error(profileData.message || "Failed to update profile information.");
       }
 
-      // 2. Upload Verification Files (only front required now)
-      const verifyRes = await fetch("/api/verification", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id_front_base64: idFront,
-          id_back_base64: null,
-        }),
-      });
-      const verifyData = await verifyRes.json();
-      if (!verifyData.success) {
-        throw new Error(verifyData.message || "Failed to upload Student ID documents.");
+      // 2. Upload Verification Files (only if provided, optional now)
+      if (idFront) {
+        const verifyRes = await fetch("/api/verification", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            id_front_base64: idFront,
+            id_back_base64: null,
+          }),
+        });
+        const verifyData = await verifyRes.json();
+        if (!verifyData.success) {
+          throw new Error(verifyData.message || "Failed to upload Student ID documents.");
+        }
       }
 
       router.push("/dashboard");
@@ -462,11 +460,11 @@ export default function ProfileSetupWizard() {
                   >
                     <div className="border-b border-neutral-800/30 pb-3 mb-4">
                       <h2 className="text-xs uppercase font-mono tracking-widest text-neutral-400 font-semibold">Student ID Verification</h2>
-                      <p className="text-xs text-neutral-500 font-sans mt-1">Upload a clear photo of the front of your Student ID card. Limits: Max 5MB, JPG/PNG only.</p>
+                      <p className="text-xs text-neutral-500 font-sans mt-1">Optional. Upload a clear photo of the front of your Student ID card. Limits: Max 5MB, JPG/PNG only. You can skip this step and submit directly.</p>
                     </div>
 
                     <div className="space-y-2">
-                      <label className="text-sm font-mono font-bold tracking-widest text-neutral-400 uppercase select-none">ID Front Side Image</label>
+                      <label className="text-sm font-mono font-bold tracking-widest text-neutral-400 uppercase select-none">ID Front Side Image (Optional)</label>
                       <div
                         onDragOver={(e) => handleDrag(e, true)}
                         onDragLeave={(e) => handleDrag(e, false)}

@@ -116,6 +116,39 @@ export async function streamSubmissionFile(
   req: Request,
   contentType: string
 ): Promise<Response> {
+  // Return a mock inline PDF document if using the vercel placeholder path
+  if (relativeUrl.startsWith("mock-vercel-uploads/")) {
+    if (contentType === "application/pdf") {
+      const mockPdf = `%PDF-1.4
+1 0 obj < /Type /Catalog /Pages 2 0 R > endobj
+2 0 obj < /Type /Pages /Kids [3 0 R] /Count 1 > endobj
+3 0 obj < /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << >> > endobj
+4 0 obj < /Length 51 > stream
+BT /F1 24 Tf 100 700 Td (PDF Upload Bypassed on Vercel) Tj ET
+endstream endobj
+xref
+0 5
+0000000000 65535 f 
+0000000009 00000 n 
+0000000056 00000 n 
+0000000111 00000 n 
+0000000212 00000 n 
+trailer < /Size 5 /Root 1 0 R >
+startxref
+314
+%%EOF`;
+      return new Response(Buffer.from(mockPdf, "utf-8"), {
+        status: 200,
+        headers: {
+          "Content-Type": "application/pdf",
+          "Content-Disposition": "inline; filename=placeholder.pdf",
+        },
+      });
+    } else {
+      return new Response("Video placeholder is not streamable.", { status: 404 });
+    }
+  }
+
   const absPath = path.join(SUBMISSIONS_ROOT, relativeUrl);
   // Path traversal protection
   if (!absPath.startsWith(SUBMISSIONS_ROOT)) {
@@ -165,7 +198,7 @@ export async function streamSubmissionFile(
         },
       });
     }
-  } catch (err) {
+  } catch {
     return new Response("File not found", { status: 404 });
   }
 }

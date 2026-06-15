@@ -135,12 +135,8 @@ export async function submitOrUpdateProposal(
       filesToDeleteOnFailure.push(relativePath);
       newPdfPath = relativePath;
     } else if (!existingSubmission) {
-      // PDF is required for new submissions, unless running on Vercel or in test mode
-      if (process.env.VERCEL || process.env.NEXT_PUBLIC_TEST_MODE === "true") {
-        newPdfPath = "mock-vercel-uploads/placeholder.pdf";
-      } else {
-        return { success: false, status: 400, message: "PDF file is required." };
-      }
+      // PDF is optional; if not uploaded, use a placeholder path
+      newPdfPath = "mock-vercel-uploads/placeholder.pdf";
     }
 
     // Process Video

@@ -6,6 +6,7 @@ import Image from "next/image";
 import { useParams } from "next/navigation";
 import { ArrowLeft, Trophy, Users, Shield, CreditCard, HelpCircle, CheckCircle } from "lucide-react";
 import useSWR from "swr";
+import { motion, useMotionValue, useSpring, useMotionTemplate } from "framer-motion";
 import { Navbar } from "@/components/shared/Navbar";
 import { Footer } from "@/components/shared/Footer";
 import { Button } from "@/components/ui/button";
@@ -13,24 +14,18 @@ import { Badge } from "@/components/ui/badge";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
-function getEmbedUrl(url: string) {
-  if (!url) return "";
-  if (url.includes("drive.google.com")) {
-    let fileId = "";
-    const dMatch = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
-    if (dMatch && dMatch[1]) {
-      fileId = dMatch[1];
-    } else {
-      const idMatch = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
-      if (idMatch && idMatch[1]) {
-        fileId = idMatch[1];
-      }
-    }
-    if (fileId) {
-      return `https://drive.google.com/file/d/${fileId}/preview`;
-    }
+function formatDate(dateStr?: string) {
+  if (!dateStr) return "";
+  try {
+    const d = new Date(dateStr);
+    return d.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  } catch {
+    return dateStr;
   }
-  return url;
 }
 
 interface Competition {
@@ -49,6 +44,8 @@ interface Competition {
   coverImageUrl?: string;
   bannerImageUrl?: string;
   rulebookUrl?: string;
+  registrationStart?: string;
+  registrationEnd?: string;
 }
 
 const COMPETITION_IMAGES: Record<string, string> = {
@@ -62,9 +59,23 @@ const COMPETITION_IMAGES: Record<string, string> = {
 
 export default function CompetitionDetailPage() {
   const params = useParams();
-  const [activeTab, setActiveTab] = React.useState<"overview" | "rules" | "timeline" | "prizes">("overview");
-
   const compId = params?.id as string;
+
+  const mouseX = useMotionValue(0);
+  const mouseY = useMotionValue(0);
+
+  const springConfig = { damping: 25, stiffness: 220, mass: 0.6 };
+  const spotlightX = useSpring(mouseX, springConfig);
+  const spotlightY = useSpring(mouseY, springConfig);
+
+  React.useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      mouseX.set(e.clientX);
+      mouseY.set(e.clientY);
+    };
+    window.addEventListener("mousemove", handleMouseMove);
+    return () => window.removeEventListener("mousemove", handleMouseMove);
+  }, [mouseX, mouseY]);
 
   const { data, error, isLoading } = useSWR<{ success: boolean; data: Competition }>(
     compId ? `/api/public/competitions?id=${compId}` : null,
@@ -75,17 +86,17 @@ export default function CompetitionDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="flex flex-col min-h-screen bg-background text-on-background bg-grid-pattern">
+      <div className="flex flex-col min-h-screen bg-[#FAF8FF] dark:bg-[#0f1117] text-on-background bg-grid-pattern bg-noise">
         <Navbar />
-        <main className="grow mx-auto max-w-[1280px] pt-10 pb-20 px-4 md:px-16 w-full space-y-8 animate-pulse">
-          <div className="h-6 bg-neutral-900 w-32 rounded" />
-          <div className="h-48 bg-neutral-900 w-full rounded-2xl" />
+        <main className="grow mx-auto max-w-[1280px] pt-10 pb-20 px-4 md:px-16 w-full space-y-8 animate-pulse relative z-10">
+          <div className="h-6 bg-neutral-200 dark:bg-neutral-900 w-32 rounded animate-pulse" />
+          <div className="h-48 bg-neutral-200 dark:bg-neutral-900 w-full rounded-3xl animate-pulse" />
           <div className="flex flex-col lg:flex-row gap-10">
             <div className="grow space-y-4">
-              <div className="h-10 bg-neutral-900 w-64 rounded" />
-              <div className="h-32 bg-neutral-900 w-full rounded" />
+              <div className="h-10 bg-neutral-200 dark:bg-neutral-900 w-64 rounded animate-pulse" />
+              <div className="h-32 bg-neutral-200 dark:bg-neutral-900 w-full rounded animate-pulse" />
             </div>
-            <div className="w-full lg:w-80 h-64 bg-neutral-900 rounded" />
+            <div className="w-full lg:w-80 h-64 bg-neutral-200 dark:bg-neutral-900 rounded-3xl animate-pulse" />
           </div>
         </main>
         <Footer />
@@ -95,15 +106,15 @@ export default function CompetitionDetailPage() {
 
   if (error || !competition) {
     return (
-      <div className="flex flex-col min-h-screen bg-background">
+      <div className="flex flex-col min-h-screen bg-[#FAF8FF] dark:bg-[#0f1117]">
         <Navbar />
         <div className="grow flex flex-col items-center justify-center py-24 px-4 text-center">
-          <h2 className="text-2xl font-heading font-extrabold text-neutral-300 mb-4">Competition Not Found</h2>
+          <h2 className="text-2xl font-heading font-extrabold text-neutral-800 dark:text-neutral-300 mb-4">Competition Not Found</h2>
           <p className="text-sm text-neutral-500 font-sans mb-6">
             The competition you are looking for does not exist or has been archived.
           </p>
           <Link href="/competitions">
-            <Button className="bg-primary text-white font-sans font-bold">Return to Catalog</Button>
+            <Button className="bg-[#8B5CF6] hover:bg-[#7C3AED] text-white font-sans font-bold py-3.5 px-6 rounded-xl">Return to Catalog</Button>
           </Link>
         </div>
         <Footer />
@@ -112,295 +123,308 @@ export default function CompetitionDetailPage() {
   }
 
   return (
-    <div className="flex flex-col min-h-screen bg-background text-on-background bg-grid-pattern">
+    <div className="flex flex-col min-h-screen bg-gradient-to-br from-[#FAF8FF] via-[#F8F9FF] to-[#FCFBFF] dark:from-neutral-950 dark:via-neutral-900 dark:to-neutral-950 text-on-background relative overflow-hidden bg-noise">
+      
+      {/* Mouse-following spotlight effect */}
+      <motion.div
+        className="pointer-events-none fixed inset-0 z-30 hidden sm:block"
+        style={{
+          background: useMotionTemplate`radial-gradient(350px circle at ${spotlightX}px ${spotlightY}px, rgba(139, 92, 246, 0.12) 0%, rgba(139, 92, 246, 0.04) 50%, transparent 100%)`,
+        }}
+      />
+
+      {/* Dynamic Grid Pattern */}
+      <div className="absolute inset-0 bg-grid-pattern opacity-[0.06] dark:opacity-[0.12] pointer-events-none z-0 animate-subtle-grid-pulse" />
+
+      {/* Subtle animated gradient movement in background */}
+      <div 
+        className="absolute inset-0 bg-gradient-to-tr from-[#8B5CF6]/5 via-transparent to-[#22D3EE]/5 dark:from-[#8B5CF6]/10 dark:to-[#22D3EE]/5 opacity-40 animate-gradient-shift pointer-events-none z-0"
+        style={{ animationDuration: "15s" }}
+      />
+
+      {/* Ambient lighting / Radial Glow effects */}
+      <div className="absolute top-[6%] left-[10%] w-[800px] h-[800px] bg-[#8B5CF6]/12 dark:bg-[#8B5CF6]/8 rounded-full blur-[160px] pointer-events-none z-0 animate-blob-slow-1" />
+      <div className="absolute top-[38%] right-[5%] w-[700px] h-[700px] bg-[#22D3EE]/8 dark:bg-[#22D3EE]/5 rounded-full blur-[140px] pointer-events-none z-0 animate-blob-slow-2" />
+      <div className="absolute bottom-[18%] left-[12%] w-[750px] h-[750px] bg-[#F4B400]/6 dark:bg-[#F4B400]/4 rounded-full blur-[150px] pointer-events-none z-0 animate-blob-slow-3" />
+
+      {/* Light floating background particles */}
+      <div className="absolute top-[12%] left-[10%] w-2.5 h-2.5 bg-[#8B5CF6]/30 rounded-full blur-[0.5px] animate-drift-slow-1 pointer-events-none" />
+      <div className="absolute top-[35%] right-[15%] w-3 h-3 bg-[#22D3EE]/30 rounded-full blur-[0.5px] animate-drift-slow-2 pointer-events-none" />
+      <div className="absolute bottom-[40%] left-[22%] w-2 h-2 bg-[#F4B400]/35 rounded-full blur-[0.5px] animate-drift-slow-3 pointer-events-none" />
+      <div className="absolute top-[60%] left-[8%] w-3 h-3 bg-[#8B5CF6]/25 rounded-full blur-[0.5px] animate-drift-slow-2 pointer-events-none" />
+      <div className="absolute bottom-[25%] right-[20%] w-2.5 h-2.5 bg-[#22D3EE]/30 rounded-full blur-[0.5px] animate-drift-slow-1 pointer-events-none" />
+      <div className="absolute top-[25%] right-[30%] w-2 h-2 bg-[#F4B400]/30 rounded-full blur-[0.5px] animate-drift-slow-3 pointer-events-none" />
+
       <Navbar />
 
-      <main className="flex-1 mx-auto max-w-[1280px] pt-10 pb-20 px-4 md:px-16 w-full space-y-8">
+      <main className="flex-1 mx-auto max-w-[1280px] pt-10 pb-20 px-4 md:px-16 w-full space-y-12 relative z-10">
         {/* Back Link */}
-        <div>
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
+        >
           <Link
             href="/competitions"
-            className="inline-flex items-center gap-2 text-sm text-neutral-400 hover:text-neutral-50 transition-colors"
+            className="inline-flex items-center gap-2 text-sm text-[#4B5563] hover:text-[#8B5CF6] dark:text-neutral-400 dark:hover:text-neutral-50 transition-colors font-mono font-bold uppercase tracking-wider group"
           >
-            <ArrowLeft className="h-4 w-4" />
+            <ArrowLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" />
             <span>Back to Competitions</span>
           </Link>
-        </div>
+        </motion.div>
 
         {/* Hero Area */}
-        <div className="relative rounded-2xl border border-neutral-850 bg-neutral-950 p-8 md:p-12 overflow-hidden">
-          {/* Background image if added */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, ease: "easeOut" }}
+          className="relative rounded-3xl border border-neutral-200/80 dark:border-primary/15 bg-white/80 dark:bg-[#0f1117]/60 backdrop-blur-xl p-8 md:p-12 overflow-hidden shadow-[0_10px_30px_rgba(139,92,246,0.06),0_2px_8px_rgba(0,0,0,0.05)] hover:shadow-[0_20px_50px_rgba(139,92,246,0.12)] group transition-all duration-500 hover:border-[#8B5CF6]/35"
+        >
+          {/* Backlighting inside hero */}
+          <div className="absolute -top-20 -left-20 w-80 h-80 bg-[#8B5CF6]/10 rounded-full blur-[80px] pointer-events-none" />
+          <div className="absolute -bottom-20 right-10 w-80 h-80 bg-[#22D3EE]/8 rounded-full blur-[80px] pointer-events-none" />
+          
+          {/* Floating hero particles */}
+          <div className="absolute top-10 right-16 w-8 h-8 rounded-full border border-[#8B5CF6]/20 dark:border-primary/45 animate-float pointer-events-none opacity-40" />
+          <div className="absolute bottom-10 left-1/3 w-6 h-6 rounded-full border border-[#22D3EE]/20 dark:border-secondary/45 animate-float pointer-events-none opacity-40" style={{ animationDelay: '2s' }} />
+
+          {/* Banner image with smooth zoom hover */}
           {(competition.bannerImageUrl || competition.coverImageUrl || COMPETITION_IMAGES[competition.id]) ? (
             <>
               <Image
                 src={competition.bannerImageUrl || competition.coverImageUrl || COMPETITION_IMAGES[competition.id] || ""}
                 alt={competition.name}
                 fill
-                className="object-cover opacity-20 pointer-events-none"
+                className="object-cover opacity-15 dark:opacity-25 pointer-events-none group-hover:scale-[1.04] group-hover:brightness-110 transition-all duration-700 ease-out"
                 priority
               />
-              <div className="absolute inset-0 bg-linear-to-r from-neutral-950 via-neutral-950/85 to-transparent pointer-events-none" />
+              <div className="absolute inset-0 bg-linear-to-r from-white/95 via-white/85 to-transparent dark:from-neutral-950 dark:via-neutral-950/85 dark:to-transparent pointer-events-none" />
             </>
           ) : (
             <div className="absolute inset-0 bg-linear-to-r from-primary/10 to-transparent pointer-events-none" />
           )}
 
-          <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-8">
             <div className="space-y-4 max-w-2xl">
               <div className="flex flex-wrap items-center gap-3">
-                <Badge variant="accent" className="text-xs uppercase font-mono font-bold tracking-wider py-1">
-                  {competition.type}
-                </Badge>
-                <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-accent/10 border border-accent/20 text-accent font-sans text-sm font-bold uppercase tracking-wider animate-pulse">
-                  <span className="w-1.5 h-1.5 rounded-full bg-accent" />
+                <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-[#10B981]/10 border border-[#10B981]/20 text-[#10B981] font-sans text-sm font-bold uppercase tracking-wider">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#10B981] animate-ping" />
                   Registrations Open
                 </div>
               </div>
-              <h1 className="text-4xl md:text-5xl font-extrabold font-heading text-neutral-50 tracking-tight">
+              <h1 className="text-4xl md:text-5xl font-black font-heading tracking-tight bg-gradient-to-r from-[#111827] via-[#8B5CF6] to-[#4B5563] dark:from-white dark:via-[#8B5CF6] dark:to-[#9CA3AF] bg-clip-text text-transparent leading-none">
                 {competition.name.toUpperCase()}
               </h1>
-              <p className="text-sm sm:text-base text-neutral-400 font-sans leading-relaxed">
+              <p className="text-sm sm:text-base text-[#4B5563] dark:text-neutral-400 font-sans leading-relaxed">
                 {competition.shortDescription}
               </p>
+              
+              {/* Metadata Pills */}
+              {competition.registrationStart && competition.registrationEnd && (
+                <div className="flex flex-wrap items-center gap-3 pt-2">
+                  <Badge variant="secondary" className="bg-white dark:bg-neutral-900/60 border border-neutral-200 dark:border-neutral-800 text-[#4B5563] dark:text-neutral-300 text-base sm:text-lg md:text-xl font-mono py-2.5 px-5 rounded-full flex items-center gap-2.5 shadow-sm font-semibold">
+                    <span className="w-2 h-2 rounded-full bg-[#10B981]" />
+                    <span className="text-neutral-500 dark:text-neutral-400 font-bold uppercase">Opens:</span>
+                    <span className="font-extrabold text-[#111827] dark:text-neutral-100">{formatDate(competition.registrationStart)}</span>
+                  </Badge>
+                  <Badge variant="secondary" className="bg-white dark:bg-neutral-900/60 border border-neutral-200 dark:border-neutral-800 text-[#4B5563] dark:text-neutral-300 text-base sm:text-lg md:text-xl font-mono py-2.5 px-5 rounded-full flex items-center gap-2.5 shadow-sm font-semibold">
+                    <span className="w-2 h-2 rounded-full bg-[#8B5CF6]" />
+                    <span className="text-neutral-500 dark:text-neutral-400 font-bold uppercase">Deadline:</span>
+                    <span className="text-[#8B5CF6] dark:text-[#A78BFA] font-bold">{formatDate(competition.registrationEnd)}</span>
+                  </Badge>
+                </div>
+              )}
             </div>
-            <div className="shrink-0">
-              <Link href={`/competitions/${compId}/register`}>
-                <Button className="w-full md:w-auto bg-primary hover:bg-primary/95 text-white font-heading font-bold text-sm px-8 py-4 h-auto rounded-xl hover:shadow-[0_0_20px_rgba(99,102,241,0.4)] transition-all active:scale-[0.98]">
-                  Register Your Team
+            
+            {/* Buttons in Header */}
+            <div className="shrink-0 flex flex-col gap-3 w-full md:w-56 relative z-20">
+              <Link href={`/competitions/${compId}/register`} className="w-full">
+                <Button className="w-full relative overflow-hidden bg-gradient-to-r from-[#8B5CF6] to-[#A855F7] hover:from-[#9D66FF] hover:to-[#B56BFF] text-white font-heading font-black text-lg py-4 h-auto rounded-xl hover:shadow-[0_0_30px_rgba(139,92,246,0.55)] hover:-translate-y-0.5 active:translate-y-0 transition-all duration-300 group cursor-pointer tracking-wider">
+                  <span className="relative z-10">REGISTER NOW</span>
+                  <div className="absolute inset-0 w-[50%] h-full bg-white/25 skew-x-[-25deg] -translate-x-[150%] group-hover:translate-x-[250%] transition-transform duration-1000 ease-out" />
                 </Button>
               </Link>
+              {competition.rulebookUrl && (
+                <a
+                  href={competition.rulebookUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full"
+                >
+                  <Button variant="secondary" className="w-full border border-[#8B5CF6] dark:border-[#8B5CF6]/50 bg-white dark:bg-[#12141a]/60 text-[#8B5CF6] dark:text-[#A78BFA] hover:bg-[#FAF8FF] dark:hover:bg-neutral-900/40 py-3.5 h-auto rounded-xl font-heading text-base font-black tracking-widest cursor-pointer hover:shadow-[0_0_20px_rgba(139,92,246,0.25)] transition-all duration-300">
+                    OPEN RULEBOOK
+                  </Button>
+                </a>
+              )}
             </div>
           </div>
-        </div>
+        </motion.div>
 
         {/* Content Layout */}
         <div className="flex flex-col lg:flex-row gap-10 items-start">
-          {/* Main Info Tabs (Left Column - 70%) */}
-          <div className="grow w-full lg:w-0 space-y-6">
-            {/* Tabs Selector */}
-            <div className="flex border-b border-neutral-850 overflow-x-auto gap-2">
-              {(["overview", "rules", "timeline", "prizes"] as const).map((tab) => (
-                <button
-                  key={tab}
-                  onClick={() => setActiveTab(tab)}
-                  className={`px-6 py-4 text-xs font-bold font-sans uppercase tracking-widest transition-colors border-b-2 outline-none ${
-                    activeTab === tab
-                      ? "border-primary text-primary"
-                      : "border-transparent text-neutral-500 hover:text-neutral-300"
-                  }`}
-                >
-                  {tab}
-                </button>
-              ))}
-            </div>
-
-            {/* Tab Contents */}
-            <div className="bg-neutral-900/20 border border-neutral-850 p-6 md:p-8 rounded-xl font-sans leading-relaxed text-neutral-300">
-              {activeTab === "overview" && (
-                <div className="space-y-6">
-                  <div className="flex items-center gap-3">
-                    <Trophy className="h-6 w-6 text-primary" />
-                    <h3 className="font-heading text-xl font-extrabold text-neutral-200">Exhibition Overview</h3>
+          {/* Main Content (Left Column - 70%) */}
+          <div className="grow w-full lg:w-0 space-y-16">
+            
+            {/* Prizes Section */}
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: "-100px" }}
+              transition={{ duration: 0.5, ease: "easeOut" }}
+              className="space-y-6"
+            >
+              <div className="flex items-center gap-3">
+                <Trophy className="h-6 w-6 text-[#F4B400] animate-pulse" />
+                <h3 className="font-heading text-2xl font-black text-[#111827] dark:text-neutral-100 tracking-tight font-heading">Reward Pool Split</h3>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 pt-2 items-stretch">
+                
+                {/* Champion Card (Premium Gold styling) */}
+                <div className="bg-white/60 dark:bg-[#12141a]/60 backdrop-blur-xl border border-[#F4B400] p-8 rounded-3xl flex flex-col justify-between items-center text-center space-y-5 hover:-translate-y-2 shadow-[0_10px_30px_rgba(244,180,0,0.06),0_2px_8px_rgba(0,0,0,0.05)] hover:shadow-[0_20px_50px_rgba(244,180,0,0.18)] transition-all duration-300 group/champ relative overflow-hidden sm:scale-105 z-10">
+                  <div className="absolute inset-0 bg-gradient-to-b from-[#F4B400]/8 to-transparent pointer-events-none z-0" />
+                  <div className="relative z-10 w-16 h-16 rounded-2xl bg-[#F4B400]/10 border border-[#F4B400]/20 flex items-center justify-center text-[#F4B400] group-hover/champ:scale-110 group-hover/champ:rotate-6 transition-transform duration-300">
+                    <Trophy className="h-8 w-8 drop-shadow-[0_0_8px_rgba(244,180,0,0.4)]" />
                   </div>
-                  <p className="text-neutral-400 text-sm sm:text-base">{competition.description}</p>
-                  <div className="space-y-4 mt-6 border-t border-neutral-850/60 pt-6">
-                    <h4 className="font-heading text-sm font-bold text-primary uppercase">Key Highlights</h4>
-                    <ul className="space-y-4">
-                      <li className="flex items-start gap-4">
-                        <CheckCircle className="h-5 w-5 text-accent shrink-0 mt-0.5" />
-                        <div>
-                          <strong className="text-neutral-200 block text-sm">Cloud Credits Eligible</strong>
-                          <span className="text-neutral-400 text-xs sm:text-sm">Teams successfully passing Phase 1 receive credits for system deployment and staging.</span>
-                        </div>
-                      </li>
-                      <li className="flex items-start gap-4">
-                        <CheckCircle className="h-5 w-5 text-accent shrink-0 mt-0.5" />
-                        <div>
-                          <strong className="text-neutral-200 block text-sm">Mentorship Guidance</strong>
-                          <span className="text-neutral-400 text-xs sm:text-sm">Interact directly with department advisors and alumni software engineering experts.</span>
-                        </div>
-                      </li>
-                    </ul>
+                  <div className="relative z-10 space-y-2">
+                    <h5 className="font-sans text-xs font-black uppercase tracking-widest text-[#F4B400]">Champion</h5>
+                    <div className="font-heading text-2xl font-black mt-1 bg-gradient-to-r from-[#F4B400] via-[#F5C842] to-[#D4AF37] bg-clip-text text-transparent drop-shadow-[0_2px_4px_rgba(244,180,0,0.15)]">{competition.championPrize}</div>
                   </div>
+                  <p className="relative z-10 text-sm text-[#4B5563] dark:text-neutral-400 leading-normal font-sans">Certificate + Goodies</p>
                 </div>
-              )}
 
-              {activeTab === "rules" && (
-                <div className="space-y-6">
-                  <div className="flex justify-between items-center flex-wrap gap-4 mb-2">
-                    <h3 className="font-heading text-xl font-extrabold text-neutral-200">Competition Rules & Regulation</h3>
-                    {competition.rulebookUrl && (
-                      <a
-                        href={competition.rulebookUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        <Button variant="secondary" className="text-xs font-sans border border-neutral-800 bg-neutral-900/40 text-neutral-300 hover:text-neutral-100 py-1.5 h-auto">
-                          Open Rulebook in Drive
-                        </Button>
-                      </a>
-                    )}
+                {/* Runner Up */}
+                <div className="bg-white/60 dark:bg-[#12141a]/60 backdrop-blur-xl border border-neutral-200/80 dark:border-neutral-800/80 p-6 rounded-3xl flex flex-col justify-between items-center text-center space-y-5 hover:-translate-y-1.5 shadow-[0_10px_30px_rgba(139,92,246,0.06),0_2px_8px_rgba(0,0,0,0.05)] hover:shadow-[0_20px_50px_rgba(139,92,246,0.12)] hover:border-[#8B5CF6]/35 transition-all duration-300 group/runner relative overflow-hidden">
+                  <div className="absolute inset-0 bg-gradient-to-b from-neutral-200/5 to-transparent opacity-0 group-hover/runner:opacity-100 transition-opacity duration-300 pointer-events-none" />
+                  <div className="w-12 h-12 rounded-xl bg-neutral-100 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-850 flex items-center justify-center text-neutral-400 dark:text-neutral-300 group-hover/runner:scale-110 group-hover/runner:-rotate-6 transition-transform duration-300">
+                    <Trophy className="h-6 w-6 drop-shadow-[0_0_8px_rgba(160,160,160,0.3)]" />
                   </div>
-                  
-                  {competition.rulebookUrl ? (
-                    <div className="space-y-6">
-                      <p className="text-neutral-400 text-xs sm:text-sm">
-                        Please review the embedded official rulebook PDF below. You can also view it in full screen using the link above.
-                      </p>
-                      <div className="w-full aspect-[4/3] sm:aspect-[16/10] rounded-xl overflow-hidden border border-neutral-850 bg-neutral-950/80 relative">
-                        <iframe
-                          src={getEmbedUrl(competition.rulebookUrl)}
-                          className="w-full h-full border-0"
-                          allow="autoplay"
-                        />
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      <ul className="list-disc list-inside space-y-3.5 text-neutral-300 text-xs sm:text-sm">
-                        <li>Projects must be original software or hardware systems.</li>
-                        <li>Plagiarism or using pre-compiled templates will result in instant disqualification.</li>
-                        <li>One user can register in only one team for this competition.</li>
-                        <li>Submissions must be uploaded as a PDF report with an optional demo video before the deadline.</li>
-                        <li>All team members must complete student profile verification prior to registration.</li>
-                      </ul>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {activeTab === "timeline" && (
-                <div className="space-y-10">
-                  <h3 className="font-heading text-xl font-extrabold text-neutral-200">Competition Roadmap</h3>
-                  <div className="relative space-y-8">
-                    <div className="absolute left-4 top-2 bottom-2 w-px bg-neutral-800" />
-                    
-                    <div className="relative flex items-start gap-6 pl-12">
-                      <div className="absolute left-0 w-8 h-8 rounded-full border border-primary/50 bg-background flex items-center justify-center text-primary z-10">
-                        <div className="w-2.5 h-2.5 rounded-full bg-primary" />
-                      </div>
-                      <div>
-                        <span className="font-mono text-xs text-primary font-bold uppercase">Phase 01</span>
-                        <h4 className="font-heading text-lg font-bold text-neutral-200 mt-0.5">Registration & Roster</h4>
-                        <p className="text-neutral-500 text-xs sm:text-sm mt-1">Submit your team project report PDF and optional demo video.</p>
-                      </div>
-                    </div>
-
-                    <div className="relative flex items-start gap-6 pl-12">
-                      <div className="absolute left-0 w-8 h-8 rounded-full border border-neutral-800 bg-background flex items-center justify-center text-neutral-600 z-10">
-                        <div className="w-2.5 h-2.5 rounded-full bg-neutral-700" />
-                      </div>
-                      <div>
-                        <span className="font-mono text-xs text-neutral-500 font-bold uppercase">Phase 02</span>
-                        <h4 className="font-heading text-lg font-bold text-neutral-200 mt-0.5">Abstract Screening</h4>
-                        <p className="text-neutral-500 text-xs sm:text-sm mt-1">Jury screens abstracts to select finalists for offline showcases.</p>
-                      </div>
-                    </div>
-
-                    <div className="relative flex items-start gap-6 pl-12">
-                      <div className="absolute left-0 w-8 h-8 rounded-full border border-neutral-800 bg-background flex items-center justify-center text-neutral-600 z-10">
-                        <div className="w-2.5 h-2.5 rounded-full bg-neutral-700" />
-                      </div>
-                      <div>
-                        <span className="font-mono text-xs text-neutral-500 font-bold uppercase">Phase 03</span>
-                        <h4 className="font-heading text-lg font-bold text-neutral-200 mt-0.5">Final Showcase & Demo</h4>
-                        <p className="text-neutral-500 text-xs sm:text-sm mt-1">Live presentation and prototyping demo rounds at SMUCT Campus.</p>
-                      </div>
-                    </div>
+                  <div className="space-y-2">
+                    <h5 className="font-sans text-xs font-bold uppercase tracking-widest text-[#4B5563] dark:text-neutral-400">Runner Up</h5>
+                    <div className="font-heading text-xl font-black text-[#111827] dark:text-neutral-100 mt-1">{competition.runnerUpPrize}</div>
                   </div>
+                  <p className="text-sm text-[#4B5563] dark:text-neutral-400 leading-normal font-sans">Certificate + Goodies</p>
                 </div>
-              )}
 
-              {activeTab === "prizes" && (
-                <div className="space-y-6">
-                  <h3 className="font-heading text-xl font-extrabold text-neutral-200">Reward Pool Split</h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 pt-2">
-                    <div className="bg-neutral-950 border border-neutral-850 p-6 rounded-2xl border-t-4 border-t-gold/50 flex flex-col items-center text-center space-y-4 hover:-translate-y-1 transition-transform duration-normal">
-                      <Trophy className="h-10 w-10 text-gold" />
-                      <div>
-                        <h5 className="font-sans text-sm font-bold uppercase tracking-widest text-neutral-500">Champion</h5>
-                        <div className="font-mono text-xl font-black text-neutral-100 mt-1">{competition.championPrize}</div>
-                      </div>
-                      <p className="text-sm text-neutral-500 leading-normal">Certificate + Team Delegate Kit</p>
-                    </div>
-
-                    <div className="bg-neutral-950 border border-neutral-850 p-6 rounded-2xl border-t-4 border-t-silver/50 flex flex-col items-center text-center space-y-4 hover:-translate-y-1 transition-transform duration-normal">
-                      <Trophy className="h-10 w-10 text-silver" />
-                      <div>
-                        <h5 className="font-sans text-sm font-bold uppercase tracking-widest text-neutral-500">Runner Up</h5>
-                        <div className="font-mono text-xl font-black text-neutral-100 mt-1">{competition.runnerUpPrize}</div>
-                      </div>
-                      <p className="text-sm text-neutral-500 leading-normal">Certificate + Team Vouchers</p>
-                    </div>
-
-                    <div className="bg-neutral-950 border border-neutral-850 p-6 rounded-2xl border-t-4 border-t-bronze/50 flex flex-col items-center text-center space-y-4 hover:-translate-y-1 transition-transform duration-normal">
-                      <Trophy className="h-10 w-10 text-bronze" />
-                      <div>
-                        <h5 className="font-sans text-sm font-bold uppercase tracking-widest text-neutral-500">2nd Runner Up</h5>
-                        <div className="font-mono text-xl font-black text-neutral-100 mt-1">{competition.secondRunnerUp}</div>
-                      </div>
-                      <p className="text-sm text-neutral-500 leading-normal">Certificate + Tech Perks</p>
-                    </div>
+                {/* 2nd Runner Up */}
+                <div className="bg-white/60 dark:bg-[#12141a]/60 backdrop-blur-xl border border-neutral-200/80 dark:border-neutral-800/80 p-6 rounded-3xl flex flex-col justify-between items-center text-center space-y-5 hover:-translate-y-1.5 shadow-[0_10px_30px_rgba(139,92,246,0.06),0_2px_8px_rgba(0,0,0,0.05)] hover:shadow-[0_20px_50px_rgba(139,92,246,0.12)] hover:border-[#8B5CF6]/35 transition-all duration-300 group/runner2 relative overflow-hidden">
+                  <div className="absolute inset-0 bg-gradient-to-b from-[#CD7F32]/5 to-transparent opacity-0 group-hover/runner2:opacity-100 transition-opacity duration-300 pointer-events-none" />
+                  <div className="w-12 h-12 rounded-xl bg-[#CD7F32]/10 border border-[#CD7F32]/25 flex items-center justify-center text-[#CD7F32] group-hover/runner2:scale-110 group-hover/runner2:rotate-6 transition-transform duration-300">
+                    <Trophy className="h-6 w-6 drop-shadow-[0_0_8px_rgba(205,127,50,0.3)]" />
                   </div>
+                  <div className="space-y-2">
+                    <h5 className="font-sans text-xs font-bold uppercase tracking-widest text-[#4B5563] dark:text-neutral-400">2nd Runner Up</h5>
+                    <div className="font-heading text-xl font-black text-[#111827] dark:text-neutral-100 mt-1">{competition.secondRunnerUp}</div>
+                  </div>
+                  <p className="text-sm text-[#4B5563] dark:text-neutral-400 leading-normal font-sans">Certificate + Goodies</p>
                 </div>
-              )}
-            </div>
+              </div>
+            </motion.div>
+
+            {/* Overview Section */}
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: "-100px" }}
+              transition={{ duration: 0.5, ease: "easeOut", delay: 0.1 }}
+              className="space-y-6"
+            >
+              <div className="flex items-center gap-3">
+                <Users className="h-6 w-6 text-[#22D3EE]" />
+                <h3 className="font-heading text-2xl font-black text-[#111827] dark:text-neutral-100 tracking-tight">Exhibition Overview</h3>
+              </div>
+              <p className="text-[#4B5563] dark:text-neutral-400 text-sm sm:text-base leading-relaxed font-sans">{competition.description}</p>
+              <div className="space-y-4 mt-6 border-t border-neutral-200 dark:border-neutral-800/60 pt-6 font-sans">
+                <h4 className="font-heading text-sm font-bold text-[#8B5CF6] uppercase font-sans">Key Highlights</h4>
+                <ul className="space-y-4">
+                  <li className="flex items-start gap-4">
+                    <CheckCircle className="h-5 w-5 text-[#10B981] shrink-0 mt-0.5" />
+                    <div>
+                      <strong className="text-[#111827] dark:text-neutral-200 block text-sm font-sans">Cloud Credits Eligible</strong>
+                      <span className="text-[#4B5563] dark:text-neutral-400 text-xs sm:text-sm font-sans">Teams successfully passing Phase 1 receive credits for system deployment and staging.</span>
+                    </div>
+                  </li>
+                  <li className="flex items-start gap-4">
+                    <CheckCircle className="h-5 w-5 text-[#10B981] shrink-0 mt-0.5" />
+                    <div>
+                      <strong className="text-[#111827] dark:text-neutral-200 block text-sm font-sans">Mentorship Guidance</strong>
+                      <span className="text-[#4B5563] dark:text-neutral-400 text-xs sm:text-sm font-sans">Interact directly with department advisors and alumni software engineering experts.</span>
+                    </div>
+                  </li>
+                </ul>
+              </div>
+            </motion.div>
           </div>
 
           {/* Sidebar Widgets (Right Column - 30% Sticky) */}
-          <aside className="w-full lg:w-80 shrink-0 space-y-6">
-            <div className="bg-neutral-900/50 backdrop-blur-xl border border-neutral-850 rounded-2xl p-6 space-y-6">
-              <h3 className="font-heading text-lg font-bold text-neutral-200 border-b border-neutral-850 pb-4">
+          <aside className="w-full lg:w-80 shrink-0 space-y-6 relative z-10">
+            {/* Ambient sidebar glow */}
+            <div className="absolute -top-10 -right-10 w-48 h-48 bg-[#8B5CF6]/5 rounded-full blur-[60px] pointer-events-none" />
+
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.5, ease: "easeOut", delay: 0.2 }}
+              className="bg-white/60 dark:bg-[#12141a]/60 backdrop-blur-xl border border-neutral-200/80 dark:border-primary/15 rounded-3xl p-6 space-y-6 shadow-[0_10px_30px_rgba(139,92,246,0.06),0_2px_8px_rgba(0,0,0,0.05)] hover:shadow-[0_20px_50px_rgba(139,92,246,0.12)] hover:border-[#8B5CF6]/35 transition-all duration-300 group"
+            >
+              <h3 className="font-heading text-lg font-bold text-[#111827] dark:text-neutral-200 border-b border-neutral-200 dark:border-neutral-800 pb-4">
                 Competition Brief
               </h3>
               
               <div className="space-y-4">
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-lg bg-neutral-950 border border-neutral-850 flex items-center justify-center">
-                    <CreditCard className="h-4 w-4 text-primary" />
+                <div className="flex items-center gap-4 animate-fade-in" style={{ animationDelay: '0.1s' }}>
+                  <div className="w-10 h-10 rounded-xl bg-neutral-100 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-850 flex items-center justify-center font-sans group-hover:scale-105 transition-transform duration-300">
+                    <CreditCard className="h-4 w-4 text-[#22D3EE]" />
                   </div>
                   <div>
-                    <div className="text-sm uppercase tracking-widest text-neutral-500 font-mono font-bold">Entry Fee</div>
-                    <div className="text-neutral-200 font-semibold text-sm">{competition.fee}</div>
+                    <div className="text-xs uppercase tracking-widest text-neutral-400 font-mono font-bold">Entry Fee</div>
+                    <div className="text-[#111827] dark:text-neutral-200 font-semibold text-sm font-sans">{competition.fee}</div>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-lg bg-neutral-950 border border-neutral-850 flex items-center justify-center">
-                    <Users className="h-4 w-4 text-secondary" />
+                <div className="flex items-center gap-4 font-sans animate-fade-in" style={{ animationDelay: '0.2s' }}>
+                  <div className="w-10 h-10 rounded-xl bg-neutral-100 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-850 flex items-center justify-center group-hover:scale-105 transition-transform duration-300">
+                    <Users className="h-4 w-4 text-[#8B5CF6]" />
                   </div>
                   <div>
-                    <div className="text-sm uppercase tracking-widest text-neutral-500 font-mono font-bold">Team Size</div>
-                    <div className="text-neutral-200 font-semibold text-sm">{competition.teamSize}</div>
+                    <div className="text-xs uppercase tracking-widest text-neutral-400 font-mono font-bold">Team Size</div>
+                    <div className="text-[#111827] dark:text-neutral-200 font-semibold text-sm font-sans">{competition.teamSize}</div>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-lg bg-neutral-950 border border-neutral-850 flex items-center justify-center">
-                    <Shield className="h-4 w-4 text-accent" />
+                <div className="flex items-center gap-4 font-sans animate-fade-in" style={{ animationDelay: '0.3s' }}>
+                  <div className="w-10 h-10 rounded-xl bg-neutral-100 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-850 flex items-center justify-center group-hover:scale-105 transition-transform duration-300">
+                    <Shield className="h-4 w-4 text-[#22D3EE]" />
                   </div>
                   <div>
-                    <div className="text-sm uppercase tracking-widest text-neutral-500 font-mono font-bold">Eligibility</div>
-                    <div className="text-neutral-200 font-semibold text-sm capitalize">{competition.eligibility} Only</div>
+                    <div className="text-xs uppercase tracking-widest text-neutral-400 font-mono font-bold">Eligibility</div>
+                    <div className="text-[#111827] dark:text-neutral-200 font-semibold text-sm capitalize font-sans">
+                      {competition.eligibility?.toLowerCase() === "both" ? "INTER-UNI" : `${competition.eligibility} Only`}
+                    </div>
                   </div>
                 </div>
               </div>
 
               <Link href={`/competitions/${compId}/register`}>
-                <Button className="w-full bg-primary hover:bg-primary/95 text-white font-sans font-bold text-xs uppercase tracking-widest py-3 h-auto rounded-lg">
-                  Apply to Participate
+                <Button className="w-full relative overflow-hidden bg-gradient-to-r from-[#8B5CF6] to-[#A855F7] hover:from-[#9D66FF] hover:to-[#B56BFF] text-white font-sans font-bold text-sm uppercase tracking-widest py-3.5 h-auto rounded-xl hover:shadow-[0_0_30px_rgba(139,92,246,0.55)] hover:-translate-y-0.5 active:translate-y-0 transition-all duration-300 cursor-pointer group">
+                  <span className="relative z-10">Apply to Participate</span>
+                  <div className="absolute inset-0 w-[50%] h-full bg-white/25 skew-x-[-25deg] -translate-x-[150%] group-hover:translate-x-[250%] transition-transform duration-1000 ease-out" />
                 </Button>
               </Link>
-            </div>
+            </motion.div>
 
             {/* Support Helper Widget */}
-            <div className="bg-neutral-900/50 backdrop-blur-xl border border-neutral-850 rounded-2xl p-5 flex items-center gap-4 hover:bg-neutral-900/80 transition-colors cursor-pointer">
-              <HelpCircle className="h-5 w-5 text-primary" />
+            <motion.div
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, ease: "easeOut", delay: 0.3 }}
+              className="bg-white/60 dark:bg-neutral-900/50 backdrop-blur-xl border border-neutral-200/80 dark:border-neutral-850 rounded-3xl p-5 flex items-center gap-4 hover:bg-[#FAF8FF] dark:hover:bg-neutral-900/80 hover:border-[#8B5CF6]/35 dark:hover:border-[#8B5CF6]/30 transition-all duration-300 cursor-pointer shadow-[0_10px_30px_rgba(139,92,246,0.06),0_2px_8px_rgba(0,0,0,0.05)] hover:shadow-[0_20px_50px_rgba(139,92,246,0.12)]"
+            >
+              <HelpCircle className="h-5 w-5 text-[#8B5CF6]" />
               <div>
-                <h4 className="font-sans text-xs font-bold text-neutral-200">Need Assistance?</h4>
-                <p className="text-sm text-neutral-500">Contact our coordination desk</p>
+                <h4 className="font-sans text-xs font-bold text-[#111827] dark:text-neutral-200">Need Assistance?</h4>
+                <p className="text-sm text-[#4B5563] dark:text-neutral-500">Contact our coordination desk</p>
               </div>
-            </div>
+            </motion.div>
           </aside>
         </div>
       </main>

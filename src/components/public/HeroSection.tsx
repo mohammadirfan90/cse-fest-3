@@ -2,8 +2,8 @@
 
 import * as React from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { motion } from "framer-motion";
-import useSWR from "swr";
 import { Button } from "@/components/ui/button";
 
 // â”€â”€â”€ Countdown Hook â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -406,9 +406,7 @@ const FLOATING_ICONS: FloatingIconItem[] = [
 export function HeroSection() {
   const FESTIVAL_DATE = React.useMemo(() => new Date("2026-07-18T09:00:00+06:00"), []);
   const timeLeft = useCountdown(FESTIVAL_DATE);
-  const [activeTrack, setActiveTrack] = React.useState<string>("software");
   const [mounted, setMounted] = React.useState(false);
-  const [isPaused, setIsPaused] = React.useState(false);
 
   React.useEffect(() => {
     const timer = setTimeout(() => {
@@ -417,53 +415,10 @@ export function HeroSection() {
     return () => clearTimeout(timer);
   }, []);
 
-  // Fetch active published competitions dynamically
-  const { data: dbData } = useSWR<{ success: boolean; data: DbCompetition[] }>(
-    mounted ? "/api/public/competitions" : null,
-    fetcher
-  );
-
-  const tracks = React.useMemo(() => {
-    if (dbData?.success && Array.isArray(dbData.data)) {
-      const heroCompetitions = dbData.data.filter((c: DbCompetition) => c.showInHero || c.show_in_hero);
-      if (heroCompetitions.length > 0) {
-        return heroCompetitions.map(mapDbCompToTrack);
-      }
-    }
-    return STATIC_FALLBACK_TRACKS;
-  }, [dbData]);
-
-  // Sync active track index when items load/change
-  React.useEffect(() => {
-    if (tracks.length > 0) {
-      if (!tracks.some((t) => t.id === activeTrack)) {
-        setTimeout(() => {
-          setActiveTrack(tracks[0].id);
-        }, 0);
-      }
-    }
-  }, [tracks, activeTrack]);
-
-  // Automated carousel rotation with pause on hover
-  React.useEffect(() => {
-    if (tracks.length === 0 || isPaused) return;
-
-    const interval = setInterval(() => {
-      setActiveTrack((prev) => {
-        const currentIndex = tracks.findIndex((t) => t.id === prev);
-        if (currentIndex === -1) return tracks[0].id;
-        const nextIndex = (currentIndex + 1) % tracks.length;
-        return tracks[nextIndex].id;
-      });
-    }, 4000);
-
-    return () => clearInterval(interval);
-  }, [tracks, isPaused]);
-
   const padZero = (num: number) => String(num).padStart(2, "0");
 
   return (
-    <section className="relative z-10 max-w-[1280px] mx-auto px-4 md:px-16 pt-4 pb-12 md:pt-8 md:pb-20 grid grid-cols-1 md:grid-cols-2 gap-16 items-center min-h-[500px] md:min-h-[600px]">
+    <section className="relative z-10 max-w-[1280px] mx-auto px-4 md:px-16 pt-4 pb-12 md:pt-8 md:pb-20 flex flex-col items-center justify-center gap-10 min-h-[500px] md:min-h-[600px] text-center">
       {/* Background Floating Tech & Competition Particles */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
         {FLOATING_ICONS.map((item, idx) => {
@@ -491,332 +446,69 @@ export function HeroSection() {
         })}
       </div>
 
-      {/* Left Column: Heading & Countdown */}
-      <div className="space-y-8 relative z-10">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-secondary/10 border border-secondary/20 text-secondary font-sans text-xs font-semibold uppercase tracking-wider animate-fadeIn">
-          <span className="w-2 h-2 rounded-full bg-secondary animate-pulse" />
-          Registrations Open
-        </div>
+      {/* Banner Landscape (Centered) */}
+      <div className="relative w-full max-w-4xl aspect-[1200/630] rounded-2xl overflow-hidden border border-primary/20 bg-neutral-950/40 backdrop-blur-xl shadow-level-4 group transition-all duration-500 hover:border-primary/45 hover:shadow-[0_0_35px_rgba(146,80,255,0.25)] z-10 animate-fade-in">
+        {/* Ambient aura background */}
+        <div className="absolute inset-0 bg-linear-to-tr from-primary/5 via-transparent to-accent/5 opacity-0 group-hover:opacity-100 transition-opacity duration-complex pointer-events-none" />
         
-        <div className="relative select-none z-10 py-2">
-          <h1 className="font-heading font-black text-6xl sm:text-7xl md:text-[80px] lg:text-[100px] leading-[0.85] tracking-tighter text-neutral-50 relative select-none flex flex-col items-start gap-1">
-            <span className="block animate-slide-down" style={{ animationDelay: "0.1s" }}>
-              CSE
-            </span>
-            <span className="flex items-baseline flex-wrap gap-x-4 md:gap-x-6 animate-slide-down" style={{ animationDelay: "0.2s" }}>
-              <span className="text-transparent bg-clip-text bg-linear-to-br from-neutral-50 via-neutral-200 to-neutral-500">
-                FEST
-              </span>
-              <motion.span 
-                whileHover={{ 
-                  scale: 1.15,
-                  rotate: -4,
-                  textShadow: "0 0 35px var(--accent-color)"
-                }}
-                whileTap={{ scale: 0.95 }}
-                className="inline-block text-accent cursor-pointer select-none text-7xl sm:text-8xl md:text-[100px] lg:text-[120px] font-black transition-colors duration-normal"
-                style={{ textShadow: "0 0 10px rgba(34,211,238,0.25)" }}
-              >
-                26
-              </motion.span>
-            </span>
-          </h1>
+        {/* Noise texture overlay */}
+        <div className="absolute inset-0 bg-noise opacity-[0.03] pointer-events-none" />
+
+        {/* Dynamic scan line animation */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="w-full h-[2px] bg-primary/20 animate-scan-line opacity-30 shadow-[0_0_10px_rgba(146,80,255,0.6)]" />
         </div>
 
-        {/* Localized Telemetry info (DHAKA, 18 JULY, SMUCT) */}
-        <div className="flex items-center justify-start gap-4 md:gap-8 animate-fade-up text-left" style={{ animationDelay: "0.4s" }}>
-          {/* <div className="group cursor-default">
-            <p className="text-sm text-neutral-500 tracking-[0.2em] font-mono mb-1 group-hover:text-accent transition-colors">LOCATION</p>
-            <p className="text-base font-bold text-neutral-100 tracking-wide font-heading">DHAKA</p>
-          </div> */}
-          <div className="h-8 w-px bg-linear-to-b from-transparent via-neutral-800 to-transparent" />
-          <div className="group cursor-default">
-            <p className="text-sm text-neutral-500 tracking-[0.2em] font-mono mb-1 group-hover:text-accent transition-colors">DATE</p>
-            <p className="text-base font-bold text-neutral-100 tracking-wide font-heading">18 JULY</p>
-          </div>
-          <div className="h-8 w-px bg-linear-to-b from-transparent via-neutral-800 to-transparent" />
-          <div className="group cursor-default">
-            <p className="text-sm text-neutral-500 tracking-[0.2em] font-mono mb-1 group-hover:text-accent transition-colors">VENUE</p>
-            <p className="text-base font-bold text-neutral-100 tracking-wide font-heading">Permanent Campus, Shanto-Mariam Univevsity of Creative Technology</p>
-          </div>
-        </div>
+        {/* Banner Image */}
+        <Image
+          src="/webbanner.png"
+          alt="SMUCT CSE Fest 2026 Banner"
+          fill
+          priority
+          unoptimized
+          className="object-cover transition-transform duration-700 group-hover:scale-[1.015]"
+          sizes="(max-width: 768px) 100vw, 800px"
+        />
+      </div>
 
+      {/* Countdown & Register Button Container */}
+      <div className="flex flex-col items-center gap-6 w-full max-w-md z-10">
         {/* Dynamic Countdown */}
         {mounted ? (
-          <div className="relative max-w-md p-6 bg-glass border border-glass rounded-2xl shadow-level-4 group animate-fade-up" style={{ animationDelay: "0.5s" }}>
+          <div className="relative w-full p-6 bg-glass border border-glass rounded-2xl shadow-level-4 group animate-fade-up">
             {/* Rotating coordinates ring inside card background */}
             <div className="absolute inset-0 border border-accent/10 rounded-2xl pointer-events-none animate-pulse" />
             <div className="absolute -inset-2 border border-dashed border-primary/10 rounded-[20px] pointer-events-none animate-[spin_60s_linear_infinite]" />
             
             <div className="grid grid-cols-4 gap-3 font-mono select-none relative z-10">
               <div className="bg-neutral-950/40 border border-neutral-850/80 p-3 rounded-xl text-center backdrop-blur-md group-hover:border-primary/45 transition-colors duration-normal">
-                <div className="text-2xl font-black text-primary tracking-tight">{padZero(timeLeft.days)}</div>
-                <div className="text-sm uppercase tracking-widest text-neutral-500 font-sans font-bold mt-1">Days</div>
+                <div className="text-2xl font-black text-neutral-100 tracking-tight">{padZero(timeLeft.days)}</div>
+                <div className="text-sm uppercase tracking-widest text-neutral-50 font-sans font-bold mt-1">Days</div>
               </div>
               <div className="bg-neutral-950/40 border border-neutral-850/80 p-3 rounded-xl text-center backdrop-blur-md group-hover:border-primary/45 transition-colors duration-normal">
-                <div className="text-2xl font-black text-primary tracking-tight">{padZero(timeLeft.hours)}</div>
-                <div className="text-sm uppercase tracking-widest text-neutral-500 font-sans font-bold mt-1">Hrs</div>
+                <div className="text-2xl font-black text-neutral-100 tracking-tight">{padZero(timeLeft.hours)}</div>
+                <div className="text-sm uppercase tracking-widest text-neutral-50 font-sans font-bold mt-1">Hrs</div>
               </div>
               <div className="bg-neutral-950/40 border border-neutral-850/80 p-3 rounded-xl text-center backdrop-blur-md group-hover:border-primary/45 transition-colors duration-normal">
-                <div className="text-2xl font-black text-primary tracking-tight">{padZero(timeLeft.minutes)}</div>
-                <div className="text-sm uppercase tracking-widest text-neutral-500 font-sans font-bold mt-1">Mins</div>
+                <div className="text-2xl font-black text-neutral-100 tracking-tight">{padZero(timeLeft.minutes)}</div>
+                <div className="text-sm uppercase tracking-widest text-neutral-50 font-sans font-bold mt-1">Mins</div>
               </div>
               <div className="bg-neutral-950/40 border border-neutral-850/80 p-3 rounded-xl text-center backdrop-blur-md group-hover:border-primary/45 transition-colors duration-normal">
-                <div className="text-2xl font-black text-primary tracking-tight">{padZero(timeLeft.seconds)}</div>
-                <div className="text-sm uppercase tracking-widest text-neutral-500 font-sans font-bold mt-1">Secs</div>
+                <div className="text-2xl font-black text-neutral-100 tracking-tight">{padZero(timeLeft.seconds)}</div>
+                <div className="text-sm uppercase tracking-widest text-neutral-50 font-sans font-bold mt-1">Secs</div>
               </div>
             </div>
           </div>
         ) : (
-          <div className="h-28 max-w-md bg-neutral-900/30 rounded-2xl animate-pulse" />
+          <div className="h-28 w-full bg-neutral-900/30 rounded-2xl animate-pulse" />
         )}
 
-        <div className="flex flex-wrap gap-4 pt-4 animate-fade-up" style={{ animationDelay: "0.6s" }}>
-          <Link href="/competitions">
-            <Button className="bg-primary hover:bg-primary/95 text-white font-heading text-sm font-bold px-8 py-4 h-auto rounded-xl hover:shadow-[0_0_20px_rgba(99,102,241,0.4)] transition-all active:scale-[0.98]">
+        <div className="flex justify-center w-full animate-fade-up" style={{ animationDelay: "0.2s" }}>
+          <Link href="/competitions" className="w-full">
+            <Button className="w-full bg-primary hover:bg-primary/95 text-white font-heading text-lg font-bold px-12 py-4 h-auto rounded-md hover:shadow-[0_0_20px_rgba(99,102,241,0.4)] transition-all active:scale-[0.98]">
               Register Now
             </Button>
           </Link>
-          
-        </div>
-      </div>
-
-      {/* Right Column: Cyber Console */}
-      <div 
-        onMouseEnter={() => setIsPaused(true)}
-        onMouseLeave={() => setIsPaused(false)}
-        className="relative bg-glass border border-primary/20 hover:border-accent/40 rounded-2xl overflow-hidden shadow-level-4 transition-all duration-normal group z-10"
-      >
-        {/* Ambient aura background */}
-        <div className="absolute inset-0 bg-linear-to-tr from-primary/5 via-transparent to-accent/5 opacity-0 group-hover:opacity-100 transition-opacity duration-complex pointer-events-none" />
-        
-        {/* Noise texture */}
-        <div className="absolute inset-0 bg-noise opacity-[0.02] pointer-events-none" />
-
-        {/* Dynamic scan line */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="w-full h-[2px] bg-accent/30 animate-scan-line opacity-30 shadow-[0_0_8px_rgba(34,211,238,0.8)]" />
-        </div>
-
-        {/* Widget Contents */}
-        <div className="p-6 font-mono text-sm">
-          {(() => {
-            const currentTrack = tracks.find((t) => t.id === activeTrack) || tracks[0] || STATIC_FALLBACK_TRACKS[0];
-            return (
-              <div className="flex flex-col sm:flex-row items-center justify-between gap-6 h-full font-mono text-sm">
-                {/* Left Column: Interactive SVG Dial */}
-                <div className="relative w-40 h-40 md:w-44 md:h-44 flex items-center justify-center shrink-0 z-10">
-                  <svg viewBox="0 0 130 130" className="w-full h-full">
-                    {/* Rotating Outer Coordinates ring */}
-                    <circle
-                      cx="65"
-                      cy="65"
-                      r="48"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeDasharray="4 4"
-                      className="stroke-neutral-800/60 stroke-1 animate-[spin_40s_linear_infinite] origin-center"
-                    />
-
-                    {/* Rotating Inner ring */}
-                    <circle
-                      cx="65"
-                      cy="65"
-                      r="32"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeDasharray="6 3"
-                      className="stroke-neutral-800 stroke-1 animate-[spin_20s_linear_infinite_reverse] origin-center"
-                    />
-
-                    {/* Pulsing Core */}
-                    <circle
-                      cx="65"
-                      cy="65"
-                      r="8"
-                      className="fill-primary/10 stroke-primary/30 stroke-1"
-                    />
-                    <circle
-                      cx="65"
-                      cy="65"
-                      r="4"
-                      className="fill-primary animate-pulse"
-                    />
-
-                    {/* Dynamic lines and nodes for all competitions */}
-                    {tracks.map((track, idx) => {
-                      const total = tracks.length;
-                      const angle = (idx * 2 * Math.PI) / total - Math.PI / 2;
-                      const nodeR = 38;
-                      const labelR = 47;
-                      const nodeX = 65 + nodeR * Math.cos(angle);
-                      const nodeY = 65 + nodeR * Math.sin(angle);
-                      const labelX = 65 + labelR * Math.cos(angle);
-                      const labelY = 65 + labelR * Math.sin(angle);
-
-                      const cosVal = Math.cos(angle);
-                      let textAnchor: "inherit" | "end" | "middle" | "start" | undefined = "middle";
-                      if (cosVal > 0.35) {
-                        textAnchor = "start";
-                      } else if (cosVal < -0.35) {
-                        textAnchor = "end";
-                      }
-
-                      // Slight vertical offset for top/bottom text to not overlap node
-                      const sinVal = Math.sin(angle);
-                      let yOffset = 0;
-                      if (Math.abs(cosVal) <= 0.35) {
-                        yOffset = sinVal > 0 ? 8 : -4;
-                      } else {
-                        yOffset = 2.5; // baseline correction for side text
-                      }
-
-                      return (
-                        <g key={track.id}>
-                          {/* Radial Line */}
-                          <line
-                            x1="65"
-                            y1="65"
-                            x2={nodeX}
-                            y2={nodeY}
-                            className={`transition-all duration-300 ${
-                              activeTrack === track.id
-                                ? "stroke-primary stroke-2"
-                                : "stroke-neutral-800/50 stroke-1"
-                            }`}
-                          />
-                          
-                          {/* Node Selector */}
-                          <g
-                            className="cursor-pointer group"
-                            onClick={() => setActiveTrack(track.id)}
-                          >
-                            <circle
-                              cx={nodeX}
-                              cy={nodeY}
-                              r="5.5"
-                              className={`transition-all duration-300 ${
-                                activeTrack === track.id
-                                  ? "fill-primary stroke-primary/50 stroke-4"
-                                  : "fill-neutral-900 stroke-neutral-700 hover:stroke-neutral-500 hover:fill-neutral-850"
-                              }`}
-                            />
-                            {activeTrack === track.id && (
-                              <circle
-                                cx={nodeX}
-                                cy={nodeY}
-                                r="9"
-                                fill="none"
-                                className="stroke-primary/40 stroke-[1.5] animate-ping"
-                              />
-                            )}
-                            {/* Radial Label */}
-                            <text
-                              x={labelX}
-                              y={labelY + yOffset}
-                              textAnchor={textAnchor}
-                              className={`text-[5px] font-mono font-bold transition-all duration-200 select-none ${
-                                activeTrack === track.id
-                                  ? "fill-primary scale-110"
-                                  : "fill-neutral-500 group-hover:fill-neutral-300"
-                              }`}
-                            >
-                              {track.shortName}
-                            </text>
-                          </g>
-                        </g>
-                      );
-                    })}
-                  </svg>
-                </div>
-
-                {/* Right Column: Track Information Dashboard */}
-                <div className="flex-1 w-full space-y-4 font-mono select-text z-10">
-                  <div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm uppercase font-bold text-neutral-500 tracking-wider">
-                        [SYS_COCKPIT: {currentTrack.category}]
-                      </span>
-                      <span className="text-sm text-neutral-500 font-bold bg-neutral-950 px-2 py-0.5 rounded border border-neutral-850">
-                        {currentTrack.shortName.toUpperCase()}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2 mt-1">
-                      {/* Dynamic Logo Icon for Active Track */}
-                      <LogoIcon 
-                        name={currentTrack.name} 
-                        className="h-5 w-5 text-accent animate-pulse" 
-                        size={20} 
-                      />
-                      <h3 className="text-base font-black text-neutral-100 font-heading">
-                        {currentTrack.name}
-                      </h3>
-                    </div>
-                    <p className="text-xs text-neutral-400 font-sans mt-2 leading-relaxed">
-                      {currentTrack.description}
-                    </p>
-                  </div>
-
-                  {/* Progress Fill capacity */}
-                  <div className="space-y-1">
-                    <div className="flex justify-between text-sm text-neutral-500 font-bold">
-                      <span>FLOW_CAPACITY_LIMIT</span>
-                      <span className="text-primary">{currentTrack.capacity}% FILLED</span>
-                    </div>
-                    <div className="h-3 w-full bg-neutral-950 rounded border border-neutral-850 overflow-hidden p-[2px] flex gap-[2px]">
-                      {Array.from({ length: 12 }).map((_, i) => {
-                        const filled = i < Math.round((currentTrack.capacity / 100) * 12);
-                        return (
-                          <div
-                            key={i}
-                            className={`h-full flex-1 rounded-[1px] transition-all duration-300 ${
-                              filled
-                                ? "bg-primary shadow-[0_0_4px_rgba(99,102,241,0.6)]"
-                                : "bg-neutral-900/60"
-                            }`}
-                          />
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {/* Telemetry Metrics Footer */}
-                  <div className="grid grid-cols-2 gap-4 pt-3 border-t border-neutral-850/60 text-sm font-sans text-neutral-500">
-                    <div>
-                      <span className="block text-neutral-600 font-bold uppercase tracking-wider">PRIZE POOL</span>
-                      <span className="text-xs font-mono font-bold text-accent">{currentTrack.prize}</span>
-                    </div>
-                    <div>
-                      <span className="block text-neutral-600 font-bold uppercase tracking-wider">TELEMETRY_STATUS</span>
-                      <span className="flex items-center gap-1.5 mt-0.5">
-                        <span
-                          className={`w-1.5 h-1.5 rounded-full ${
-                            currentTrack.status === "ONLINE"
-                              ? "bg-success animate-pulse"
-                              : currentTrack.status === "STANDBY"
-                              ? "bg-warning animate-pulse"
-                              : "bg-error"
-                          }`}
-                        />
-                        <span className="font-mono font-bold text-neutral-300">
-                          {currentTrack.status}
-                        </span>
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Dynamic exploration button linking straight to detail route */}
-                  <div className="pt-2">
-                    <Link href={`/competitions/${currentTrack.id}`}>
-                      <button className="w-full py-1.5 px-3 rounded-lg bg-primary/10 hover:bg-primary border border-primary/30 hover:border-primary/50 text-sm font-bold text-primary hover:text-white transition-all select-none duration-200 cursor-pointer">
-                        EXPLORE RULES & REGISTRATION
-                      </button>
-                    </Link>
-                  </div>
-                </div>
-              </div>
-            );
-          })()}
         </div>
       </div>
     </section>

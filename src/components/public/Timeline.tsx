@@ -31,53 +31,31 @@ export function Timeline() {
   const timelineItems = React.useMemo(() => {
     if (!competitions || competitions.length === 0) return [];
 
-    // Find earliest and latest dates
-    let earliestRegStart = new Date(competitions[0].registrationStart);
-    let earliestRegEnd = new Date(competitions[0].registrationEnd);
-    let earliestSubStart = new Date(competitions[0].submissionStart);
-    let earliestSubEnd = new Date(competitions[0].submissionEnd);
-
-    competitions.forEach((c) => {
-      const rs = new Date(c.registrationStart);
-      const re = new Date(c.registrationEnd);
-      const ss = new Date(c.submissionStart);
-      const se = new Date(c.submissionEnd);
-
-      if (rs < earliestRegStart) earliestRegStart = rs;
-      if (re < earliestRegEnd) earliestRegEnd = re;
-      if (ss < earliestSubStart) earliestSubStart = ss;
-      if (se < earliestSubEnd) earliestSubEnd = se;
-    });
-
-    const formatDate = (date: Date) => {
-      return date.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
-    };
-
     return [
       {
         date: "17 June",
         title: "Registration Launch",
-        description: "Phase 1 free registration and team formation portal opens for all showcases.",
+        description: "",
       },
       {
         date: "3 July",
         title: "Registration Deadline",
-        description: "Initial proposal submission (PDF/Video format) closes for external events.",
+        description: "",
       },
       {
         date: "7 July",
         title: "Onsite Selection & Fee payment",
-        description: "Onsite teams published and fee payment",
+        description: "",
       },
       {
         date: "10 July",
         title: "Finalist Announcement",
-        description: "Official announcement of teams shortlisted for the final showcase.",
+        description: "",
       },
       {
         date: "July 18, 2026",
         title: "Festival Day",
-        description: "Offline showcase demonstrations, programming contests, and presentation sessions.",
+        description: "",
       },
     ];
   }, [competitions]);
@@ -140,36 +118,41 @@ export function Timeline() {
         <h2 className="font-heading text-4xl md:text-5xl font-black text-neutral-100 tracking-tight">
           Festival Roadmap
         </h2>
-        <p className="text-neutral-400 font-sans text-sm max-w-lg mx-auto mt-2.5">
-          Mark your calendars. Follow the key stages from registration to the live showcase.
-        </p>
       </div>
 
       {/* Timeline Layout */}
-      <div className="relative max-w-4xl mx-auto z-10">
-        {/* Central Vertical Connector Line */}
-        <div className="absolute left-4 md:left-1/2 top-4 bottom-4 w-[2px] bg-neutral-800 -translate-x-1/2" />
+      <div className="relative max-w-6xl mx-auto z-10">
+        {/* Central Vertical Connector Line (Mobile) */}
+        <div className="absolute left-4 top-6 bottom-6 w-[2px] bg-neutral-800 -translate-x-1/2 md:hidden" />
 
-        {/* Animated Progress Overlay Line */}
+        {/* Animated Progress Overlay Line (Mobile) */}
         <motion.div
-          className="absolute left-4 md:left-1/2 top-4 bottom-4 w-[2px] bg-linear-to-b from-primary via-secondary to-accent origin-top -translate-x-1/2"
+          className="absolute left-4 top-6 bottom-6 w-[2px] bg-linear-to-b from-primary via-secondary to-accent origin-top -translate-x-1/2 md:hidden"
           initial={{ scaleY: 0 }}
           whileInView={{ scaleY: 1 }}
           viewport={{ once: true, margin: "-100px" }}
           transition={{ duration: 1.5, ease: "easeInOut" }}
         />
 
-        {/* Timeline Items */}
-        <div className="space-y-12">
-          {timelineItems.map((item, idx) => {
-            const isEven = idx % 2 === 0;
+        {/* Central Horizontal Connector Line (Desktop) */}
+        <div className="absolute left-0 right-0 top-4 h-[2px] bg-neutral-800 hidden md:block" />
 
+        {/* Animated Progress Overlay Line (Desktop) */}
+        <motion.div
+          className="absolute left-0 right-0 top-4 h-[2px] bg-linear-to-r from-primary via-secondary to-accent origin-left hidden md:block"
+          initial={{ scaleX: 0 }}
+          whileInView={{ scaleX: 1 }}
+          viewport={{ once: true, margin: "-100px" }}
+          transition={{ duration: 1.5, ease: "easeInOut" }}
+        />
+
+        {/* Timeline Items */}
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-8 md:gap-4 relative z-10">
+          {timelineItems.map((item, idx) => {
             return (
               <motion.div
                 key={idx}
-                className={`relative flex flex-col md:flex-row items-start ${
-                  isEven ? "md:flex-row-reverse" : ""
-                }`}
+                className="relative flex flex-col items-start pl-12 md:pl-0"
                 initial={{ opacity: 0, y: 30 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true, margin: "-60px" }}
@@ -182,7 +165,7 @@ export function Timeline() {
                   }}
                   viewport={{ once: true }}
                   transition={{ duration: 1.5, delay: idx * 0.15 }}
-                  className="absolute left-4 md:left-1/2 w-8 h-8 rounded-full bg-neutral-950 border-2 border-neutral-850 flex items-center justify-center -translate-x-1/2 z-20"
+                  className="absolute left-4 top-2 md:relative md:left-auto md:top-auto md:mx-auto md:mb-6 -translate-x-1/2 md:translate-x-0 w-8 h-8 rounded-full bg-neutral-950 border-2 border-neutral-850 flex items-center justify-center z-20"
                 >
                   <motion.div
                     whileInView={{
@@ -196,12 +179,9 @@ export function Timeline() {
                   </motion.div>
                 </motion.div>
 
-                {/* Left/Right Card Spacer for Grid Alignment */}
-                <div className="hidden md:block md:w-1/2" />
-
-                {/* Card Wrapper (takes up remaining half on desktop, full-width on mobile) */}
-                <div className={`w-full md:w-1/2 pl-12 pr-4 md:px-0 ${isEven ? "md:pl-0 md:pr-10" : "md:pl-10 md:pr-0"}`}>
-                  <div className="bg-glass border border-glass p-6 md:p-8 rounded-2xl hover:border-primary/40 hover:-translate-y-1.5 hover:shadow-level-3 transition-all duration-normal group cursor-pointer relative overflow-hidden">
+                {/* Card Wrapper */}
+                <div className="w-full">
+                  <div className="bg-glass border border-glass p-5 rounded-2xl hover:border-primary/40 hover:-translate-y-1 hover:shadow-level-3 transition-all duration-normal group cursor-pointer relative overflow-hidden h-full flex flex-col justify-between">
                     {/* Hover Glow Accent Corner */}
                     <div className="absolute top-0 right-0 w-16 h-16 bg-gradient-to-br from-primary/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-normal" />
                     
@@ -209,19 +189,23 @@ export function Timeline() {
                     <div className="absolute top-0 left-0 w-2 h-2 border-t border-l border-accent/40 transition-all duration-300 group-hover:w-4 group-hover:h-4" />
                     <div className="absolute bottom-0 right-0 w-2 h-2 border-b border-r border-accent/40 transition-all duration-300 group-hover:w-4 group-hover:h-4" />
 
-                    <div className="flex items-center gap-2 mb-3">
-                      <Calendar className="w-4 h-4 text-accent animate-pulse" />
-                      <span className="font-mono text-xs font-bold text-accent uppercase tracking-wider">
-                        {item.date}
-                      </span>
-                    </div>
+                    <div>
+                      <div className="flex items-center gap-2 mb-3">
+                        <Calendar className="w-4 h-4 text-accent animate-pulse" />
+                        <span className="font-mono text-xs font-bold text-accent uppercase tracking-wider">
+                          {item.date}
+                        </span>
+                      </div>
 
-                    <h3 className="font-heading text-lg font-bold text-neutral-200 group-hover:text-neutral-50 transition-colors mb-2">
-                      {item.title}
-                    </h3>
-                    <p className="text-neutral-400 font-sans text-xs sm:text-sm leading-relaxed font-light">
-                      {item.description}
-                    </p>
+                      <h3 className={`font-heading text-base font-bold text-neutral-200 group-hover:text-neutral-50 transition-colors leading-snug ${item.description ? "mb-2" : ""}`}>
+                        {item.title}
+                      </h3>
+                      {item.description && (
+                        <p className="text-neutral-400 font-sans text-xs leading-relaxed font-light">
+                          {item.description}
+                        </p>
+                      )}
+                    </div>
                   </div>
                 </div>
               </motion.div>

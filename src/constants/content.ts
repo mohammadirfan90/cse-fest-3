@@ -44,20 +44,13 @@ export const TIMELINE_ITEMS = [
 export const HOMEPAGE_FAQS = [
   {
     question: "Who is eligible to join the External Competitions?",
-    answer: "Students currently enrolled in any undergraduate program at a registered university in Bangladesh can participate in the Software Showcase, IoT Showcase, and Idea Showcase.",
+    answer: "Students currently enrolled in any college or university in Bangladesh can participate in the Software Showcase, IoT Showcase, and Idea Showcase.",
   },
   {
-    question: "What is the team size limit for showcases?",
-    answer: "Software Showcase and Idea Showcase allow 1-3 members per team. IoT Showcase supports up to 4 members. Competitive Programming, Datathon, and Capture The Flag support 1-3 members.",
+    question: "Are cross-institution teams allowd?",
+    answer: "Yes, cross-institution teams are allowed.",
   },
-  {
-    question: "How does the manual payment verification work?",
-    answer: "Once selected for Phase 2, team leaders must pay the registration fee via bKash or Nagad and upload the transaction screenshot along with the Transaction ID. Admins verify this proof manually.",
-  },
-  {
-    question: "What are the rules for internal SMUCT participants?",
-    answer: "SMUCT students can join any internal competition (Programming, Datathon, CTF, Robo Soccer, LFR, Esports). Roster validation will verify SMUCT student status during registration.",
-  },
+
 ];
 
 export const CONTACT_DETAILS = {

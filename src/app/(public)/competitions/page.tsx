@@ -80,7 +80,11 @@ function CompetitionsListContent() {
       const matchesSearch =
         comp.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         comp.shortDescription.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesCategory = categoryFilter === "all" || comp.eligibility === categoryFilter;
+      const matchesCategory =
+        categoryFilter === "all" ||
+        (categoryFilter === "external"
+          ? (comp.eligibility === "external" || comp.eligibility === "both")
+          : comp.eligibility === categoryFilter);
       return matchesSearch && matchesCategory;
     });
   }, [competitionsList, searchQuery, categoryFilter]);
@@ -108,19 +112,15 @@ function CompetitionsListContent() {
               Competitions Directory
             </span>
           </div>
-          <h1 className="font-heading text-4xl font-extrabold text-neutral-100 mb-4">Command the Arena.</h1>
-          <p className="text-neutral-400 max-w-2xl font-sans text-sm leading-relaxed">
-            Browse our curated selection of technical challenges, from algorithmic combat to robotic precision. Register
-            your team and secure your place in the CSE Fest 2026 Hall of Fame.
-          </p>
+          <h1 className="font-heading text-4xl font-extrabold text-neutral-100 mb-4">All Segments</h1>
         </header>
 
         {/* Filter Dashboard */}
         <div className="bg-neutral-900/60 backdrop-blur-md border border-neutral-850 p-6 rounded-xl mb-12 flex flex-col md:flex-row gap-6 items-center justify-between">
-          <div className="flex flex-wrap gap-2 items-center">
+          <div className="flex flex-wrap gap-2 items-center text-sm md:text-base">
             <button
               onClick={() => setCategoryFilter("all")}
-              className={`px-5 py-2.5 rounded-lg text-xs font-bold font-sans transition-all ${
+              className={`px-5 py-2.5 rounded-lg text-sm font-bold font-sans transition-all ${
                 categoryFilter === "all"
                   ? "bg-primary text-white shadow-[0_0_10px_rgba(99,102,241,0.3)]"
                   : "bg-neutral-900/40 text-neutral-400 hover:bg-neutral-800/40 border border-neutral-850"
@@ -130,17 +130,17 @@ function CompetitionsListContent() {
             </button>
             <button
               onClick={() => setCategoryFilter("external")}
-              className={`px-5 py-2.5 rounded-lg text-xs font-bold font-sans transition-all ${
+              className={`px-5 py-2.5 rounded-lg text-sm font-bold font-sans transition-all ${
                 categoryFilter === "external"
                   ? "bg-primary text-white shadow-[0_0_10px_rgba(99,102,241,0.3)]"
                   : "bg-neutral-900/40 text-neutral-400 hover:bg-neutral-800/40 border border-neutral-850"
               }`}
             >
-              External Showcases
+              INTER-UNI
             </button>
             <button
               onClick={() => setCategoryFilter("internal")}
-              className={`px-5 py-2.5 rounded-lg text-xs font-bold font-sans transition-all ${
+              className={`px-5 py-2.5 rounded-lg text-sm font-bold font-sans transition-all ${
                 categoryFilter === "internal"
                   ? "bg-primary text-white shadow-[0_0_10px_rgba(99,102,241,0.3)]"
                   : "bg-neutral-900/40 text-neutral-400 hover:bg-neutral-800/40 border border-neutral-850"
@@ -225,18 +225,15 @@ function CompetitionsListContent() {
                             {comp.name}
                           </h3>
                           <Badge variant="accent" className="text-sm font-mono shrink-0 uppercase">
-                            {comp.eligibility}
+                            {comp.eligibility?.toLowerCase() === "both" || comp.eligibility?.toLowerCase() === "external" ? "INTER-UNI" : comp.eligibility}
                           </Badge>
                         </div>
-                        <p className="text-neutral-400 text-xs sm:text-sm mb-6 line-clamp-3 leading-relaxed font-sans">
-                          {comp.shortDescription}
-                        </p>
                       </Link>
 
                       <div className="mt-auto space-y-4">
                         <Link href={`/competitions/${comp.id}`} className="flex justify-between items-center py-3 border-y border-neutral-850 block hover:text-neutral-200 transition-colors">
                           <span className="text-sm font-bold text-neutral-500 uppercase font-sans">Prize Pool</span>
-                          <span className="font-mono text-secondary text-sm font-extrabold">{comp.prizePool}</span>
+                          <span className="font-mono text-secondary dark:text-white text-sm font-extrabold">{comp.prizePool}</span>
                         </Link>
                         <div className="flex gap-3">
                           {comp.status === "registration_closed" ? (

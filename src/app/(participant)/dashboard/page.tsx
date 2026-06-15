@@ -241,7 +241,7 @@ export default function DashboardPage() {
 
         <div className="flex items-center gap-3">
           <Link href="/competitions">
-            <Button className="bg-primary hover:bg-primary/95 text-white font-sans text-xs px-5 py-2.5 h-auto rounded-xl hover:shadow-[0_0_15px_rgba(99,102,241,0.25)] flex items-center gap-1.5 active:scale-[0.98] transition-all">
+            <Button className="bg-primary hover:bg-primary/95 text-white font-sans text-base px-5 py-2.5 h-auto rounded-md hover:shadow-[0_0_15px_rgba(99,102,241,0.25)] flex items-center gap-1.5 active:scale-[0.98] transition-all">
               <Plus className="h-4 w-4" />
               <span>Register New Team</span>
             </Button>
@@ -249,7 +249,7 @@ export default function DashboardPage() {
           <Button
             variant="ghost"
             onClick={handleSignOut}
-            className="text-xs border border-neutral-850 hover:bg-neutral-900/40 text-neutral-400 hover:text-neutral-200 py-2.5 px-4 h-auto rounded-xl flex items-center gap-1.5 cursor-pointer"
+            className="text-base border border-neutral-850 hover:bg-neutral-900/40 text-neutral-400 hover:text-neutral-200 py-2.5 px-4 h-auto rounded-md flex items-center gap-1.5 cursor-pointer"
           >
             <LogOut className="h-3.5 w-3.5" />
             <span>Sign Out</span>
@@ -549,7 +549,7 @@ export default function DashboardPage() {
                         </div>
                         <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
                           <Link href={`/competitions/${comp.id}/register`} className="grow">
-                            <Button className="w-full bg-primary hover:bg-primary/95 text-white py-2 h-auto rounded-lg text-xs font-bold font-sans">
+                            <Button className="w-full bg-primary hover:bg-primary/95 text-white py-2.5 h-auto rounded-md text-base font-bold font-sans">
                               Register
                             </Button>
                           </Link>
@@ -562,7 +562,7 @@ export default function DashboardPage() {
                             >
                               <Button
                                 variant="secondary"
-                                className="px-3 border border-neutral-800 hover:border-neutral-700 bg-neutral-900/40 text-neutral-400 hover:text-neutral-200 py-2 h-auto rounded-lg text-xs"
+                                className="px-3 border border-neutral-800 hover:border-neutral-700 bg-neutral-900/40 text-neutral-400 hover:text-neutral-200 py-2.5 h-auto rounded-md text-base"
                               >
                                 Rulebook
                               </Button>

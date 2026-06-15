@@ -24,7 +24,6 @@ const NAV_LINKS = [
   { label: "About", href: "/#about" },
   { label: "Competitions", href: "/#competitions" },
   { label: "Timeline", href: "/#timeline" },
-  { label: "Schedule", href: "/schedule" },
   { label: "FAQ", href: "/#faq" },
   { label: "Contact", href: "/#contact" },
 ];
@@ -143,23 +142,22 @@ export default function LoginPage() {
       >
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="flex h-16 items-center justify-between">
-            {/* Logo */}
-            <Link href="/" className="flex items-center group relative h-10 w-[140px]">
+            <Link href="/" className="flex items-center group relative h-12 w-12">
               <Image
-                src="/logo of smuct and cse fest combined light.png"
+                src="/festlogo.png"
                 alt="SMUCT CSE Fest '26 Logo"
-                width={140}
-                height={40}
+                width={48}
+                height={48}
                 priority
-                className="h-10 w-auto object-contain transition-transform duration-150 group-hover:scale-[1.02] dark:hidden"
+                className="h-12 w-12 object-contain transition-transform duration-150 group-hover:scale-[1.02] dark:hidden"
               />
               <Image
-                src="/logo of smuct and cse fest combined (for dark mode).png"
+                src="/festlogo.png"
                 alt="SMUCT CSE Fest '26 Dark Logo"
-                width={140}
-                height={40}
+                width={48}
+                height={48}
                 priority
-                className="h-10 w-auto object-contain transition-transform duration-150 group-hover:scale-[1.02] hidden dark:block"
+                className="h-12 w-12 object-contain transition-transform duration-150 group-hover:scale-[1.02] hidden dark:block"
               />
             </Link>
 
@@ -313,7 +311,7 @@ export default function LoginPage() {
             {/* Big Brand Logo */}
             <div className="transform hover:scale-[1.01] transition-transform duration-500">
               <Image
-                src="/logo of smuct and cse fest combined (for dark mode).png"
+                src="/festlogo.png"
                 alt="CSE Fest 2026 Logo"
                 width={384}
                 height={110}

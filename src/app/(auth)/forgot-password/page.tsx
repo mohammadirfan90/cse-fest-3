@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import * as React from "react";
 import Link from "next/link";
@@ -60,21 +60,20 @@ export default function ForgotPasswordPage() {
       <div className="hidden lg:flex lg:col-span-5 flex-col justify-between p-12 bg-linear-to-br from-neutral-900 via-neutral-950 to-primary/10 border-r border-neutral-900 relative overflow-hidden">
         <div className="absolute inset-0 bg-grid-pattern opacity-10 pointer-events-none" />
 
-        {/* Header */}
-        <Link href="/" className="flex items-center z-10 group relative h-10 w-[140px]">
+        <Link href="/" className="flex items-center z-10 group relative h-12 w-12">
           <Image
-            src="/logo of smuct and cse fest combined light.png"
+            src="/festlogo.png"
             alt="SMUCT CSE Fest '26 Logo"
-            width={140}
-            height={40}
-            className="h-10 w-auto object-contain transition-transform duration-150 group-hover:scale-[1.02] dark:hidden"
+            width={48}
+            height={48}
+            className="h-12 w-12 object-contain transition-transform duration-150 group-hover:scale-[1.02] dark:hidden"
           />
           <Image
-            src="/logo of smuct and cse fest combined (for dark mode).png"
+            src="/festlogo.png"
             alt="SMUCT CSE Fest '26 Dark Logo"
-            width={140}
-            height={40}
-            className="h-10 w-auto object-contain transition-transform duration-150 group-hover:scale-[1.02] hidden dark:block"
+            width={48}
+            height={48}
+            className="h-12 w-12 object-contain transition-transform duration-150 group-hover:scale-[1.02] hidden dark:block"
           />
         </Link>
 

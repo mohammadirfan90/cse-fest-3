@@ -94,7 +94,6 @@ export default function RegisterPage() {
           </Link>
           <div className="hidden md:flex items-center gap-8 text-neutral-400 font-sans text-sm">
             <Link href="/#about" className="hover:text-primary transition-colors">Events</Link>
-            <Link href="/schedule" className="hover:text-primary transition-colors">Schedule</Link>
             <Link href="/#faq" className="hover:text-primary transition-colors">FAQ</Link>
           </div>
           <Link href="/login">
@@ -116,7 +115,7 @@ export default function RegisterPage() {
             {/* Big Brand Logo */}
             <div className="mb-12 transform hover:scale-[1.01] transition-transform duration-500">
               <Image
-                src="/logo of smuct and cse fest combined (for dark mode).png"
+                src="/festlogo.png"
                 alt="CSE Fest 2026 Logo"
                 width={384}
                 height={110}

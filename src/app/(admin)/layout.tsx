@@ -169,20 +169,20 @@ export default function AdminLayout({
         >
           {!isCollapsed ? (
             <>
-              <div className="relative h-[30px] w-[105px] flex items-center">
+              <div className="relative h-10 w-10 flex items-center">
                 <Image
-                  src="/logo of smuct and cse fest combined light.png"
+                  src="/festlogo.png"
                   alt="SMUCT CSE Fest '26 Logo"
-                  width={105}
-                  height={30}
-                  className="h-7.5 w-auto object-contain dark:hidden"
+                  width={40}
+                  height={40}
+                  className="h-10 w-10 object-contain dark:hidden"
                 />
                 <Image
-                  src="/logo of smuct and cse fest combined (for dark mode).png"
+                  src="/festlogo.png"
                   alt="SMUCT CSE Fest '26 Dark Logo"
-                  width={105}
-                  height={30}
-                  className="h-7.5 w-auto object-contain hidden dark:block"
+                  width={40}
+                  height={40}
+                  className="h-10 w-10 object-contain hidden dark:block"
                 />
               </div>
               <span className="font-heading font-bold text-sm tracking-widest text-primary border-l border-sidebar-border pl-3">
@@ -289,20 +289,20 @@ export default function AdminLayout({
         {/* Top Header */}
         <header className="h-16 border-b border-border bg-background flex items-center justify-between px-8 z-30 sticky top-0">
           <div className="lg:hidden flex items-center gap-3">
-            <div className="relative h-[30px] w-[105px]">
+            <div className="relative h-10 w-10">
               <Image
-                src="/logo of smuct and cse fest combined light.png"
+                src="/festlogo.png"
                 alt="SMUCT CSE Fest '26 Logo"
-                width={105}
-                height={30}
-                className="h-7.5 w-auto object-contain dark:hidden"
+                width={40}
+                height={40}
+                className="h-10 w-10 object-contain dark:hidden"
               />
               <Image
-                src="/logo of smuct and cse fest combined (for dark mode).png"
+                src="/festlogo.png"
                 alt="SMUCT CSE Fest '26 Dark Logo"
-                width={105}
-                height={30}
-                className="h-7.5 w-auto object-contain hidden dark:block"
+                width={40}
+                height={40}
+                className="h-10 w-10 object-contain hidden dark:block"
               />
             </div>
             <span className="font-heading font-bold text-xs tracking-widest text-primary border-l border-border pl-3">
@@ -371,20 +371,20 @@ export default function AdminLayout({
           <div className="relative flex flex-col w-64 max-w-xs bg-sidebar border-r border-sidebar-border p-4 space-y-6 animate-fade-in h-full">
             <div className="flex justify-between items-center pb-4 border-b border-sidebar-border">
               <div className="flex items-center gap-3">
-                <div className="relative h-[30px] w-[105px]">
+                <div className="relative h-10 w-10">
                   <Image
-                    src="/logo of smuct and cse fest combined light.png"
+                    src="/festlogo.png"
                     alt="SMUCT CSE Fest '26 Logo"
-                    width={105}
-                    height={30}
-                    className="h-7.5 w-auto object-contain dark:hidden"
+                    width={40}
+                    height={40}
+                    className="h-10 w-10 object-contain dark:hidden"
                   />
                   <Image
-                    src="/logo of smuct and cse fest combined (for dark mode).png"
+                    src="/festlogo.png"
                     alt="SMUCT CSE Fest '26 Dark Logo"
-                    width={105}
-                    height={30}
-                    className="h-7.5 w-auto object-contain hidden dark:block"
+                    width={40}
+                    height={40}
+                    className="h-10 w-10 object-contain hidden dark:block"
                   />
                 </div>
                 <span className="font-heading font-bold text-xs tracking-widest text-primary border-l border-sidebar-border pl-3">

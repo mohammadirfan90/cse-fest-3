@@ -18,7 +18,8 @@ import {
   Send,
   Loader2,
   AlertTriangle,
-  LogOut
+  LogOut,
+  CheckCircle2
 } from "lucide-react";
 
 import { Navbar } from "@/components/shared/Navbar";
@@ -27,8 +28,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { FileDropzone } from "@/components/submissions/FileDropzone";
 import { createClient } from "@/lib/supabase/client";
+import { FileDropzone } from "@/components/submissions/FileDropzone";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -128,6 +129,111 @@ export default function CompetitionRegisterPage() {
   // Robust Retrying States (Avoid duplicates if a step fails midway)
   const [createdTeamId, setCreatedTeamId] = React.useState<string | null>(null);
   const [addedMemberEmails, setAddedMemberEmails] = React.useState<string[]>([]);
+
+  // Validation States
+  const [touchedFields, setTouchedFields] = React.useState<Record<string, boolean>>({});
+  const [submittedOnce, setSubmittedOnce] = React.useState(false);
+  const [submitButtonStatus, setSubmitButtonStatus] = React.useState<"idle" | "loading" | "success" | "failure">("idle");
+
+  const getErrors = React.useCallback(() => {
+    const errors: Record<string, string> = {};
+
+    // 1. Team Name
+    if (!teamName || !teamName.trim()) {
+      errors['teamName'] = "Team Name is required.";
+    } else if (teamName.trim().length < 3) {
+      errors['teamName'] = "Team Name must be at least 3 characters long.";
+    }
+
+    // 2. Leader Details
+    const l = leaderForm;
+    if (!l.full_name || !l.full_name.trim()) errors['leader_full_name'] = "Full Name is required.";
+    if (!l.phone || !l.phone.trim()) {
+      errors['leader_phone'] = "Phone Number is required.";
+    } else if (l.phone.trim().length < 10) {
+      errors['leader_phone'] = "Phone number must be at least 10 digits.";
+    }
+    if (!l.gender) errors['leader_gender'] = "Gender is required.";
+    if (!l.university || !l.university.trim()) errors['leader_university'] = "University is required.";
+    if (!l.department || !l.department.trim()) errors['leader_department'] = "Department is required.";
+    if (!l.semester || !l.semester.trim()) errors['leader_semester'] = "Semester is required.";
+    if (!l.student_id || !l.student_id.trim()) errors['leader_student_id'] = "Student ID is required.";
+    if (!l.tshirt_size) errors['leader_tshirt_size'] = "T-shirt Size is required.";
+
+    // 3. Teammates Details
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    members.forEach((m, idx) => {
+      const prefix = `member_${idx}`;
+      const mNum = idx + 2;
+
+      if (!m.full_name || !m.full_name.trim()) {
+        errors[`${prefix}_full_name`] = `Member ${mNum} Full Name is required.`;
+      }
+
+      if (!m.email || !m.email.trim()) {
+        errors[`${prefix}_email`] = `Member ${mNum} Email is required.`;
+      } else if (!emailRegex.test(m.email.trim())) {
+        errors[`${prefix}_email`] = "Please enter a valid email address.";
+      } else if (m.email.trim().toLowerCase() === l.email.trim().toLowerCase()) {
+        errors[`${prefix}_email`] = `Member ${mNum} has the same email as the Team Leader.`;
+      } else {
+        for (let j = 0; j < idx; j++) {
+          if (m.email.trim().toLowerCase() === members[j].email.trim().toLowerCase()) {
+            errors[`${prefix}_email`] = `Member ${mNum} and Member ${j + 2} cannot have the same email address.`;
+            break;
+          }
+        }
+      }
+
+      if (!m.phone || !m.phone.trim()) {
+        errors[`${prefix}_phone`] = `Member ${mNum} Phone is required.`;
+      } else if (m.phone.trim().length < 10) {
+        errors[`${prefix}_phone`] = `Member ${mNum} phone number must be at least 10 digits.`;
+      }
+
+      if (!m.gender) errors[`${prefix}_gender`] = `Member ${mNum} Gender is required.`;
+      if (!m.university || !m.university.trim()) errors[`${prefix}_university`] = `Member ${mNum} University is required.`;
+      if (!m.department || !m.department.trim()) errors[`${prefix}_department`] = `Member ${mNum} Department is required.`;
+      if (!m.semester || !m.semester.trim()) errors[`${prefix}_semester`] = `Member ${mNum} Semester is required.`;
+      if (!m.student_id || !m.student_id.trim()) errors[`${prefix}_student_id`] = `Member ${mNum} Student ID is required.`;
+      if (!m.tshirt_size) errors[`${prefix}_tshirt_size`] = `Member ${mNum} T-shirt Size is required.`;
+    });
+
+    // 4. Project Details
+    if (competition?.submissionRequired) {
+      if (!projectTitle || !projectTitle.trim()) {
+        errors['projectTitle'] = "Project Title is required.";
+      } else if (projectTitle.trim().length < 5) {
+        errors['projectTitle'] = "Project Title must be at least 5 characters long.";
+      }
+    }
+
+    return errors;
+  }, [teamName, leaderForm, members, competition, projectTitle]);
+
+  const handleBlur = (fieldKey: string) => {
+    setTouchedFields((prev) => ({ ...prev, [fieldKey]: true }));
+  };
+
+  const allErrors = getErrors();
+
+  const isInvalid = (fieldKey: string) => {
+    return !!allErrors[fieldKey] && (touchedFields[fieldKey] || submittedOnce);
+  };
+
+  const getFieldError = (fieldKey: string) => {
+    return isInvalid(fieldKey) ? allErrors[fieldKey] : undefined;
+  };
+
+  const isValidField = (fieldKey: string, value: string) => {
+    return !!value && !allErrors[fieldKey] && (touchedFields[fieldKey] || submittedOnce);
+  };
+
+  // Section completeness states
+  const isTeamDetailsComplete = !allErrors['teamName'];
+  const isLeaderComplete = !Object.keys(allErrors).some(k => k.startsWith('leader_'));
+  const isTeammatesComplete = !Object.keys(allErrors).some(k => k.startsWith('member_'));
+  const isProjectComplete = !Object.keys(allErrors).some(k => k.startsWith('project'));
 
   // Initialize teammate cards based on minMembers requirement
   React.useEffect(() => {
@@ -261,102 +367,68 @@ export default function CompetitionRegisterPage() {
     setLeaderForm((prev) => ({ ...prev, [field]: value }));
   };
 
-  // Form Validation
-  const validateForm = (): boolean => {
-    setErrorMsg(null);
-
-    // 1. Team Name
-    if (!teamName || teamName.trim().length < 3) {
-      setErrorMsg("Team Name must be at least 3 characters long.");
-      return false;
-    }
-
-    // 2. Leader Fields
-    const l = leaderForm;
-    if (
-      !l.full_name.trim() ||
-      !l.phone.trim() ||
-      !l.gender ||
-      !l.university.trim() ||
-      !l.department.trim() ||
-      !l.semester.trim() ||
-      !l.student_id.trim() ||
-      !l.tshirt_size
-    ) {
-      setErrorMsg("Please fill in all team leader details.");
-      return false;
-    }
-    if (l.phone.trim().length < 10) {
-      setErrorMsg("Team leader phone number must be at least 10 digits.");
-      return false;
-    }
-
-    // 3. Teammates Fields
-    for (let i = 0; i < members.length; i++) {
-      const m = members[i];
-      const mNum = i + 2;
-      if (
-        !m.full_name.trim() ||
-        !m.email.trim() ||
-        !m.phone.trim() ||
-        !m.gender ||
-        !m.university.trim() ||
-        !m.department.trim() ||
-        !m.semester.trim() ||
-        !m.student_id.trim() ||
-        !m.tshirt_size
-      ) {
-        setErrorMsg(`Please fill in all details for Member ${mNum}.`);
-        return false;
-      }
-
-      // Basic email regex
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(m.email.trim())) {
-        setErrorMsg(`Please enter a valid email for Member ${mNum}.`);
-        return false;
-      }
-
-      if (m.phone.trim().length < 10) {
-        setErrorMsg(`Member ${mNum} phone number must be at least 10 digits.`);
-        return false;
-      }
-
-      // Email duplication checks
-      if (m.email.trim().toLowerCase() === l.email.trim().toLowerCase()) {
-        setErrorMsg(`Member ${mNum} has the same email as the Team Leader.`);
-        return false;
-      }
-
-      // Check duplicate emails between teammates
-      for (let j = i + 1; j < members.length; j++) {
-        if (m.email.trim().toLowerCase() === members[j].email.trim().toLowerCase()) {
-          setErrorMsg(`Member ${mNum} and Member ${j + 2} cannot have the same email address.`);
-          return false;
-        }
-      }
-    }
-
-    // 4. Submissions Validation
-    if (competition?.submissionRequired) {
-      if (!projectTitle || projectTitle.trim().length < 5) {
-        setErrorMsg("Project Title must be at least 5 characters long.");
-        return false;
-      }
-      // PDF report file upload is optional / bypassed on Vercel deployment
-    }
-
-    return true;
-  };
-
   // Submit Handler: Sequential API calls
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSubmittedOnce(true);
+
+    const errors = getErrors();
+    const errorKeys = Object.keys(errors);
+
+    if (errorKeys.length > 0) {
+      setErrorMsg("Please complete all required fields before submitting.");
+      setSubmitButtonStatus("failure");
+
+      // Touch all fields to show validation errors immediately
+      const touchedAll: Record<string, boolean> = {};
+      touchedAll['teamName'] = true;
+      touchedAll['leader_full_name'] = true;
+      touchedAll['leader_phone'] = true;
+      touchedAll['leader_gender'] = true;
+      touchedAll['leader_university'] = true;
+      touchedAll['leader_department'] = true;
+      touchedAll['leader_semester'] = true;
+      touchedAll['leader_student_id'] = true;
+      touchedAll['leader_tshirt_size'] = true;
+
+      members.forEach((_, idx) => {
+        touchedAll[`member_${idx}_full_name`] = true;
+        touchedAll[`member_${idx}_email`] = true;
+        touchedAll[`member_${idx}_phone`] = true;
+        touchedAll[`member_${idx}_gender`] = true;
+        touchedAll[`member_${idx}_university`] = true;
+        touchedAll[`member_${idx}_department`] = true;
+        touchedAll[`member_${idx}_semester`] = true;
+        touchedAll[`member_${idx}_student_id`] = true;
+        touchedAll[`member_${idx}_tshirt_size`] = true;
+      });
+
+      if (competition?.submissionRequired) {
+        touchedAll['projectTitle'] = true;
+      }
+
+      setTouchedFields(touchedAll);
+
+      // Scroll smoothly to first invalid field and apply focus / highlight pulse
+      setTimeout(() => {
+        const firstInvalidEl = document.querySelector('[aria-invalid="true"]');
+        if (firstInvalidEl) {
+          firstInvalidEl.scrollIntoView({ behavior: "smooth", block: "center" });
+          (firstInvalidEl as HTMLElement).focus();
+          firstInvalidEl.classList.add("animate-error-pulse");
+          setTimeout(() => {
+            firstInvalidEl.classList.remove("animate-error-pulse");
+          }, 1000);
+        }
+      }, 50);
+
+      return;
+    }
+
     if (formLoading) return;
 
-    if (!validateForm()) return;
-
     setFormLoading(true);
+    setSubmitButtonStatus("loading");
     setErrorMsg(null);
     setSuccessMsg(null);
 
@@ -510,6 +582,7 @@ export default function CompetitionRegisterPage() {
 
       // Success!
       setFormStatus("success");
+      setSubmitButtonStatus("success");
       setSuccessMsg("Registration and project submission completed successfully!");
       
       // Delay redirection to let success state display
@@ -520,6 +593,7 @@ export default function CompetitionRegisterPage() {
     } catch (err: any) {
       console.error("Submit flow failure:", err);
       setErrorMsg(err.message || "An unexpected error occurred during registration.");
+      setSubmitButtonStatus("failure");
       setFormLoading(false);
     }
   };
@@ -597,11 +671,8 @@ export default function CompetitionRegisterPage() {
           )}
           <div className="relative z-10 space-y-3">
             <div className="flex flex-wrap items-center gap-3">
-              <Badge variant="accent" className="text-xs uppercase font-mono font-bold tracking-wider py-1">
-                {competition.type}
-              </Badge>
               <span className="text-xs text-neutral-500 font-mono font-semibold">
-                Roster: {competition.minMembers === competition.maxMembers 
+                Team size: {competition.minMembers === competition.maxMembers 
                   ? `${competition.minMembers} Members` 
                   : `${competition.minMembers} - ${competition.maxMembers} Members`}
               </span>
@@ -651,7 +722,7 @@ export default function CompetitionRegisterPage() {
             <div className="flex flex-col sm:flex-row gap-3 justify-center max-w-sm mx-auto">
               <Button
                 onClick={handleGoogleSignIn}
-                className="grow bg-neutral-50 hover:bg-neutral-200 text-neutral-900 border border-neutral-300 font-sans font-bold flex items-center justify-center py-2.5 h-auto text-xs rounded-xl shadow-xs transition-all active:scale-[0.98]"
+                className="grow bg-neutral-50 hover:bg-neutral-200 text-neutral-900 border border-neutral-300 font-sans font-bold flex items-center justify-center py-2.5 h-auto text-base rounded-md shadow-xs transition-all active:scale-[0.98]"
               >
                 {/* Custom Google SVG */}
                 <svg className="h-4.5 w-4.5 mr-2" viewBox="0 0 24 24">
@@ -675,7 +746,7 @@ export default function CompetitionRegisterPage() {
                 <span>Sign In with Google</span>
               </Button>
               <Link href={`/login?redirectTo=/competitions/${compId}/register`} className="grow">
-                <Button variant="secondary" className="w-full text-xs font-sans py-2.5 h-auto rounded-xl">
+                <Button variant="secondary" className="w-full text-base font-sans py-2.5 h-auto rounded-md">
                   Sign In with Email
                 </Button>
               </Link>
@@ -692,7 +763,7 @@ export default function CompetitionRegisterPage() {
             </div>
             <div className="flex justify-center gap-4">
               <Link href="/dashboard">
-                <Button className="bg-primary text-white font-sans text-xs px-5 py-2 rounded-lg">
+                <Button className="bg-primary text-white font-sans text-base px-5 py-2 rounded-md">
                   Go to Dashboard
                 </Button>
               </Link>
@@ -708,13 +779,23 @@ export default function CompetitionRegisterPage() {
           </Card>
         ) : (
           /* REGISTRATION FORM */
-          <form onSubmit={handleRegister} className="space-y-8 font-sans select-text">
+          <form onSubmit={handleRegister} noValidate className="space-y-8 font-sans select-text">
             {/* Team details */}
             <Card variant="glass" className="bg-glass border-glass">
               <CardHeader className="border-b border-neutral-850 pb-4">
-                <CardTitle className="text-base font-heading font-semibold text-neutral-100 flex items-center gap-2">
-                  <Users className="h-5 w-5 text-primary" />
-                  <span>Team Details</span>
+                <CardTitle className="text-lg md:text-xl font-heading font-bold text-neutral-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2 w-full">
+                  <span className="flex items-center gap-2">
+                    <Users className="h-5 w-5 text-primary" />
+                    <span>Team Details</span>
+                  </span>
+                  <span className={`text-xs font-sans font-medium flex items-center gap-1.5 px-2.5 py-1 rounded-full border ${
+                    isTeamDetailsComplete 
+                      ? "bg-success/10 border-success/20 text-success" 
+                      : "bg-warning/10 border-warning/20 text-warning"
+                  }`}>
+                    {isTeamDetailsComplete ? <Check className="h-3.5 w-3.5" /> : <AlertTriangle className="h-3.5 w-3.5" />}
+                    {isTeamDetailsComplete ? "Team Details Complete" : "Team Details Incomplete"}
+                  </span>
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-6">
@@ -722,7 +803,13 @@ export default function CompetitionRegisterPage() {
                   label="Team Name"
                   placeholder="e.g. Code Gladiators"
                   value={teamName}
-                  onChange={(e) => setTeamName(e.target.value)}
+                  onChange={(e) => {
+                    setTeamName(e.target.value);
+                    handleBlur('teamName');
+                  }}
+                  onBlur={() => handleBlur('teamName')}
+                  error={getFieldError('teamName')}
+                  isValid={isValidField('teamName', teamName)}
                   disabled={formLoading}
                   required
                   helperText="Must be unique. 3 characters minimum."
@@ -733,14 +820,24 @@ export default function CompetitionRegisterPage() {
             {/* Team Leader details */}
             <Card variant="glass" className="bg-glass border-glass">
               <CardHeader className="border-b border-neutral-850 pb-4">
-                <CardTitle className="text-base font-heading font-semibold text-neutral-100 flex items-center justify-between">
+                <CardTitle className="text-lg md:text-xl font-heading font-bold text-neutral-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2 w-full">
                   <span className="flex items-center gap-2">
                     <CrownIcon />
                     <span>Team Leader Details (You)</span>
                   </span>
-                  <Badge variant="secondary" className="text-sm font-mono tracking-widest uppercase">
-                    Leader
-                  </Badge>
+                  <div className="flex items-center gap-2">
+                    <span className={`text-xs font-sans font-medium flex items-center gap-1.5 px-2.5 py-1 rounded-full border ${
+                      isLeaderComplete 
+                        ? "bg-success/10 border-success/20 text-success" 
+                        : "bg-warning/10 border-warning/20 text-warning"
+                    }`}>
+                      {isLeaderComplete ? <Check className="h-3.5 w-3.5" /> : <AlertTriangle className="h-3.5 w-3.5" />}
+                      {isLeaderComplete ? "Team Leader Complete" : "Team Leader Incomplete"}
+                    </span>
+                    <Badge variant="secondary" className="text-sm font-mono tracking-widest uppercase">
+                      Leader
+                    </Badge>
+                  </div>
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-6 space-y-4">
@@ -752,7 +849,13 @@ export default function CompetitionRegisterPage() {
                     label="Full Name"
                     placeholder="John Doe"
                     value={leaderForm.full_name}
-                    onChange={(e) => handleLeaderChange("full_name", e.target.value)}
+                    onChange={(e) => {
+                      handleLeaderChange("full_name", e.target.value);
+                      handleBlur('leader_full_name');
+                    }}
+                    onBlur={() => handleBlur('leader_full_name')}
+                    error={getFieldError('leader_full_name')}
+                    isValid={isValidField('leader_full_name', leaderForm.full_name)}
                     disabled={formLoading}
                     required
                   />
@@ -767,7 +870,13 @@ export default function CompetitionRegisterPage() {
                     label="Phone Number"
                     placeholder="e.g. 01712345678"
                     value={leaderForm.phone}
-                    onChange={(e) => handleLeaderChange("phone", e.target.value)}
+                    onChange={(e) => {
+                      handleLeaderChange("phone", e.target.value);
+                      handleBlur('leader_phone');
+                    }}
+                    onBlur={() => handleBlur('leader_phone')}
+                    error={getFieldError('leader_phone')}
+                    isValid={isValidField('leader_phone', leaderForm.phone)}
                     disabled={formLoading}
                     required
                   />
@@ -775,24 +884,61 @@ export default function CompetitionRegisterPage() {
                     <label className="text-sm font-medium text-neutral-350 select-none">
                       Gender
                     </label>
-                    <select
-                      value={leaderForm.gender}
-                      onChange={(e) => handleLeaderChange("gender", e.target.value)}
-                      disabled={formLoading}
-                      required
-                      className="flex h-10 w-full rounded-lg border border-neutral-800 bg-neutral-950 px-3 py-2 text-sm text-neutral-200 outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors cursor-pointer"
-                    >
-                      <option value="">Select Gender</option>
-                      <option value="male">Male</option>
-                      <option value="female">Female</option>
-                      <option value="other">Other</option>
-                    </select>
+                    <div className="relative w-full flex items-center">
+                      <select
+                        value={leaderForm.gender}
+                        onChange={(e) => {
+                          handleLeaderChange("gender", e.target.value);
+                          handleBlur('leader_gender');
+                        }}
+                        onBlur={() => handleBlur('leader_gender')}
+                        disabled={formLoading}
+                        required
+                        className={`flex h-10 w-full rounded-lg border px-3 py-2 text-sm text-neutral-200 outline-none transition-colors cursor-pointer ${
+                          isInvalid('leader_gender')
+                            ? "border-[#EF4444] bg-[#FFFFFF] dark:bg-[#EF4444]/4 text-[#111827] dark:text-neutral-50 focus:border-[#EF4444] focus:ring-1 focus:ring-[#EF4444]/15 dark:focus:ring-[#EF4444]/18"
+                            : isValidField('leader_gender', leaderForm.gender)
+                            ? "border-[#10B981] dark:border-[#34D399] bg-neutral-950 focus:border-[#10B981] dark:focus:border-[#34D399]"
+                            : "border-neutral-800 bg-neutral-950 focus:border-primary focus:ring-1 focus:ring-primary"
+                        }`}
+                      >
+                        <option value="">Select Gender</option>
+                        <option value="male">Male</option>
+                        <option value="female">Female</option>
+                        <option value="other">Other</option>
+                      </select>
+                      {isInvalid('leader_gender') && (
+                        <span className="absolute right-8 text-[#DC2626] dark:text-[#EF4444] flex items-center pointer-events-none animate-fade-in">
+                          <AlertCircle className="h-4.5 w-4.5" />
+                        </span>
+                      )}
+                      {isValidField('leader_gender', leaderForm.gender) && (
+                        <span className="absolute right-8 text-[#10B981] dark:text-[#34D399] flex items-center pointer-events-none animate-fade-in">
+                          <CheckCircle2 className="h-4.5 w-4.5" />
+                        </span>
+                      )}
+                    </div>
+                    {isInvalid('leader_gender') ? (
+                      <span className="text-xs text-[#DC2626] dark:text-[#FCA5A5] font-sans font-medium tracking-tight flex items-center gap-1 mt-1 animate-fade-in">
+                        <span>✖</span> {allErrors['leader_gender']}
+                      </span>
+                    ) : isValidField('leader_gender', leaderForm.gender) ? (
+                      <span className="text-xs text-[#10B981] dark:text-[#34D399] font-sans font-medium tracking-tight flex items-center gap-1 mt-1 animate-fade-in">
+                        <span>✓</span>
+                      </span>
+                    ) : null}
                   </div>
                   <Input
                     label="University"
                     placeholder="e.g. SMUCT"
                     value={leaderForm.university}
-                    onChange={(e) => handleLeaderChange("university", e.target.value)}
+                    onChange={(e) => {
+                      handleLeaderChange("university", e.target.value);
+                      handleBlur('leader_university');
+                    }}
+                    onBlur={() => handleBlur('leader_university')}
+                    error={getFieldError('leader_university')}
+                    isValid={isValidField('leader_university', leaderForm.university)}
                     disabled={formLoading}
                     required
                   />
@@ -800,7 +946,13 @@ export default function CompetitionRegisterPage() {
                     label="Department"
                     placeholder="e.g. CSE"
                     value={leaderForm.department}
-                    onChange={(e) => handleLeaderChange("department", e.target.value)}
+                    onChange={(e) => {
+                      handleLeaderChange("department", e.target.value);
+                      handleBlur('leader_department');
+                    }}
+                    onBlur={() => handleBlur('leader_department')}
+                    error={getFieldError('leader_department')}
+                    isValid={isValidField('leader_department', leaderForm.department)}
                     disabled={formLoading}
                     required
                   />
@@ -808,7 +960,13 @@ export default function CompetitionRegisterPage() {
                     label="Semester"
                     placeholder="e.g. 8th"
                     value={leaderForm.semester}
-                    onChange={(e) => handleLeaderChange("semester", e.target.value)}
+                    onChange={(e) => {
+                      handleLeaderChange("semester", e.target.value);
+                      handleBlur('leader_semester');
+                    }}
+                    onBlur={() => handleBlur('leader_semester')}
+                    error={getFieldError('leader_semester')}
+                    isValid={isValidField('leader_semester', leaderForm.semester)}
                     disabled={formLoading}
                     required
                   />
@@ -816,7 +974,13 @@ export default function CompetitionRegisterPage() {
                     label="Student ID"
                     placeholder="e.g. 211071032"
                     value={leaderForm.student_id}
-                    onChange={(e) => handleLeaderChange("student_id", e.target.value)}
+                    onChange={(e) => {
+                      handleLeaderChange("student_id", e.target.value);
+                      handleBlur('leader_student_id');
+                    }}
+                    onBlur={() => handleBlur('leader_student_id')}
+                    error={getFieldError('leader_student_id')}
+                    isValid={isValidField('leader_student_id', leaderForm.student_id)}
                     disabled={formLoading}
                     required
                   />
@@ -824,23 +988,41 @@ export default function CompetitionRegisterPage() {
                     <label className="text-sm font-medium text-neutral-350 select-none font-sans">
                       T-shirt Size
                     </label>
-                    <div className="flex flex-wrap gap-2 pt-1">
-                      {["S", "M", "L", "XL", "XXL"].map((size) => (
-                        <button
-                          key={size}
-                          type="button"
-                          onClick={() => handleLeaderChange("tshirt_size", size)}
-                          disabled={formLoading}
-                          className={`px-4 py-2 border rounded-lg text-xs font-bold font-sans transition-all duration-150 ${
-                            leaderForm.tshirt_size === size
-                              ? "bg-primary text-white border-primary shadow-[0_0_12px_rgba(99,102,241,0.25)]"
-                              : "bg-neutral-950 border-neutral-800 text-neutral-400 hover:border-neutral-700"
-                          }`}
-                        >
-                          {size}
-                        </button>
-                      ))}
+                    <div className={`p-2 rounded-lg border transition-all duration-200 ${
+                      isInvalid('leader_tshirt_size')
+                        ? "border-[#EF4444] bg-[#EF4444]/4"
+                        : "border-transparent"
+                    }`}>
+                      <div className="flex flex-wrap gap-2 pt-1">
+                        {["S", "M", "L", "XL", "XXL"].map((size) => (
+                          <button
+                            key={size}
+                            type="button"
+                            onClick={() => {
+                              handleLeaderChange("tshirt_size", size);
+                              handleBlur('leader_tshirt_size');
+                            }}
+                            disabled={formLoading}
+                            className={`px-4 py-2 border rounded-lg text-xs font-bold font-sans transition-all duration-150 ${
+                              leaderForm.tshirt_size === size
+                                ? "bg-primary text-white border-primary shadow-[0_0_12px_rgba(99,102,241,0.25)]"
+                                : "bg-neutral-950 border-neutral-800 text-neutral-400 hover:border-neutral-700"
+                            }`}
+                          >
+                            {size}
+                          </button>
+                        ))}
+                      </div>
                     </div>
+                    {isInvalid('leader_tshirt_size') ? (
+                      <span className="text-xs text-[#DC2626] dark:text-[#FCA5A5] font-sans font-medium tracking-tight flex items-center gap-1 mt-1 animate-fade-in">
+                        <span>✖</span> {allErrors['leader_tshirt_size']}
+                      </span>
+                    ) : isValidField('leader_tshirt_size', leaderForm.tshirt_size) ? (
+                      <span className="text-xs text-[#10B981] dark:text-[#34D399] font-sans font-medium tracking-tight flex items-center gap-1 mt-1 animate-fade-in">
+                        <span>✓</span>
+                      </span>
+                    ) : null}
                   </div>
                 </div>
               </CardContent>
@@ -849,18 +1031,29 @@ export default function CompetitionRegisterPage() {
             {/* Teammates section */}
             {members.length > 0 && (
               <div className="space-y-6">
-                <div className="flex justify-between items-center select-none">
-                  <h3 className="text-lg font-heading font-extrabold text-neutral-100 flex items-center gap-2">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 select-none">
+                  <h3 className="text-lg md:text-xl font-heading font-bold text-neutral-100 flex items-center gap-2">
                     <Users className="h-5 w-5 text-secondary" />
                     <span>Teammates Details</span>
                   </h3>
-                  <span className="text-xs text-neutral-500 font-mono">
-                    Roster count: {members.length + 1} of {competition.maxMembers} max
-                  </span>
+                  <div className="flex items-center gap-3">
+                    <span className={`text-xs font-sans font-medium flex items-center gap-1.5 px-2.5 py-1 rounded-full border ${
+                      isTeammatesComplete 
+                        ? "bg-success/10 border-success/20 text-success" 
+                        : "bg-warning/10 border-warning/20 text-warning"
+                    }`}>
+                      {isTeammatesComplete ? <Check className="h-3.5 w-3.5" /> : <AlertTriangle className="h-3.5 w-3.5" />}
+                      {isTeammatesComplete ? "Teammates Details Complete" : "Teammates Details Incomplete"}
+                    </span>
+                    <span className="text-xs text-neutral-500 font-mono">
+                      Roster count: {members.length + 1} of {competition.maxMembers} max
+                    </span>
+                  </div>
                 </div>
 
                 {members.map((member, index) => {
                   const mNum = index + 2;
+                  const isMemComplete = !Object.keys(allErrors).some(k => k.startsWith(`member_${index}_`));
                   return (
                     <Card
                       key={index}
@@ -869,8 +1062,16 @@ export default function CompetitionRegisterPage() {
                     >
                       <div className="absolute top-0 left-0 w-1.5 h-full bg-secondary/70" />
                       <CardHeader className="border-b border-neutral-850 pb-3 flex flex-row items-center justify-between">
-                        <CardTitle className="text-sm font-heading font-bold text-neutral-200">
-                          Member {mNum} Details
+                        <CardTitle className="text-base md:text-lg font-heading font-bold text-neutral-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2 w-full">
+                          <span>Member {mNum} Details</span>
+                          <span className={`text-xs font-sans font-medium flex items-center gap-1.5 px-2.5 py-1 rounded-full border ${
+                            isMemComplete 
+                              ? "bg-success/10 border-success/20 text-success" 
+                              : "bg-warning/10 border-warning/20 text-warning"
+                          }`}>
+                            {isMemComplete ? <Check className="h-3.5 w-3.5" /> : <AlertTriangle className="h-3.5 w-3.5" />}
+                            {isMemComplete ? `Member ${mNum} Complete` : `Member ${mNum} Missing Information`}
+                          </span>
                         </CardTitle>
                         {/* Show delete only if count is greater than the required min size (leader counts as 1) */}
                         {members.length + 1 > competition.minMembers && (
@@ -879,7 +1080,7 @@ export default function CompetitionRegisterPage() {
                             variant="ghost"
                             onClick={() => handleRemoveMember(index)}
                             disabled={formLoading}
-                            className="p-1 h-auto text-neutral-500 hover:text-error hover:bg-neutral-800/40 rounded transition-colors"
+                            className="p-1 h-auto text-neutral-500 hover:text-error hover:bg-neutral-800/40 rounded transition-colors ml-2"
                           >
                             <Trash2 className="h-4.5 w-4.5" />
                           </Button>
@@ -891,7 +1092,13 @@ export default function CompetitionRegisterPage() {
                             label="Full Name"
                             placeholder="Teammate Full Name"
                             value={member.full_name}
-                            onChange={(e) => handleMemberChange(index, "full_name", e.target.value)}
+                            onChange={(e) => {
+                              handleMemberChange(index, "full_name", e.target.value);
+                              handleBlur(`member_${index}_full_name`);
+                            }}
+                            onBlur={() => handleBlur(`member_${index}_full_name`)}
+                            error={getFieldError(`member_${index}_full_name`)}
+                            isValid={isValidField(`member_${index}_full_name`, member.full_name)}
                             disabled={formLoading}
                             required
                           />
@@ -900,7 +1107,13 @@ export default function CompetitionRegisterPage() {
                             type="email"
                             placeholder="member@email.com"
                             value={member.email}
-                            onChange={(e) => handleMemberChange(index, "email", e.target.value)}
+                            onChange={(e) => {
+                              handleMemberChange(index, "email", e.target.value);
+                              handleBlur(`member_${index}_email`);
+                            }}
+                            onBlur={() => handleBlur(`member_${index}_email`)}
+                            error={getFieldError(`member_${index}_email`)}
+                            isValid={isValidField(`member_${index}_email`, member.email)}
                             disabled={formLoading || addedMemberEmails.includes(member.email.trim().toLowerCase())}
                             required
                             helperText={
@@ -918,7 +1131,13 @@ export default function CompetitionRegisterPage() {
                             label="Phone Number"
                             placeholder="Phone number"
                             value={member.phone}
-                            onChange={(e) => handleMemberChange(index, "phone", e.target.value)}
+                            onChange={(e) => {
+                              handleMemberChange(index, "phone", e.target.value);
+                              handleBlur(`member_${index}_phone`);
+                            }}
+                            onBlur={() => handleBlur(`member_${index}_phone`)}
+                            error={getFieldError(`member_${index}_phone`)}
+                            isValid={isValidField(`member_${index}_phone`, member.phone)}
                             disabled={formLoading}
                             required
                           />
@@ -926,24 +1145,61 @@ export default function CompetitionRegisterPage() {
                             <label className="text-sm font-medium text-neutral-350 select-none">
                               Gender
                             </label>
-                            <select
-                              value={member.gender}
-                              onChange={(e) => handleMemberChange(index, "gender", e.target.value)}
-                              disabled={formLoading}
-                              required
-                              className="flex h-10 w-full rounded-lg border border-neutral-800 bg-neutral-950 px-3 py-2 text-sm text-neutral-200 outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors cursor-pointer"
-                            >
-                              <option value="">Select Gender</option>
-                              <option value="male">Male</option>
-                              <option value="female">Female</option>
-                              <option value="other">Other</option>
-                            </select>
+                            <div className="relative w-full flex items-center">
+                              <select
+                                value={member.gender}
+                                onChange={(e) => {
+                                  handleMemberChange(index, "gender", e.target.value);
+                                  handleBlur(`member_${index}_gender`);
+                                }}
+                                onBlur={() => handleBlur(`member_${index}_gender`)}
+                                disabled={formLoading}
+                                required
+                                className={`flex h-10 w-full rounded-lg border px-3 py-2 text-sm text-neutral-200 outline-none transition-colors cursor-pointer ${
+                                  isInvalid(`member_${index}_gender`)
+                                    ? "border-[#EF4444] bg-[#FFFFFF] dark:bg-[#EF4444]/4 text-[#111827] dark:text-neutral-50 focus:border-[#EF4444] focus:ring-1 focus:ring-[#EF4444]/15 dark:focus:ring-[#EF4444]/18"
+                                    : isValidField(`member_${index}_gender`, member.gender)
+                                    ? "border-[#10B981] dark:border-[#34D399] bg-neutral-950 focus:border-[#10B981] dark:focus:border-[#34D399]"
+                                    : "border-neutral-800 bg-neutral-950 focus:border-primary focus:ring-1 focus:ring-primary"
+                                }`}
+                              >
+                                <option value="">Select Gender</option>
+                                <option value="male">Male</option>
+                                <option value="female">Female</option>
+                                <option value="other">Other</option>
+                              </select>
+                              {isInvalid(`member_${index}_gender`) && (
+                                <span className="absolute right-8 text-[#DC2626] dark:text-[#EF4444] flex items-center pointer-events-none animate-fade-in">
+                                  <AlertCircle className="h-4.5 w-4.5" />
+                                </span>
+                              )}
+                              {isValidField(`member_${index}_gender`, member.gender) && (
+                                <span className="absolute right-8 text-[#10B981] dark:text-[#34D399] flex items-center pointer-events-none animate-fade-in">
+                                  <CheckCircle2 className="h-4.5 w-4.5" />
+                                </span>
+                              )}
+                            </div>
+                            {isInvalid(`member_${index}_gender`) ? (
+                              <span className="text-xs text-[#DC2626] dark:text-[#FCA5A5] font-sans font-medium tracking-tight flex items-center gap-1 mt-1 animate-fade-in">
+                                <span>✖</span> {allErrors[`member_${index}_gender`]}
+                              </span>
+                            ) : isValidField(`member_${index}_gender`, member.gender) ? (
+                              <span className="text-xs text-[#10B981] dark:text-[#34D399] font-sans font-medium tracking-tight flex items-center gap-1 mt-1 animate-fade-in">
+                                <span>✓</span>
+                              </span>
+                            ) : null}
                           </div>
                           <Input
                             label="University"
                             placeholder="University"
                             value={member.university}
-                            onChange={(e) => handleMemberChange(index, "university", e.target.value)}
+                            onChange={(e) => {
+                              handleMemberChange(index, "university", e.target.value);
+                              handleBlur(`member_${index}_university`);
+                            }}
+                            onBlur={() => handleBlur(`member_${index}_university`)}
+                            error={getFieldError(`member_${index}_university`)}
+                            isValid={isValidField(`member_${index}_university`, member.university)}
                             disabled={formLoading}
                             required
                           />
@@ -951,7 +1207,13 @@ export default function CompetitionRegisterPage() {
                             label="Department"
                             placeholder="Department"
                             value={member.department}
-                            onChange={(e) => handleMemberChange(index, "department", e.target.value)}
+                            onChange={(e) => {
+                              handleMemberChange(index, "department", e.target.value);
+                              handleBlur(`member_${index}_department`);
+                            }}
+                            onBlur={() => handleBlur(`member_${index}_department`)}
+                            error={getFieldError(`member_${index}_department`)}
+                            isValid={isValidField(`member_${index}_department`, member.department)}
                             disabled={formLoading}
                             required
                           />
@@ -959,7 +1221,13 @@ export default function CompetitionRegisterPage() {
                             label="Semester"
                             placeholder="Semester"
                             value={member.semester}
-                            onChange={(e) => handleMemberChange(index, "semester", e.target.value)}
+                            onChange={(e) => {
+                              handleMemberChange(index, "semester", e.target.value);
+                              handleBlur(`member_${index}_semester`);
+                            }}
+                            onBlur={() => handleBlur(`member_${index}_semester`)}
+                            error={getFieldError(`member_${index}_semester`)}
+                            isValid={isValidField(`member_${index}_semester`, member.semester)}
                             disabled={formLoading}
                             required
                           />
@@ -967,7 +1235,13 @@ export default function CompetitionRegisterPage() {
                             label="Student ID"
                             placeholder="Student ID"
                             value={member.student_id}
-                            onChange={(e) => handleMemberChange(index, "student_id", e.target.value)}
+                            onChange={(e) => {
+                              handleMemberChange(index, "student_id", e.target.value);
+                              handleBlur(`member_${index}_student_id`);
+                            }}
+                            onBlur={() => handleBlur(`member_${index}_student_id`)}
+                            error={getFieldError(`member_${index}_student_id`)}
+                            isValid={isValidField(`member_${index}_student_id`, member.student_id)}
                             disabled={formLoading}
                             required
                           />
@@ -975,23 +1249,41 @@ export default function CompetitionRegisterPage() {
                             <label className="text-sm font-medium text-neutral-350 select-none font-sans">
                               T-shirt Size
                             </label>
-                            <div className="flex flex-wrap gap-2 pt-1">
-                              {["S", "M", "L", "XL", "XXL"].map((size) => (
-                                <button
-                                  key={size}
-                                  type="button"
-                                  onClick={() => handleMemberChange(index, "tshirt_size", size)}
-                                  disabled={formLoading}
-                                  className={`px-4 py-2 border rounded-lg text-xs font-bold font-sans transition-all duration-150 ${
-                                    member.tshirt_size === size
-                                      ? "bg-secondary text-white border-secondary shadow-[0_0_12px_rgba(236,72,153,0.25)]"
-                                      : "bg-neutral-950 border-neutral-800 text-neutral-400 hover:border-neutral-700"
-                                  }`}
-                                >
-                                  {size}
-                                </button>
-                              ))}
+                            <div className={`p-2 rounded-lg border transition-all duration-200 ${
+                              isInvalid(`member_${index}_tshirt_size`)
+                                ? "border-[#EF4444] bg-[#EF4444]/4"
+                                : "border-transparent"
+                            }`}>
+                              <div className="flex flex-wrap gap-2 pt-1">
+                                {["S", "M", "L", "XL", "XXL"].map((size) => (
+                                  <button
+                                    key={size}
+                                    type="button"
+                                    onClick={() => {
+                                      handleMemberChange(index, "tshirt_size", size);
+                                      handleBlur(`member_${index}_tshirt_size`);
+                                    }}
+                                    disabled={formLoading}
+                                    className={`px-4 py-2 border rounded-lg text-xs font-bold font-sans transition-all duration-150 ${
+                                      member.tshirt_size === size
+                                        ? "bg-secondary text-white border-secondary shadow-[0_0_12px_rgba(236,72,153,0.25)]"
+                                        : "bg-neutral-950 border-neutral-800 text-neutral-400 hover:border-neutral-700"
+                                    }`}
+                                  >
+                                    {size}
+                                  </button>
+                                ))}
+                              </div>
                             </div>
+                            {isInvalid(`member_${index}_tshirt_size`) ? (
+                              <span className="text-xs text-[#DC2626] dark:text-[#FCA5A5] font-sans font-medium tracking-tight flex items-center gap-1 mt-1 animate-fade-in">
+                                <span>✖</span> {allErrors[`member_${index}_tshirt_size`]}
+                              </span>
+                            ) : isValidField(`member_${index}_tshirt_size`, member.tshirt_size) ? (
+                              <span className="text-xs text-[#10B981] dark:text-[#34D399] font-sans font-medium tracking-tight flex items-center gap-1 mt-1 animate-fade-in">
+                                <span>✓</span>
+                              </span>
+                            ) : null}
                           </div>
                         </div>
                       </CardContent>
@@ -1007,9 +1299,9 @@ export default function CompetitionRegisterPage() {
                 type="button"
                 onClick={handleAddMember}
                 disabled={formLoading}
-                className="w-full py-4 border border-dashed border-neutral-800 hover:border-neutral-700 bg-neutral-950/20 hover:bg-neutral-950/40 text-neutral-400 hover:text-neutral-200 text-xs font-bold font-mono tracking-wider uppercase flex items-center justify-center gap-2 rounded-xl transition-all"
+                className="w-full py-4 border-2 border-[#8B5CF6] dark:border-[#8B5CF6]/60 bg-[#8B5CF6]/10 dark:bg-[#8B5CF6]/15 text-[#8B5CF6] dark:text-[#C084FC] hover:bg-[#8B5CF6]/20 dark:hover:bg-[#8B5CF6]/25 h-auto rounded-xl font-heading text-base font-black tracking-widest cursor-pointer hover:shadow-[0_0_25px_rgba(139,92,246,0.35)] transition-all duration-300 flex items-center justify-center gap-2"
               >
-                <Plus className="h-4.5 w-4.5 text-primary" />
+                <Plus className="h-5 w-5 text-[#8B5CF6] dark:text-[#C084FC]" />
                 <span>Add Member {members.length + 2}</span>
               </Button>
             )}
@@ -1018,9 +1310,19 @@ export default function CompetitionRegisterPage() {
             {competition.submissionRequired && (
               <Card variant="glass" className="bg-glass border-glass">
                 <CardHeader className="border-b border-neutral-850 pb-4">
-                  <CardTitle className="text-base font-heading font-semibold text-neutral-100 flex items-center gap-2">
-                    <Shield className="h-5 w-5 text-accent" />
-                    <span>Project Submission Details</span>
+                  <CardTitle className="text-lg md:text-xl font-heading font-bold text-neutral-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2 w-full">
+                    <span className="flex items-center gap-2">
+                      <Shield className="h-5 w-5 text-accent" />
+                      <span>Project Submission Details</span>
+                    </span>
+                    <span className={`text-xs font-sans font-medium flex items-center gap-1.5 px-2.5 py-1 rounded-full border ${
+                      isProjectComplete 
+                        ? "bg-success/10 border-success/20 text-success" 
+                        : "bg-warning/10 border-warning/20 text-warning"
+                    }`}>
+                      {isProjectComplete ? <Check className="h-3.5 w-3.5" /> : <AlertTriangle className="h-3.5 w-3.5" />}
+                      {isProjectComplete ? "Project Details Complete" : "Project Details Incomplete"}
+                    </span>
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="p-6 space-y-5">
@@ -1028,7 +1330,13 @@ export default function CompetitionRegisterPage() {
                     label="Project Title"
                     placeholder="e.g. Smart IoT Agriculture Tracker"
                     value={projectTitle}
-                    onChange={(e) => setProjectTitle(e.target.value)}
+                    onChange={(e) => {
+                      setProjectTitle(e.target.value);
+                      handleBlur('projectTitle');
+                    }}
+                    onBlur={() => handleBlur('projectTitle')}
+                    error={getFieldError('projectTitle')}
+                    isValid={isValidField('projectTitle', projectTitle)}
                     disabled={formLoading}
                     required
                   />
@@ -1062,20 +1370,6 @@ export default function CompetitionRegisterPage() {
                       <li>Supported formats: <span className="font-mono text-neutral-400">MP4, WebM</span></li>
                       <li>Maximum size: <span className="font-mono text-neutral-400">200 MB</span></li>
                     </ul>
-                  </div>
-
-                  <div className="flex flex-col space-y-1.5">
-                    <label className="text-sm font-medium text-neutral-350 select-none">
-                      Additional Notes (Optional)
-                    </label>
-                    <textarea
-                      rows={4}
-                      placeholder="Provide details about system constraints, hardware, or tech stack..."
-                      value={projectNotes}
-                      onChange={(e) => setProjectNotes(e.target.value)}
-                      disabled={formLoading}
-                      className="flex w-full rounded-lg border border-neutral-800 bg-neutral-950 px-3 py-2.5 text-sm text-neutral-50 placeholder:text-neutral-600 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all duration-200 resize-none leading-relaxed font-sans disabled:opacity-50"
-                    />
                   </div>
                 </CardContent>
               </Card>
@@ -1115,14 +1409,49 @@ export default function CompetitionRegisterPage() {
             )}
 
             {/* Big Action Submit Button */}
-            <div className="pt-4">
+            <div className="pt-4 space-y-4">
+              {/* Validation Summary Alert Container */}
+              {submittedOnce && Object.keys(allErrors).length > 0 && (
+                <div className="p-4 rounded-xl border bg-[#FEF2F2] dark:bg-red-500/12 border-[#EF4444] dark:border-red-500/40 text-[#991B1B] dark:text-[#FCA5A5] animate-fade-in transition-all duration-300">
+                  <div className="flex items-start gap-2.5">
+                    <AlertTriangle className="h-5 w-5 shrink-0 text-[#DC2626] dark:text-[#EF4444] mt-0.5" />
+                    <div className="space-y-2 text-sm w-full">
+                      <p className="font-semibold font-sans">Please complete all required fields before submitting.</p>
+                      <div className="space-y-1">
+                        <p className="text-xs font-mono uppercase tracking-wider opacity-85">Missing / Invalid Fields:</p>
+                        <ul className="list-disc list-inside text-xs space-y-1 pl-1 font-sans opacity-95">
+                          {Object.keys(allErrors).map((key) => (
+                            <li key={key}>{getFieldFriendlyName(key, competition)}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <Button
                 type="submit"
-                isLoading={formLoading}
-                className="w-full bg-primary hover:bg-primary/95 text-white py-4 h-auto rounded-xl text-sm font-bold font-sans flex items-center justify-center gap-2 hover:shadow-[0_0_20px_rgba(99,102,241,0.35)] cursor-pointer select-none"
+                disabled={formLoading || submitButtonStatus === "success"}
+                className={`w-full py-4 h-auto rounded-md text-base font-bold font-sans flex items-center justify-center gap-2 transition-all duration-300 select-none cursor-pointer ${
+                  submitButtonStatus === "success"
+                    ? "bg-success hover:bg-success/95 text-white shadow-[0_0_20px_rgba(16,185,129,0.35)]"
+                    : submitButtonStatus === "failure"
+                    ? "bg-error hover:bg-error/95 text-white shadow-[0_0_20px_rgba(239,68,68,0.35)]"
+                    : "bg-primary hover:bg-primary/95 text-white hover:shadow-[0_0_20px_rgba(99,102,241,0.35)]"
+                }`}
               >
-                <Send className="h-4 w-4" />
-                <span>Register & Submit Team</span>
+                {submitButtonStatus === "loading" && <Loader2 className="h-5 w-5 animate-spin" />}
+                {submitButtonStatus === "success" && <Check className="h-5 w-5" />}
+                {submitButtonStatus === "failure" && <AlertCircle className="h-5 w-5" />}
+                {submitButtonStatus === "idle" && <Send className="h-4 w-4" />}
+
+                <span>
+                  {submitButtonStatus === "idle" && "Register & Submit Team"}
+                  {submitButtonStatus === "loading" && "Submitting..."}
+                  {submitButtonStatus === "success" && "Registration Submitted Successfully"}
+                  {submitButtonStatus === "failure" && "Submission Failed. Please fix the highlighted errors."}
+                </span>
               </Button>
             </div>
           </form>
@@ -1152,4 +1481,25 @@ function CrownIcon() {
       <path d="M2 4l3 12h14l3-12-6 7-4-7-4 7-6-7zm3 16h14a1 1 0 0 0 1-1v-1H4v1a1 1 0 0 0 1 1z" />
     </svg>
   );
+}
+
+// Field friendly name helper for validation summary
+function getFieldFriendlyName(key: string, competition: any): string {
+  if (key === "teamName") return "Team Name";
+  if (key === "projectTitle") return "Project Title";
+  
+  if (key.startsWith("leader_")) {
+    const field = key.replace("leader_", "");
+    const cleanField = field.replace("_", " ");
+    return `Team Leader ${cleanField.charAt(0).toUpperCase() + cleanField.slice(1)}`;
+  }
+  
+  if (key.startsWith("member_")) {
+    const parts = key.split("_");
+    const index = parseInt(parts[1], 10);
+    const field = parts.slice(2).join(" ");
+    return `Member ${index + 2} ${field.charAt(0).toUpperCase() + field.slice(1)}`;
+  }
+  
+  return key;
 }

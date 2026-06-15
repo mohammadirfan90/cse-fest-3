@@ -16,7 +16,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         disabled={disabled || isLoading}
         className={twMerge(
           clsx(
-            "relative inline-flex items-center justify-center font-sans font-semibold rounded-lg text-sm transition-all duration-normal focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-50 disabled:pointer-events-none select-none cursor-pointer active:scale-[0.98]",
+            "relative inline-flex items-center justify-center font-sans font-semibold rounded-md text-base transition-all duration-normal focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-50 disabled:pointer-events-none select-none cursor-pointer active:scale-[0.98]",
             {
               // Primary: Deep Indigo filled, premium lift & shadow
               "bg-primary hover:bg-primary/90 text-white hover:shadow-level-2 hover:-translate-y-[1px] active:translate-y-0 border border-primary/20": variant === "primary",
@@ -31,10 +31,10 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
             },
             {
               // Sizes — v1.1: floors at 16px, so xs size is deprecated in favor of sm
-              "py-2.5 px-5 text-sm h-11": size === "default",
-              "py-2 px-4 text-sm h-9": size === "sm",
-              "py-1.5 px-3 text-sm h-8": size === "xs",
-              "py-3 px-7 text-base h-12": size === "lg",
+              "py-2.5 px-5 text-base h-11": size === "default",
+              "py-2 px-4 text-base h-9": size === "sm",
+              "py-1.5 px-3 text-base h-8": size === "xs",
+              "py-3 px-7 text-lg h-12": size === "lg",
               "h-11 w-11 p-0 flex items-center justify-center": size === "icon",
               "h-9 w-9 p-0 flex items-center justify-center": size === "icon-sm",
             },

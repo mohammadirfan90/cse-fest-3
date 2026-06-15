@@ -52,14 +52,14 @@ export function FeaturedCompetitions() {
 
   if (!mounted || isLoading) {
     return (
-      <section id="competitions" className="max-w-[1280px] mx-auto px-4 md:px-16 py-10 border-t border-neutral-850">
+      <section id="competitions" className="max-w-[1280px] mx-auto px-4 md:px-16 py-10 border-t border-neutral-200 dark:border-neutral-850">
         <div className="text-center mb-16">
-          <div className="h-4 bg-neutral-900 w-24 mx-auto rounded mb-3 animate-pulse" />
-          <div className="h-8 bg-neutral-900 w-64 mx-auto rounded animate-pulse" />
+          <div className="h-4 bg-neutral-200 dark:bg-neutral-900 w-24 mx-auto rounded mb-3 animate-pulse" />
+          <div className="h-8 bg-neutral-200 dark:bg-neutral-900 w-64 mx-auto rounded animate-pulse" />
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="h-96 bg-neutral-900/40 border border-neutral-850 rounded-xl animate-pulse" />
+            <div key={i} className="h-96 bg-neutral-100 dark:bg-neutral-900/40 border border-neutral-200 dark:border-neutral-850 rounded-3xl animate-pulse" />
           ))}
         </div>
       </section>
@@ -68,7 +68,7 @@ export function FeaturedCompetitions() {
 
   if (error || competitions.length === 0) {
     return (
-      <section id="competitions" className="max-w-[1280px] mx-auto px-4 md:px-16 py-10 border-t border-neutral-850">
+      <section id="competitions" className="max-w-[1280px] mx-auto px-4 md:px-16 py-10 border-t border-neutral-200 dark:border-neutral-850">
         <div className="text-center mb-12">
           <div className="flex items-center justify-center gap-2 mb-3">
             <div className="h-[2px] w-8 bg-primary" />
@@ -77,14 +77,14 @@ export function FeaturedCompetitions() {
             </span>
             <div className="h-[2px] w-8 bg-primary" />
           </div>
-          <h2 className="font-heading text-4xl font-extrabold text-neutral-100">Featured Challenges</h2>
+          <h2 className="font-heading text-4xl font-extrabold text-[#111827] dark:text-neutral-100">Events</h2>
         </div>
-        <div className="py-16 text-center rounded-xl border border-dashed border-neutral-850 bg-neutral-900/10 max-w-xl mx-auto flex flex-col items-center justify-center space-y-4">
-          <div className="w-12 h-12 rounded-full bg-neutral-900 border border-neutral-800 flex items-center justify-center text-neutral-600">
+        <div className="py-16 text-center rounded-3xl border border-dashed border-neutral-200 dark:border-neutral-850 bg-[#FAF8FF] dark:bg-neutral-900/10 max-w-xl mx-auto flex flex-col items-center justify-center space-y-4 shadow-sm">
+          <div className="w-12 h-12 rounded-full bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 flex items-center justify-center text-[#8B5CF6] dark:text-neutral-600">
             <Sparkles className="h-6 w-6" />
           </div>
-          <h3 className="font-heading font-extrabold text-lg text-neutral-300">Challenges Loading Soon</h3>
-          <p className="text-xs sm:text-sm text-neutral-500 font-sans max-w-sm leading-relaxed">
+          <h3 className="font-heading font-extrabold text-lg text-[#111827] dark:text-neutral-300">Challenges Loading Soon</h3>
+          <p className="text-xs sm:text-sm text-[#4B5563] dark:text-neutral-500 font-sans max-w-sm leading-relaxed">
             The organizer has not published any active competitions yet. Check back shortly to register!
           </p>
         </div>
@@ -93,24 +93,25 @@ export function FeaturedCompetitions() {
   }
 
   return (
-    <section id="competitions" className="max-w-[1280px] mx-auto px-4 md:px-16 py-10 border-t border-neutral-850 relative">
-      <div className="absolute top-1/2 left-1/4 -translate-y-1/2 w-[300px] h-[300px] bg-secondary/5 rounded-full blur-[100px] pointer-events-none" />
+    <section id="competitions" className="max-w-[1280px] mx-auto px-4 md:px-16 py-16 border-t border-neutral-200 dark:border-neutral-850/50 relative overflow-hidden">
+      {/* Subtle backdrop blur overlay to gently soften the background grid pattern */}
+      <div className="absolute inset-0 bg-neutral-950/[0.02] dark:bg-neutral-950/20 backdrop-blur-[1px] pointer-events-none z-0" />
+
+      {/* Large, soft radial primary glow behind the card grid for depth */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[80%] h-[80%] bg-primary/5 dark:bg-primary/8 rounded-full blur-[130px] pointer-events-none z-0" />
 
       {/* Header */}
       <div className="text-center mb-16 relative z-10">
         <div className="flex items-center justify-center gap-2 mb-3">
-          <div className="h-[2px] w-8 bg-primary" />
+          <div className="h-[2px] w-8 bg-primary/70" />
           <span className="font-sans text-xs font-bold text-primary tracking-widest uppercase">
             Competitions Arena
           </span>
-          <div className="h-[2px] w-8 bg-primary" />
+          <div className="h-[2px] w-8 bg-primary/70" />
         </div>
-        <h2 className="font-heading text-4xl md:text-5xl font-black text-neutral-100 tracking-tight">
-          Featured Challenges
+        <h2 className="font-heading text-4xl md:text-5xl font-black text-[#111827] dark:text-neutral-100 tracking-tight">
+          Events
         </h2>
-        <p className="text-neutral-400 font-sans text-sm max-w-lg mx-auto mt-2.5">
-          Browse the active showcases and tournaments. Command the stage and show your mastery.
-        </p>
       </div>
 
       {/* Grid of Competitions */}
@@ -124,60 +125,53 @@ export function FeaturedCompetitions() {
           return (
             <div
               key={comp.id}
-              className="relative bg-glass border border-glass hover:border-primary/40 rounded-2xl flex flex-col group transition-all duration-normal hover:-translate-y-1.5 hover:shadow-level-3 overflow-hidden"
+              className="relative bg-white/90 dark:bg-[#12141a]/95 border border-neutral-200/80 dark:border-primary/15 rounded-3xl flex flex-col group transition-all duration-300 ease-out hover:-translate-y-2 shadow-[0_10px_30px_rgba(139,92,246,0.06),0_2px_8px_rgba(0,0,0,0.05)] hover:shadow-[0_20px_50px_rgba(139,92,246,0.12)] hover:border-[#8B5CF6]/35 overflow-hidden"
             >
               {/* Hover gradient glow */}
-              <div className="absolute inset-0 bg-linear-to-br from-primary/5 via-transparent to-accent/5 opacity-0 group-hover:opacity-100 transition-opacity duration-complex pointer-events-none" />
+              <div className="absolute inset-0 bg-linear-to-br from-[#8B5CF6]/5 via-transparent to-[#22D3EE]/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
 
-              {/* Cover image header */}
-              <Link href={`/competitions/${comp.id}`} className="relative h-44 overflow-hidden rounded-t-2xl block">
-                <div className="absolute inset-0 bg-linear-to-t from-neutral-950/90 via-neutral-950/25 to-transparent z-10" />
+              {/* Cover image header with linear gradient fade */}
+              <Link href={`/competitions/${comp.id}`} className="relative h-48 overflow-hidden rounded-t-[22px] block">
+                <div className="absolute inset-0 bg-linear-to-t from-white dark:from-[#12141a] via-white/20 dark:via-[#12141a]/20 to-transparent z-10 transition-all duration-300" />
                 <Image
                   src={coverImage}
                   alt={comp.name}
                   fill
-                  className="object-cover group-hover:scale-[1.03] transition-transform duration-complex"
+                  className="object-cover group-hover:scale-[1.02] group-hover:brightness-105 transition-all duration-300"
                   sizes="(max-width: 768px) 100vw, 380px"
+                  priority
                 />
-                <div className="absolute top-4 right-4 z-20">
-                  <span className="bg-primary/25 backdrop-blur-md border border-primary/40 text-primary px-3.5 py-1 rounded-full text-sm font-bold font-mono tracking-wider">
-                    {comp.teamSize.toUpperCase()}
-                  </span>
-                </div>
               </Link>
 
               {/* Content */}
               <div className="p-6 grow flex flex-col justify-between relative z-10 select-text">
                 <Link href={`/competitions/${comp.id}`} className="block group-hover:opacity-95 transition-opacity">
-                  <div className="flex justify-between items-start mb-3 gap-2">
-                    <h3 className="font-heading font-extrabold text-xl text-neutral-100 group-hover:text-neutral-50 transition-colors tracking-tight">
+                  <div className="flex justify-between items-start mb-4 gap-2">
+                    <h3 className="font-heading font-black text-2xl text-[#111827] dark:text-neutral-100 group-hover:text-[#8B5CF6] dark:group-hover:text-[#A78BFA] transition-colors duration-300 tracking-tight leading-snug">
                       {comp.name}
                     </h3>
                     <Badge variant="accent" className="text-sm font-mono shrink-0 uppercase tracking-wider">
-                      {comp.eligibility}
+                      {comp.eligibility?.toLowerCase() === "both" ? "INTER-UNI" : comp.eligibility}
                     </Badge>
                   </div>
-                  <p className="text-neutral-400 text-xs sm:text-sm mb-4 line-clamp-2 leading-relaxed font-sans font-light">
-                    {comp.shortDescription}
-                  </p>
                 </Link>
 
-                <div className="mt-auto space-y-4">
-                  <Link href={`/competitions/${comp.id}`} className="flex justify-between items-center py-3.5 border-y border-neutral-850/60 font-mono block hover:text-neutral-200 transition-colors">
-                    <span className="text-sm font-bold text-neutral-500 uppercase tracking-wider">Prize Pool</span>
-                    <span className="text-secondary text-sm font-black">{comp.prizePool}</span>
+                <div className="mt-auto space-y-5">
+                  <Link href={`/competitions/${comp.id}`} className="flex justify-between items-center py-4 border-y border-neutral-200/50 dark:border-neutral-800/60 font-mono block hover:text-neutral-600 dark:hover:text-neutral-200 transition-colors">
+                    <span className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-widest">Grand Prize Pool</span>
+                    <span className="text-[#8B5CF6] dark:text-[#A78BFA] text-xl font-black font-heading">{comp.prizePool}</span>
                   </Link>
                   <div className="flex gap-3">
                     {comp.status === "registration_closed" ? (
                       <Button
                         disabled
-                        className="grow bg-neutral-900 text-neutral-500 border border-neutral-850 py-3 h-auto rounded-xl text-sm font-bold font-sans cursor-not-allowed"
+                        className="grow bg-neutral-200 dark:bg-neutral-900 text-neutral-500 border border-neutral-300 dark:border-neutral-850 py-3.5 h-auto rounded-xl font-heading text-base font-black tracking-widest cursor-not-allowed"
                       >
                         Registration Closed
                       </Button>
                     ) : (
                       <Link href={`/competitions/${comp.id}/register`} className="grow">
-                        <Button className="w-full bg-primary hover:bg-primary/95 text-white py-3 h-auto rounded-xl text-sm font-bold font-sans">
+                        <Button className="w-full bg-gradient-to-r from-[#8B5CF6] to-[#A855F7] hover:from-[#9D66FF] hover:to-[#B56BFF] text-white hover:shadow-[0_0_20px_rgba(139,92,246,0.45)] hover:-translate-y-0.5 active:translate-y-0 transition-all duration-300 font-heading text-base font-black tracking-widest py-3.5 h-auto rounded-xl cursor-pointer">
                           Register
                         </Button>
                       </Link>
@@ -190,7 +184,7 @@ export function FeaturedCompetitions() {
                     >
                       <Button
                         variant="secondary"
-                        className="w-full border border-neutral-800 hover:border-neutral-700 bg-neutral-900/40 text-neutral-300 hover:text-neutral-100 py-3 h-auto rounded-xl text-sm font-bold font-sans"
+                        className="w-full border border-[#8B5CF6] dark:border-[#8B5CF6]/50 bg-white dark:bg-[#12141a]/60 text-[#8B5CF6] dark:text-[#A78BFA] hover:bg-[#FAF8FF] dark:hover:bg-neutral-900/40 py-3.5 h-auto rounded-xl font-heading text-base font-black tracking-widest cursor-pointer hover:shadow-[0_0_20px_rgba(139,92,246,0.25)] transition-all duration-300"
                       >
                         Rulebook
                       </Button>
@@ -207,7 +201,7 @@ export function FeaturedCompetitions() {
       {competitions.length > 0 && (
         <div className="flex justify-center mt-12 relative z-10">
           <Link href="/competitions">
-            <Button variant="secondary" className="gap-2 border border-neutral-800 bg-neutral-900/40 text-neutral-300 hover:text-neutral-100 hover:border-neutral-700 px-6 py-3 h-auto">
+            <Button variant="secondary" className="gap-2 border border-[#8B5CF6] dark:border-[#8B5CF6]/50 bg-white dark:bg-[#12141a]/60 text-[#8B5CF6] dark:text-[#A78BFA] hover:bg-[#FAF8FF] dark:hover:bg-neutral-900/40 px-6 py-3 h-auto rounded-xl font-bold font-sans cursor-pointer hover:shadow-[0_0_20px_rgba(139,92,246,0.25)] transition-all duration-300">
               <span>View All Competitions</span>
               <ArrowRight className="h-4 w-4" />
             </Button>

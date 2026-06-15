@@ -44,6 +44,11 @@ export const metadata: Metadata = {
     "Bangladesh tech fest",
   ],
   authors: [{ name: "CSE & CSIT Department, SMUCT" }],
+  icons: {
+    icon: "/festlogo.png",
+    shortcut: "/festlogo.png",
+    apple: "/festlogo.png",
+  },
   robots: {
     index: true,
     follow: true,

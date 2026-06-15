@@ -47,7 +47,6 @@ function mapCompetition(c: CompetitionDb) {
     : `${min}–${max} Members`;
 
   const feeStr = Number(c.entry_fee) === 0 ? "Free" : `${c.entry_fee} BDT`;
-
   return {
     id: c.id,
     name: c.name,
@@ -80,6 +79,8 @@ function mapCompetition(c: CompetitionDb) {
     showInHero: c.show_in_hero ?? false,
     shortName: c.short_name || "",
     heroCapacity: c.hero_capacity ?? 80,
+    registrationStart: c.registration_start,
+    registrationEnd: c.registration_end,
     // Add camelCase fallback names to make transitions 100% safe
     short_description: c.short_description || "",
     prize_pool: c.prize_pool || "TBD",
@@ -90,6 +91,8 @@ function mapCompetition(c: CompetitionDb) {
     show_in_hero: c.show_in_hero ?? false,
     short_name: c.short_name || "",
     hero_capacity: c.hero_capacity ?? 80,
+    registration_start: c.registration_start,
+    registration_end: c.registration_end,
   };
 }
 

@@ -128,6 +128,9 @@ Google OAuth requires HTTPS endpoints to function.
   * Enable the Google provider.
   * Enter your **Google Client ID** and **Client Secret** (created in the Google Cloud Console).
   * Copy the Supabase Redirect URI and paste it back into your Google Cloud console authorized redirect list (usually `https://your-project-id.supabase.co/auth/v1/callback`).
+* Navigate to **Authentication > URL Configuration** (Critical for OAuth redirects):
+  * **Site URL**: Update this to your deployed domain (e.g. `https://cse-fest-3.vercel.app`).
+  * **Redirect URLs**: Add your production callback URL (e.g. `https://cse-fest-3.vercel.app/auth/callback` or a wildcard like `https://*.vercel.app/auth/callback`) to ensure Supabase allows redirecting authentication codes back to your deployment. If not configured, Supabase will fall back to `http://localhost:3000`.
 
 ---
 

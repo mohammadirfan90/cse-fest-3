@@ -38,7 +38,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
           }
           className={twMerge(
             clsx(
-              "flex h-10 w-full rounded-lg border bg-neutral-950 px-3 py-2 text-sm text-neutral-50 placeholder:text-neutral-600 transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium font-sans",
+              "flex h-11 w-full rounded-lg border bg-neutral-950 px-3.5 py-2.5 text-sm text-neutral-50 placeholder:text-neutral-600 transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium font-sans",
               {
                 "border-neutral-800 focus:border-primary focus:ring-1 focus:ring-primary outline-none": !error,
                 "border-error focus:border-error focus:ring-1 focus:ring-error outline-none": error,

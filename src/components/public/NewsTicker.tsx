@@ -33,7 +33,7 @@ export function NewsTicker() {
       {/* Label Badge — gradient premium treatment */}
       <div
         ref={badgeRef}
-        className="absolute left-0 top-0 bottom-0 z-10 flex items-center gap-1.5 px-4 border-r border-neutral-850 text-[10px] font-bold uppercase tracking-widest font-sans shrink-0"
+        className="absolute left-0 top-0 bottom-0 z-10 flex items-center gap-1.5 px-4 border-r border-neutral-850 text-sm font-bold uppercase tracking-widest font-sans shrink-0"
         style={{
           background:
             "linear-gradient(90deg, var(--neutral-900) 80%, transparent)",
@@ -63,7 +63,7 @@ export function NewsTicker() {
         className="flex w-full overflow-hidden items-center"
         style={{ paddingLeft: `${badgeWidth + 12}px` }}
       >
-        <div className="animate-marquee whitespace-nowrap flex gap-16 text-[11px] font-medium font-sans text-neutral-400 hover:[animation-play-state:paused] cursor-pointer">
+        <div className="animate-marquee whitespace-nowrap flex gap-16 text-sm font-medium font-sans text-neutral-400 hover:[animation-play-state:paused] cursor-pointer">
           {/* Repeat items twice to guarantee infinite looping */}
           {tickerItems.map((item: string, idx: number) => (
             <span key={`ticker-1-${idx}`} className="flex items-center gap-2.5 shrink-0">

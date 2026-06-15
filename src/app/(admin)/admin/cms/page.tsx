@@ -405,7 +405,7 @@ export default function AdminCMSPage() {
               setActiveTab(tab);
               setErrorMsg(null);
             }}
-            className={`flex-1 px-3 py-1.5 text-[10px] font-mono uppercase tracking-wider rounded transition-all duration-150 outline-none whitespace-nowrap cursor-pointer select-none text-center ${
+            className={`flex-1 px-3 py-1.5 text-sm font-mono uppercase tracking-wider rounded transition-all duration-150 outline-none whitespace-nowrap cursor-pointer select-none text-center ${
               activeTab === tab
                 ? "bg-neutral-900 text-neutral-100 border border-neutral-800"
                 : "text-neutral-500 border border-transparent hover:text-neutral-350 hover:bg-neutral-900/10"
@@ -921,7 +921,7 @@ export default function AdminCMSPage() {
 
               {/* Content */}
               <div className="flex flex-col space-y-1.5">
-                <label className="text-[10px] font-mono tracking-widest text-neutral-400 uppercase">Content Body</label>
+                <label className="text-sm font-mono tracking-widest text-neutral-400 uppercase">Content Body</label>
                 <textarea
                   required
                   placeholder="Provide announcement details..."
@@ -935,7 +935,7 @@ export default function AdminCMSPage() {
               <div className="grid grid-cols-2 gap-4">
                 {/* Priority */}
                 <div className="flex flex-col space-y-1.5 w-full">
-                  <label className="text-[10px] font-mono tracking-widest text-neutral-400 uppercase select-none">Priority Level</label>
+                  <label className="text-sm font-mono tracking-widest text-neutral-400 uppercase select-none">Priority Level</label>
                   <select
                     className="flex h-10 w-full rounded border border-neutral-800 bg-neutral-950 px-3 py-2 text-sm text-neutral-50 placeholder:text-neutral-600 focus:border-neutral-700 focus:ring-1 focus:ring-neutral-700/20 outline-none transition-all duration-200 font-sans cursor-pointer"
                     value={activeAnnModal.priority || "normal"}
@@ -956,7 +956,7 @@ export default function AdminCMSPage() {
 
                 {/* Type */}
                 <div className="flex flex-col space-y-1.5 w-full">
-                  <label className="text-[10px] font-mono tracking-widest text-neutral-400 uppercase select-none">Category Type</label>
+                  <label className="text-sm font-mono tracking-widest text-neutral-400 uppercase select-none">Category Type</label>
                   <select
                     className="flex h-10 w-full rounded border border-neutral-800 bg-neutral-950 px-3 py-2 text-sm text-neutral-50 placeholder:text-neutral-600 focus:border-neutral-700 focus:ring-1 focus:ring-neutral-700/20 outline-none transition-all duration-200 font-sans cursor-pointer"
                     value={activeAnnModal.type || "general"}
@@ -980,7 +980,7 @@ export default function AdminCMSPage() {
               <div className="grid grid-cols-2 gap-4 items-end">
                 {/* Status */}
                 <div className="flex flex-col space-y-1.5 w-full">
-                  <label className="text-[10px] font-mono tracking-widest text-neutral-400 uppercase select-none">Publish Status</label>
+                  <label className="text-sm font-mono tracking-widest text-neutral-400 uppercase select-none">Publish Status</label>
                   <select
                     className="flex h-10 w-full rounded border border-neutral-800 bg-neutral-950 px-3 py-2 text-sm text-neutral-50 placeholder:text-neutral-600 focus:border-neutral-700 focus:ring-1 focus:ring-neutral-700/20 outline-none transition-all duration-200 font-sans cursor-pointer"
                     value={activeAnnModal.status || "draft"}
@@ -1008,12 +1008,12 @@ export default function AdminCMSPage() {
                     className="rounded border-neutral-750 bg-neutral-950 text-neutral-300 focus:ring-neutral-800 h-4 w-4 cursor-pointer"
                     disabled={saving}
                   />
-                  <span className="font-mono uppercase tracking-wider text-[10px]">Pin Alert to Top</span>
+                  <span className="font-mono uppercase tracking-wider text-sm">Pin Alert to Top</span>
                 </label>
               </div>
 
               <div className="flex justify-end gap-3 border-t border-neutral-800 pt-4">
-                <Button variant="secondary" onClick={() => setActiveAnnModal(null)} disabled={saving} className="active:scale-[0.98] font-mono uppercase tracking-wider text-[10px] px-3.5 h-8.5 cursor-pointer">
+                <Button variant="secondary" onClick={() => setActiveAnnModal(null)} disabled={saving} className="active:scale-[0.98] font-mono uppercase tracking-wider text-sm px-3.5 h-8.5 cursor-pointer">
                   Cancel
                 </Button>
                 <Button
@@ -1021,7 +1021,7 @@ export default function AdminCMSPage() {
                   variant="primary"
                   isLoading={saving}
                   disabled={saving}
-                  className="bg-neutral-100 hover:bg-neutral-200 text-neutral-900 border border-transparent active:scale-[0.98] font-mono uppercase tracking-wider text-[10px] px-4.5 h-8.5 cursor-pointer rounded"
+                  className="bg-neutral-100 hover:bg-neutral-200 text-neutral-900 border border-transparent active:scale-[0.98] font-mono uppercase tracking-wider text-sm px-4.5 h-8.5 cursor-pointer rounded"
                 >
                   Save Changes
                 </Button>
@@ -1053,7 +1053,7 @@ export default function AdminCMSPage() {
             <form onSubmit={handleSaveTickerItem} className="space-y-5 text-xs font-sans text-neutral-300">
               {/* Message */}
               <div className="flex flex-col space-y-1.5">
-                <label className="text-[10px] font-mono tracking-widest text-neutral-400 uppercase">Ticker Message</label>
+                <label className="text-sm font-mono tracking-widest text-neutral-400 uppercase">Ticker Message</label>
                 <textarea
                   required
                   placeholder="Provide news ticker alert text..."
@@ -1075,7 +1075,7 @@ export default function AdminCMSPage() {
                     className="rounded border-neutral-750 bg-neutral-950 text-neutral-300 focus:ring-neutral-800 h-4 w-4 cursor-pointer"
                     disabled={saving}
                   />
-                  <span className="font-mono uppercase tracking-wider text-[10px]">Display Alert (Active)</span>
+                  <span className="font-mono uppercase tracking-wider text-sm">Display Alert (Active)</span>
                 </label>
 
                 {/* Pinned Checkbox */}
@@ -1088,12 +1088,12 @@ export default function AdminCMSPage() {
                     className="rounded border-neutral-750 bg-neutral-950 text-neutral-300 focus:ring-neutral-800 h-4 w-4 cursor-pointer"
                     disabled={saving}
                   />
-                  <span className="font-mono uppercase tracking-wider text-[10px]">Pin Alert to Start</span>
+                  <span className="font-mono uppercase tracking-wider text-sm">Pin Alert to Start</span>
                 </label>
               </div>
 
               <div className="flex justify-end gap-3 border-t border-neutral-800 pt-4">
-                <Button variant="secondary" onClick={() => setActiveTickerModal(null)} disabled={saving} className="active:scale-[0.98] font-mono uppercase tracking-wider text-[10px] px-3.5 h-8.5 cursor-pointer">
+                <Button variant="secondary" onClick={() => setActiveTickerModal(null)} disabled={saving} className="active:scale-[0.98] font-mono uppercase tracking-wider text-sm px-3.5 h-8.5 cursor-pointer">
                   Cancel
                 </Button>
                 <Button
@@ -1101,7 +1101,7 @@ export default function AdminCMSPage() {
                   variant="primary"
                   isLoading={saving}
                   disabled={saving}
-                  className="bg-neutral-100 hover:bg-neutral-200 text-neutral-900 border border-transparent active:scale-[0.98] font-mono uppercase tracking-wider text-[10px] px-4.5 h-8.5 cursor-pointer rounded"
+                  className="bg-neutral-100 hover:bg-neutral-200 text-neutral-900 border border-transparent active:scale-[0.98] font-mono uppercase tracking-wider text-sm px-4.5 h-8.5 cursor-pointer rounded"
                 >
                   Save Changes
                 </Button>
@@ -1147,7 +1147,7 @@ export default function AdminCMSPage() {
 
               {/* Answer */}
               <div className="flex flex-col space-y-1.5">
-                <label className="text-[10px] font-mono tracking-widest text-neutral-400 uppercase">FAQ Answer</label>
+                <label className="text-sm font-mono tracking-widest text-neutral-400 uppercase">FAQ Answer</label>
                 <textarea
                   required
                   placeholder="Provide accordion expansion answer text..."
@@ -1184,12 +1184,12 @@ export default function AdminCMSPage() {
                     className="rounded border-neutral-750 bg-neutral-950 text-neutral-300 focus:ring-neutral-800 h-4 w-4 cursor-pointer"
                     disabled={saving}
                   />
-                  <span className="font-mono uppercase tracking-wider text-[10px]">Visible on website</span>
+                  <span className="font-mono uppercase tracking-wider text-sm">Visible on website</span>
                 </label>
               </div>
 
               <div className="flex justify-end gap-3 border-t border-neutral-800 pt-4">
-                <Button variant="secondary" onClick={() => setActiveFaqModal(null)} disabled={saving} className="active:scale-[0.98] font-mono uppercase tracking-wider text-[10px] px-3.5 h-8.5 cursor-pointer">
+                <Button variant="secondary" onClick={() => setActiveFaqModal(null)} disabled={saving} className="active:scale-[0.98] font-mono uppercase tracking-wider text-sm px-3.5 h-8.5 cursor-pointer">
                   Cancel
                 </Button>
                 <Button
@@ -1197,7 +1197,7 @@ export default function AdminCMSPage() {
                   variant="primary"
                   isLoading={saving}
                   disabled={saving}
-                  className="bg-neutral-100 hover:bg-neutral-200 text-neutral-900 border border-transparent active:scale-[0.98] font-mono uppercase tracking-wider text-[10px] px-4.5 h-8.5 cursor-pointer rounded"
+                  className="bg-neutral-100 hover:bg-neutral-200 text-neutral-900 border border-transparent active:scale-[0.98] font-mono uppercase tracking-wider text-sm px-4.5 h-8.5 cursor-pointer rounded"
                 >
                   Save Changes
                 </Button>

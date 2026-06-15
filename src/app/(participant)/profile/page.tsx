@@ -165,7 +165,7 @@ export default function ProfilePage() {
                 ? "bg-success shadow-[0_0_8px_rgba(16,185,129,0.5)]"
                 : "bg-error shadow-[0_0_8px_rgba(244,63,94,0.5)]"
             }`} />
-            <span className="text-[10px] uppercase font-mono tracking-widest text-neutral-400 font-medium">
+            <span className="text-sm uppercase font-mono tracking-widest text-neutral-400 font-medium">
               {isComplete ? "Profile Complete" : "Incomplete Profile"}
             </span>
           </div>
@@ -229,7 +229,7 @@ export default function ProfilePage() {
                 <CardContent className="p-0 space-y-4">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="flex flex-col space-y-1.5 w-full">
-                      <label className="text-[10px] font-semibold text-neutral-400 font-mono uppercase tracking-widest select-none">Full Name</label>
+                      <label className="text-sm font-semibold text-neutral-400 font-mono uppercase tracking-widest select-none">Full Name</label>
                       <Input
                         placeholder="Your full name"
                         className="bg-neutral-950 border-neutral-800/80 focus:border-neutral-700 focus:ring-1 focus:ring-neutral-700/20 hover:border-neutral-700/60 transition-all duration-150 text-xs h-9"
@@ -239,7 +239,7 @@ export default function ProfilePage() {
                     </div>
 
                     <div className="flex flex-col space-y-1.5 w-full">
-                      <label className="text-[10px] font-semibold text-neutral-400 font-mono uppercase tracking-widest select-none">Phone Number</label>
+                      <label className="text-sm font-semibold text-neutral-400 font-mono uppercase tracking-widest select-none">Phone Number</label>
                       <Input
                         type="tel"
                         placeholder="e.g. 017XXXXXXXX"
@@ -252,7 +252,7 @@ export default function ProfilePage() {
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="flex flex-col space-y-1.5 w-full">
-                      <label className="text-[10px] font-semibold text-neutral-400 font-mono uppercase tracking-widest select-none">Gender</label>
+                      <label className="text-sm font-semibold text-neutral-400 font-mono uppercase tracking-widest select-none">Gender</label>
                       <select
                         className={`flex h-9 w-full rounded border bg-neutral-950 px-3 py-2 text-xs text-neutral-200 outline-none transition-all duration-150 cursor-pointer font-sans ${
                           errors.gender
@@ -274,7 +274,7 @@ export default function ProfilePage() {
                     </div>
 
                     <div className="flex flex-col space-y-1.5 w-full">
-                      <label className="text-[10px] font-semibold text-neutral-400 font-mono uppercase tracking-widest select-none">T-Shirt Size</label>
+                      <label className="text-sm font-semibold text-neutral-400 font-mono uppercase tracking-widest select-none">T-Shirt Size</label>
                       <select
                         className={`flex h-9 w-full rounded border bg-neutral-950 px-3 py-2 text-xs text-neutral-200 outline-none transition-all duration-155 cursor-pointer font-sans ${
                           errors.tshirt_size
@@ -312,7 +312,7 @@ export default function ProfilePage() {
                 </CardHeader>
                 <CardContent className="p-0 space-y-4">
                   <div className="flex flex-col space-y-1.5 w-full">
-                    <label className="text-[10px] font-semibold text-neutral-400 font-mono uppercase tracking-widest select-none">University / Institution</label>
+                    <label className="text-sm font-semibold text-neutral-400 font-mono uppercase tracking-widest select-none">University / Institution</label>
                     <Input
                       placeholder="e.g. Shanto-Mariam University of Creative Technology"
                       className="bg-neutral-950 border-neutral-800/80 focus:border-neutral-700 focus:ring-1 focus:ring-neutral-700/20 hover:border-neutral-700/60 transition-all duration-150 text-xs h-9"
@@ -323,7 +323,7 @@ export default function ProfilePage() {
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="flex flex-col space-y-1.5 w-full">
-                      <label className="text-[10px] font-semibold text-neutral-400 font-mono uppercase tracking-widest select-none">Department</label>
+                      <label className="text-sm font-semibold text-neutral-400 font-mono uppercase tracking-widest select-none">Department</label>
                       <Input
                         placeholder="e.g. CSE"
                         className="bg-neutral-950 border-neutral-800/80 focus:border-neutral-700 focus:ring-1 focus:ring-neutral-700/20 hover:border-neutral-700/60 transition-all duration-150 text-xs h-9"
@@ -333,7 +333,7 @@ export default function ProfilePage() {
                     </div>
 
                     <div className="flex flex-col space-y-1.5 w-full">
-                      <label className="text-[10px] font-semibold text-neutral-400 font-mono uppercase tracking-widest select-none">Semester</label>
+                      <label className="text-sm font-semibold text-neutral-400 font-mono uppercase tracking-widest select-none">Semester</label>
                       <Input
                         placeholder="e.g. 8th"
                         className="bg-neutral-950 border-neutral-800/80 focus:border-neutral-700 focus:ring-1 focus:ring-neutral-700/20 hover:border-neutral-700/60 transition-all duration-150 text-xs h-9"
@@ -344,7 +344,7 @@ export default function ProfilePage() {
                   </div>
 
                   <div className="flex flex-col space-y-1.5 w-full">
-                    <label className="text-[10px] font-semibold text-neutral-400 font-mono uppercase tracking-widest select-none">Student ID</label>
+                    <label className="text-sm font-semibold text-neutral-400 font-mono uppercase tracking-widest select-none">Student ID</label>
                     <Input
                       placeholder="Your ID card registration code"
                       className="bg-neutral-950 border-neutral-800/80 focus:border-neutral-700 focus:ring-1 focus:ring-neutral-700/20 hover:border-neutral-700/60 transition-all duration-150 text-xs h-9"

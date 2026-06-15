@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import * as React from "react";
 import Link from "next/link";
@@ -198,7 +198,7 @@ export default function SchedulePage() {
                         </div>
                       </td>
                       <td className="p-4">
-                        <Badge variant="neutral" className="uppercase text-[9px] font-mono font-bold tracking-wider px-2 py-0.5">
+                        <Badge variant="neutral" className="uppercase text-sm font-mono font-bold tracking-wider px-2 py-0.5">
                           {item.type}
                         </Badge>
                       </td>
@@ -217,7 +217,7 @@ export default function SchedulePage() {
                               ? "success"
                               : "neutral"
                           }
-                          className="capitalize text-[10px] font-bold"
+                          className="capitalize text-sm font-bold"
                         >
                           {item.status}
                         </Badge>
@@ -248,7 +248,7 @@ export default function SchedulePage() {
                           ? "success"
                           : "neutral"
                       }
-                      className="capitalize shrink-0 text-[10px] font-bold"
+                      className="capitalize shrink-0 text-sm font-bold"
                     >
                       {item.status}
                     </Badge>
@@ -261,7 +261,7 @@ export default function SchedulePage() {
                       <MapPin className="h-3.5 w-3.5 text-secondary shrink-0" />
                       <span>{item.venue}</span>
                     </div>
-                    <Badge variant="neutral" className="uppercase text-[9px] font-mono font-bold tracking-wider">
+                    <Badge variant="neutral" className="uppercase text-sm font-mono font-bold tracking-wider">
                       {item.type}
                     </Badge>
                   </div>

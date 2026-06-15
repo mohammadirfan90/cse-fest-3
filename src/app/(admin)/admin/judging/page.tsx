@@ -542,13 +542,13 @@ export default function AdminJudgingPage() {
                             <Unlock className="h-4 w-4" />
                             <span>Publish Preliminary Results</span>
                           </Button>
-                          <p className="text-[10px] text-neutral-500 text-center leading-normal">
+                          <p className="text-sm text-neutral-500 text-center leading-normal">
                             This will notify selected teams to complete payment.
                           </p>
                         </div>
                       ) : (
                         <div className="space-y-3">
-                          <div className="flex items-center gap-2 justify-center py-1 bg-warning/10 border border-warning/20 text-warning rounded text-[10px] font-mono">
+                          <div className="flex items-center gap-2 justify-center py-1 bg-warning/10 border border-warning/20 text-warning rounded text-sm font-mono">
                             <Eye className="h-3.5 w-3.5" />
                             <span>Preliminary Selection Published</span>
                           </div>
@@ -565,7 +565,7 @@ export default function AdminJudgingPage() {
                                 <Unlock className="h-4 w-4" />
                                 <span>Publish Final Selection</span>
                               </Button>
-                              <p className="text-[10px] text-neutral-500 text-center leading-normal">
+                              <p className="text-sm text-neutral-500 text-center leading-normal">
                                 Only publish after verifying payments.
                               </p>
                               <Button
@@ -573,17 +573,17 @@ export default function AdminJudgingPage() {
                                 onClick={handlePublishPreliminary}
                                 disabled={publishing}
                                 isLoading={publishing}
-                                className="w-full justify-center text-[10px] py-1.5"
+                                className="w-full justify-center text-sm py-1.5"
                               >
                                 Update Preliminary Selection
                               </Button>
-                              <p className="text-[9px] text-neutral-500 text-center leading-normal">
+                              <p className="text-sm text-neutral-500 text-center leading-normal">
                                 (Update selection without re-notifying)
                               </p>
                             </div>
                           ) : (
                             <div className="space-y-1.5">
-                              <div className="flex items-center gap-2 justify-center py-1 bg-success/10 border border-success/20 text-success rounded text-[10px] font-mono">
+                              <div className="flex items-center gap-2 justify-center py-1 bg-success/10 border border-success/20 text-success rounded text-sm font-mono">
                                 <Eye className="h-3.5 w-3.5" />
                                 <span>Final Selection Published</span>
                               </div>

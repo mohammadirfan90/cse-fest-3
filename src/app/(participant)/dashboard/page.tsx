@@ -6,49 +6,57 @@ import { useRouter } from "next/navigation";
 import {
   Users,
   Trophy,
-  UserCheck,
-  BookOpen,
-  ExternalLink,
   FileText,
-  X,
+  Video,
+  ExternalLink,
   Calendar,
-  Flame,
+  Crown,
+  AlertCircle,
+  Plus,
+  Compass,
+  ArrowRight,
+  LogOut,
+  Mail,
+  Phone,
+  Bookmark,
+  CheckCircle,
+  Clock,
+  HelpCircle,
+  GraduationCap
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Card, CardHeader, CardContent } from "@/components/ui/card";
+import Image from "next/image";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+
+const COMPETITION_IMAGES: Record<string, string> = {
+  "e0bb66f8-45e0-4c12-a1f7-418f773b069d": "/software-showcase-logo.png",
+  "318a4a58-89c0-449e-ba60-318df883ba58": "/iot-showcase-logo.png",
+  "dfec0659-6308-42e3-aaf6-dfdc85eb2cfa": "/idea-showcase-logo.png",
+  "software-showcase": "/software-showcase-logo.png",
+  "iot-showcase": "/iot-showcase-logo.png",
+  "idea-showcase": "/idea-showcase-logo.png",
+};
 import { createClient } from "@/lib/supabase/client";
-import { useBodyScrollLock } from "@/hooks/useBodyScrollLock";
 
-function getEmbedUrl(url: string) {
-  if (!url) return "";
-  if (url.includes("drive.google.com")) {
-    let fileId = "";
-    const dMatch = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
-    if (dMatch && dMatch[1]) {
-      fileId = dMatch[1];
-    } else {
-      const idMatch = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
-      if (idMatch && idMatch[1]) {
-        fileId = idMatch[1];
-      }
-    }
-    if (fileId) {
-      return `https://drive.google.com/file/d/${fileId}/preview`;
-    }
-  }
-  return url;
-}
-
-interface Profile {
+interface Member {
   id: string;
-  full_name: string | null;
-  phone: string | null;
-  university: string | null;
-  verification_status: "incomplete" | "pending" | "verified";
-  student_id: string | null;
-  profile_complete: boolean | null;
+  role: string;
+  invitation_status: string;
+  verification_status: string;
+  user_id: string | null;
+  profiles: {
+    full_name: string;
+    email: string;
+    phone: string;
+    gender: string;
+    university: string;
+    department: string;
+    semester: string;
+    student_id: string;
+    tshirt_size: string;
+  };
 }
 
 interface Team {
@@ -56,653 +64,520 @@ interface Team {
   name: string;
   status: string;
   leader_id: string;
+  competition_id: string;
   competitions: {
     id: string;
     name: string;
     type: string;
-    entry_fee: number;
+    min_members: number;
+    max_members: number;
     eligibility: string;
     registration_end: string;
     submission_end: string;
-    submission_required: boolean;
     rulebook_url?: string | null;
     template_link?: string | null;
     description?: string | null;
   } | null;
-}
-
-interface CompetitionItem {
-  name: string;
-  registration_end: string;
-  submission_end: string;
-  submission_required: boolean;
+  members: Member[];
+  submission?: any | null; // loaded client-side per team
 }
 
 const containerVariants = {
   hidden: { opacity: 0 },
-  show: { opacity: 1, transition: { staggerChildren: 0.05 } },
+  show: { opacity: 1, transition: { staggerChildren: 0.08 } },
 } as const;
 
 const itemVariants = {
-  hidden: { opacity: 0, y: 12 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.3, ease: "easeOut" } },
+  hidden: { opacity: 0, y: 15 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.35, ease: "easeOut" } },
 } as const;
 
-function StatusBanner({
-  type,
-  title,
-  message,
-  action,
-}: {
-  type: "warning" | "pending" | "success";
-  title: string;
-  message: string;
-  action?: React.ReactNode;
-}) {
-  const config = {
-    warning: {
-      dot: "bg-warning",
-    },
-    pending: {
-      dot: "bg-primary",
-    },
-    success: {
-      dot: "bg-success",
-    },
-  };
-  const c = config[type];
-
-  return (
-    <motion.div variants={itemVariants} className="w-full">
-      <Card
-        variant="glass"
-        className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 w-full"
-      >
-        <div className="flex gap-3 items-start relative z-10">
-          <span className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${c.dot}`} />
-          <div className="space-y-0.5">
-            <h3 className="font-semibold text-sm text-neutral-100">{title}</h3>
-            <p className="text-xs text-neutral-400 font-sans leading-relaxed">{message}</p>
-          </div>
-        </div>
-        {action && <div className="relative z-10 shrink-0">{action}</div>}
-      </Card>
-    </motion.div>
-  );
-}
-
-export default function DashboardHome() {
+export default function DashboardPage() {
   const router = useRouter();
   const [loading, setLoading] = React.useState(true);
-  const [profile, setProfile] = React.useState<Profile | null>(null);
   const [teams, setTeams] = React.useState<Team[]>([]);
-  const [allCompetitions, setAllCompetitions] = React.useState<CompetitionItem[]>([]);
-  const [selectedCompInfo, setSelectedCompInfo] = React.useState<NonNullable<Team["competitions"]> | null>(null);
+  const [userEmail, setUserEmail] = React.useState<string | null>(null);
+  const [userName, setUserName] = React.useState<string | null>(null);
+  const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
+  const [activeVideoId, setActiveVideoId] = React.useState<string | null>(null);
 
-  useBodyScrollLock(selectedCompInfo !== null);
+  const [allCompetitions, setAllCompetitions] = React.useState<any[]>([]);
+
   const supabase = createClient();
 
-  const loadDashboardData = React.useCallback(
-    async (showLoader = false) => {
-      if (showLoader) setLoading(true);
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) { router.push("/login"); return; }
+  const loadData = React.useCallback(async () => {
+    try {
+      setLoading(true);
+      setErrorMsg(null);
 
-        const { data: profileData } = await supabase
-          .from("profiles")
-          .select("*")
-          .eq("id", user.id)
-          .single();
-        setProfile(profileData);
-
-        const { data: compList } = await supabase
-          .from("competitions")
-          .select("name, registration_end, submission_end, submission_required")
-          .neq("status", "draft");
-        setAllCompetitions((compList as CompetitionItem[]) || []);
-
-        if (profileData) {
-          const { data: members } = await supabase
-            .from("team_members")
-            .select("team_id, joined_at")
-            .eq("user_id", user.id)
-            .eq("invitation_status", "accepted");
-
-          if (members && members.length > 0) {
-            const teamIds = members.map((m) => m.team_id);
-            const { data: teamData } = await supabase
-              .from("teams")
-              .select("*, competitions(id, name, type, entry_fee, eligibility, registration_end, submission_end, submission_required, rulebook_url, template_link, description)")
-              .in("id", teamIds);
-            setTeams(teamData || []);
-          } else {
-            setTeams([]);
-          }
-        }
-      } catch (err) {
-        console.error("Dashboard loading error", err);
-      } finally {
-        setLoading(false);
+      // Authenticate
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        router.replace("/login");
+        return;
       }
-    },
-    [supabase, router]
-  );
 
-  React.useEffect(() => {
-    const timer = setTimeout(() => { loadDashboardData(true); }, 0);
-    return () => clearTimeout(timer);
-  }, [loadDashboardData]);
+      setUserEmail(user.email ?? null);
+      setUserName(user.user_metadata?.full_name ?? user.user_metadata?.name ?? "Innovator");
 
-  React.useEffect(() => {
-    function handleFocus() { loadDashboardData(false); }
-    function handleVisibilityChange() {
-      if (document.visibilityState === "visible") loadDashboardData(false);
+      // Fetch teams and rosters
+      const res = await fetch("/api/teams");
+      const resData = await res.json();
+
+      if (!resData.success) {
+        throw new Error(resData.message || "Failed to load registrations.");
+      }
+
+      const activeTeams: Team[] = resData.data || [];
+
+      // Fetch submissions client-side for each team
+      const teamsWithSubmissions = await Promise.all(
+        activeTeams.map(async (team) => {
+          try {
+            const subRes = await fetch(`/api/submissions?team_id=${team.id}`);
+            const subData = await subRes.json();
+            return {
+              ...team,
+              submission: subData.success && subData.data ? subData.data : null,
+            };
+          } catch (err) {
+            console.error(`Failed to load submission for team ${team.id}:`, err);
+            return { ...team, submission: null };
+          }
+        })
+      );
+
+      setTeams(teamsWithSubmissions);
+
+      // Fetch all competitions
+      const compRes = await fetch("/api/public/competitions");
+      const compData = await compRes.json();
+      if (compData.success) {
+        setAllCompetitions(compData.data || []);
+      }
+    } catch (err: any) {
+      console.error("Dashboard error:", err);
+      setErrorMsg(err.message || "An error occurred while loading dashboard data.");
+    } finally {
+      setLoading(false);
     }
-    window.addEventListener("focus", handleFocus);
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    return () => {
-      window.removeEventListener("focus", handleFocus);
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-    };
-  }, [loadDashboardData]);
+  }, [supabase, router]);
+
+  React.useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  // Log out
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    router.replace("/login");
+    router.refresh();
+  };
+
+  const getTeamStatusBadge = (status: string) => {
+    const isSuccess = status === "selected" || status === "finalist";
+    const isDanger = status === "rejected";
+    const isWarning = status === "pending" || status === "forming";
+    const isInfo = status === "submitted" || status === "registered";
+
+    const variant = isSuccess
+      ? "success"
+      : isDanger
+      ? "error"
+      : isWarning
+      ? "warning"
+      : isInfo
+      ? "primary"
+      : "neutral";
+
+    return (
+      <Badge variant={variant} className="capitalize text-xxs font-mono font-bold tracking-wider py-0.5 px-2.5">
+        {status}
+      </Badge>
+    );
+  };
 
   if (loading) {
     return (
-      <div className="space-y-6" suppressHydrationWarning>
-        <div className="space-y-2 animate-pulse">
-          <div className="h-9 bg-muted w-56 rounded-lg" suppressHydrationWarning />
-          <div className="h-4 bg-muted/60 w-80 rounded-md" suppressHydrationWarning />
-        </div>
-        <div className="h-20 bg-card rounded-xl border border-border animate-pulse" suppressHydrationWarning />
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5" suppressHydrationWarning>
-          {[...Array(3)].map((_, i) => (
-            <div key={i} className="h-28 bg-card rounded-xl border border-border animate-pulse" suppressHydrationWarning />
-          ))}
-        </div>
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8" suppressHydrationWarning>
-          <div className="lg:col-span-2 space-y-3" suppressHydrationWarning>
-            {[...Array(2)].map((_, i) => (
-              <div key={i} className="h-24 bg-card rounded-xl border border-border animate-pulse" suppressHydrationWarning />
-            ))}
+      <div className="space-y-8 animate-pulse font-sans">
+        <div className="flex justify-between items-end border-b border-neutral-900 pb-5">
+          <div className="space-y-2">
+            <div className="h-4 bg-neutral-900 w-24 rounded" />
+            <div className="h-8 bg-neutral-900 w-64 rounded" />
           </div>
-          <div className="h-64 bg-card rounded-xl border border-border animate-pulse" suppressHydrationWarning />
+          <div className="h-10 bg-neutral-900 w-32 rounded" />
+        </div>
+        <div className="space-y-4">
+          <div className="h-6 bg-neutral-900 w-36 rounded" />
+          <div className="h-64 bg-neutral-900/60 border border-neutral-850 rounded-2xl" />
         </div>
       </div>
     );
   }
-
-  const isIncomplete = !profile || !profile.profile_complete;
-
-  const registeredTeams = teams.filter((t) => t.status !== "forming");
 
   return (
     <motion.div
       variants={containerVariants}
       initial="hidden"
       animate="show"
-      className="space-y-8"
+      className="space-y-8 font-sans select-text"
     >
-      {/* Page Header */}
-      <motion.div variants={itemVariants} className="flex flex-col md:flex-row justify-between md:items-end gap-4 border-b border-border pb-5">
+      {/* Header Panel */}
+      <motion.div
+        variants={itemVariants}
+        className="flex flex-col md:flex-row justify-between md:items-end gap-4 border-b border-neutral-900 pb-5"
+      >
         <div>
-          <p className="text-xs font-mono text-muted-foreground uppercase tracking-widest mb-1">
-            Participant Portal
-          </p>
-          <h1 className="text-2xl md:text-3xl font-heading font-bold text-foreground tracking-tight">
-            Welcome back,{" "}
-            <span className="text-foreground">{profile?.full_name?.split(" ")[0] || "Innovator"}</span>
+          <span className="text-sm font-mono text-primary font-bold uppercase tracking-widest block mb-1">
+            Participant Workspace
+          </span>
+          <h1 className="text-2xl md:text-3xl font-heading font-extrabold text-neutral-100 tracking-tight leading-none">
+            Welcome back, <span className="text-primary">{userName?.split(" ")[0]}</span>
           </h1>
-          <p className="text-xs text-muted-foreground font-sans mt-1">
-            Manage your teams, track submissions, and stay on top of deadlines.
+          <p className="text-xs text-neutral-400 font-sans mt-1.5">
+            Overview of your active registrations, team rosters, and submitted proposals.
           </p>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <Link href="/competitions">
+            <Button className="bg-primary hover:bg-primary/95 text-white font-sans text-xs px-5 py-2.5 h-auto rounded-xl hover:shadow-[0_0_15px_rgba(99,102,241,0.25)] flex items-center gap-1.5 active:scale-[0.98] transition-all">
+              <Plus className="h-4 w-4" />
+              <span>Register New Team</span>
+            </Button>
+          </Link>
+          <Button
+            variant="ghost"
+            onClick={handleSignOut}
+            className="text-xs border border-neutral-850 hover:bg-neutral-900/40 text-neutral-400 hover:text-neutral-200 py-2.5 px-4 h-auto rounded-xl flex items-center gap-1.5 cursor-pointer"
+          >
+            <LogOut className="h-3.5 w-3.5" />
+            <span>Sign Out</span>
+          </Button>
         </div>
       </motion.div>
 
-      {/* Status Banners */}
-      {isIncomplete && (
-        <StatusBanner
-          type="warning"
-          title="Profile Setup Required"
-          message="Complete your profile and upload your student ID to unlock competition registration."
-          action={
-            <Link href="/profile-setup">
-              <Button variant="primary" className="text-xs py-2 px-4 shadow-sm">
-                Complete Profile
-              </Button>
-            </Link>
-          }
-        />
+      {/* Global Notifications */}
+      {errorMsg && (
+        <motion.div
+          variants={itemVariants}
+          className="p-4 rounded-lg bg-error/10 border border-error/20 text-xs text-error font-semibold flex items-start gap-2.5"
+        >
+          <AlertCircle className="h-4.5 w-4.5 shrink-0 mt-0.5" />
+          <span>{errorMsg}</span>
+        </motion.div>
       )}
 
-      {!isIncomplete && teams.length === 0 && (
-        <StatusBanner
-          type="success"
-          title="Profile Complete — Competition Access Unlocked!"
-          message="Your profile is complete. You can now create or join teams and register for competitions."
-          action={
-            <Link href="/teams">
-              <Button variant="primary" className="text-xs py-2 px-4 shadow-sm">
-                Create a Team
-              </Button>
-            </Link>
-          }
-        />
-      )}
+      {/* Main Registrations Section */}
+      <motion.div variants={itemVariants} className="space-y-6">
+        <div className="flex items-center gap-2">
+          <Bookmark className="h-5 w-5 text-primary" />
+          <h2 className="text-lg font-heading font-extrabold text-neutral-100">My Registrations</h2>
+        </div>
 
-      {/* Stats Grid */}
-      <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-3 gap-5">
-        {/* Profile Status */}
-        <Card
-          variant="glass"
-          hoverable
-          className="p-5 flex items-center justify-between w-full"
-        >
-          <div className="space-y-1">
-            <span className="text-[10px] font-semibold text-neutral-400 font-sans uppercase tracking-widest block">
-              Profile Status
-            </span>
-            <h4 className={`text-base font-heading font-bold capitalize font-mono ${
-              !isIncomplete ? "text-success" : "text-destructive"
-            }`}>
-              {!isIncomplete ? "Complete" : "Incomplete"}
-            </h4>
-          </div>
-          <div className="p-2.5 rounded border border-border bg-muted text-neutral-400">
-            <UserCheck className="h-4 w-4" />
-          </div>
-        </Card>
+        {teams.length > 0 ? (
+          <div className="space-y-8">
+            {teams.map((team, idx) => {
+              const comp = team.competitions;
+              const pdfUrl = team.submission ? `/api/submissions/file/${team.submission.id}?type=pdf` : null;
+              const videoUrl = team.submission ? `/api/submissions/file/${team.submission.id}?type=video` : null;
 
-        {/* Teams */}
-        <Card
-          variant="glass"
-          hoverable
-          className="p-5 flex items-center justify-between w-full"
-        >
-          <div className="space-y-1">
-            <span className="text-[10px] font-semibold text-neutral-400 font-sans uppercase tracking-widest block">
-              My Teams
-            </span>
-            <h4 className="text-2xl font-heading font-bold text-neutral-100 font-mono leading-none">
-              {teams.length}
-            </h4>
-          </div>
-          <div className="p-2.5 rounded border border-border bg-muted text-neutral-400">
-            <Users className="h-4 w-4" />
-          </div>
-        </Card>
+              return (
+                <motion.div
+                  key={team.id}
+                  initial={{ opacity: 0, y: 15 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: idx * 0.08 }}
+                  className="relative group/card"
+                >
+                  <Card variant="glass" className="bg-glass border-glass overflow-hidden">
+                    {/* Top Accent line based on status */}
+                    <div className={`h-1.5 w-full ${
+                      team.status === "selected" || team.status === "finalist"
+                        ? "bg-success"
+                        : team.status === "rejected"
+                        ? "bg-error"
+                        : "bg-primary"
+                    }`} />
 
-        {/* Competitions */}
-        <Card
-          variant="glass"
-          hoverable
-          className="p-5 flex items-center justify-between w-full"
-        >
-          <div className="space-y-1">
-            <span className="text-[10px] font-semibold text-neutral-400 font-sans uppercase tracking-widest block">
-              Registered
-            </span>
-            <h4 className="text-2xl font-heading font-bold text-neutral-100 font-mono leading-none">
-              {registeredTeams.length}
-            </h4>
-          </div>
-          <div className="p-2.5 rounded border border-border bg-muted text-neutral-400">
-            <Trophy className="h-4 w-4" />
-          </div>
-        </Card>
-      </motion.div>
-
-      {/* Main Content */}
-      <motion.div variants={itemVariants} className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
-        {/* Teams List */}
-        <div className="lg:col-span-2 space-y-5">
-          <div className="flex justify-between items-center">
-            <div className="flex items-center gap-2">
-              <Users className="h-4.5 w-4.5 text-muted-foreground" />
-              <h2 className="text-base font-heading font-semibold text-foreground">My Teams</h2>
-              {teams.length > 0 && (
-                <span className="text-[10px] font-mono bg-muted text-muted-foreground border border-border px-2 py-0.5 rounded font-bold">
-                  {teams.length}
-                </span>
-              )}
-            </div>
-            <Link href="/teams">
-              <Button
-                variant="secondary"
-                disabled={isIncomplete}
-                className="text-xs py-1.5 px-3 h-auto gap-1.5 shadow-sm"
-              >
-                <span>Manage Teams</span>
-              </Button>
-            </Link>
-          </div>
-
-          {teams.length > 0 ? (
-            <div className="space-y-3">
-              {teams.map((team, idx) => {
-                const isFinalist = team.status === "finalist";
-                const isSelected = team.status === "selected";
-                const isRejected = team.status === "rejected";
-                const isForming = team.status === "forming";
-
-                const badgeVariant =
-                  isFinalist || isSelected
-                    ? "success"
-                    : isRejected
-                    ? "error"
-                    : isForming
-                    ? "warning"
-                    : team.status === "submitted" || team.status === "registered"
-                    ? "primary"
-                    : "neutral";
-
-                return (
-                  <motion.div
-                    key={team.id}
-                    initial={{ opacity: 0, x: -8 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: idx * 0.05 }}
-                  >
-                    <Card
-                      variant="default"
-                      hoverable
-                      className="p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 w-full group"
-                    >
-                      <div className="space-y-1 flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <h3 className="font-heading font-semibold text-sm text-foreground truncate">
-                            {team.name}
+                    {/* Roster detail area */}
+                    <div className="p-6 md:p-8 space-y-6">
+                      {/* Competition Title */}
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-neutral-900 pb-5">
+                        <div className="space-y-1.5">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Badge variant="accent" className="text-sm uppercase font-mono font-bold tracking-wider px-2 py-0.5">
+                              {comp?.type}
+                            </Badge>
+                            <span className="text-sm text-neutral-500 font-mono">
+                              Roster limit: {comp?.min_members} - {comp?.max_members} members
+                            </span>
+                          </div>
+                          <h3 className="text-lg font-heading font-extrabold text-neutral-100 uppercase tracking-tight">
+                            {comp?.name}
                           </h3>
-                          <Badge variant={badgeVariant} className="capitalize text-[10px] py-0.5 px-2 font-mono">
-                            {team.status}
-                          </Badge>
+                          <p className="text-xs text-neutral-400 font-sans max-w-xl">
+                            {comp?.description || "Exhibition competition details."}
+                          </p>
                         </div>
-                        <div className="flex flex-wrap items-center gap-2 text-xs font-sans text-muted-foreground">
-                          <span className="font-medium text-foreground/80">{team.competitions?.name}</span>
-                          <span className="w-1 h-1 rounded-full bg-border" />
-                          <span className="capitalize">{team.competitions?.type}</span>
+                        <div className="flex flex-col items-end gap-1.5">
+                          <span className="text-sm font-mono text-neutral-500 uppercase tracking-wider">Registration Status</span>
+                          {getTeamStatusBadge(team.status)}
                         </div>
                       </div>
 
-                      {team.competitions && (
-                        <button
-                          onClick={() => setSelectedCompInfo(team.competitions)}
-                          className="shrink-0 text-xs py-1.5 px-3 rounded border border-border bg-muted text-muted-foreground hover:text-foreground flex items-center gap-1.5 cursor-pointer hover:bg-muted/80 transition-colors shadow-sm"
-                        >
-                          <BookOpen className="h-3.5 w-3.5 text-muted-foreground/85" />
-                          <span>View Rules</span>
-                        </button>
-                      )}
-                    </Card>
-                  </motion.div>
+                      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                        {/* Left/Middle: Team details and roster (2 cols) */}
+                        <div className="lg:col-span-2 space-y-6">
+                          {/* Team Name header */}
+                          <div className="space-y-1 bg-neutral-950/40 p-4 border border-neutral-850 rounded-xl">
+                            <span className="text-sm uppercase font-bold tracking-widest text-neutral-500 font-mono">Team Name</span>
+                            <div className="text-sm font-semibold text-neutral-100 font-heading">
+                              {team.name}
+                            </div>
+                          </div>
+
+                          {/* Roster list */}
+                          <div className="space-y-3">
+                            <h4 className="text-xs font-mono font-bold uppercase tracking-wider text-neutral-400 flex items-center gap-1.5">
+                              <Users className="h-4 w-4 text-primary" />
+                              <span>Roster Members</span>
+                            </h4>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                              {team.members.map((member) => {
+                                const isLeaderRole = member.role === "leader";
+                                return (
+                                  <div
+                                    key={member.id}
+                                    className="p-4 rounded-xl border border-neutral-850 bg-neutral-950/60 relative overflow-hidden font-sans space-y-2.5 flex flex-col justify-between"
+                                  >
+                                    <div className="space-y-1">
+                                      <div className="flex items-center justify-between gap-2">
+                                        <span className="text-xs font-semibold text-neutral-200 truncate">
+                                          {member.profiles.full_name}
+                                        </span>
+                                        {isLeaderRole ? (
+                                          <Badge variant="primary" className="text-sm uppercase font-mono font-bold py-0.5 px-2 flex items-center gap-1 shrink-0">
+                                            <Crown className="h-2 w-2" />
+                                            <span>Leader</span>
+                                          </Badge>
+                                        ) : (
+                                          <Badge variant="secondary" className="text-sm uppercase font-mono font-bold py-0.5 px-2 shrink-0">
+                                            Member
+                                          </Badge>
+                                        )}
+                                      </div>
+                                      <div className="text-sm text-neutral-400 flex items-center gap-1.5">
+                                        <Mail className="h-3 w-3 text-neutral-500 shrink-0" />
+                                        <span className="truncate">{member.profiles.email}</span>
+                                      </div>
+                                      <div className="text-sm text-neutral-400 flex items-center gap-1.5">
+                                        <Phone className="h-3 w-3 text-neutral-500 shrink-0" />
+                                        <span>{member.profiles.phone}</span>
+                                      </div>
+                                    </div>
+
+                                    <div className="border-t border-neutral-900 pt-2 flex flex-wrap gap-x-3 gap-y-1 text-sm text-neutral-500 font-mono">
+                                      <span className="flex items-center gap-0.5">
+                                        <GraduationCap className="h-3 w-3 shrink-0" />
+                                        {member.profiles.university}
+                                      </span>
+                                      <span>Dept: {member.profiles.department}</span>
+                                      <span>Sem: {member.profiles.semester}</span>
+                                      <span>ID: {member.profiles.student_id}</span>
+                                      <span>T-shirt: {member.profiles.tshirt_size}</span>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Right: Submission & Files (1 col) */}
+                        <div className="space-y-6">
+                          <h4 className="text-xs font-mono font-bold uppercase tracking-wider text-neutral-400 flex items-center gap-1.5">
+                            <FileText className="h-4 w-4 text-accent" />
+                            <span>Proposal Submission</span>
+                          </h4>
+
+                          {team.submission ? (
+                            <div className="p-5 rounded-xl border border-neutral-850 bg-neutral-950/60 space-y-4">
+                              <div>
+                                <span className="text-sm uppercase font-bold tracking-widest text-neutral-500 font-mono">Project Title</span>
+                                <div className="text-xs font-semibold text-neutral-200 mt-1 leading-snug">
+                                  {team.submission.title}
+                                </div>
+                              </div>
+
+                              <div className="space-y-2">
+                                <span className="text-sm uppercase font-bold tracking-widest text-neutral-500 font-mono block">Files Submitted</span>
+                                
+                                {pdfUrl && (
+                                  <a
+                                    href={pdfUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="w-full flex items-center justify-between p-2.5 rounded bg-neutral-900 border border-neutral-850 hover:border-neutral-700 transition-colors text-neutral-300 hover:text-neutral-100 text-xxs font-mono uppercase tracking-wider"
+                                  >
+                                    <span className="flex items-center gap-1.5">
+                                      <FileText className="h-3.5 w-3.5 text-neutral-400" />
+                                      <span>PDF Report</span>
+                                    </span>
+                                    <ExternalLink className="h-3 w-3" />
+                                  </a>
+                                )}
+
+                                {videoUrl && (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setActiveVideoId(
+                                        activeVideoId === team.id ? null : team.id
+                                      )
+                                    }
+                                    className="w-full flex items-center justify-between p-2.5 rounded bg-neutral-900 border border-neutral-850 hover:border-neutral-700 transition-colors text-neutral-300 hover:text-neutral-100 text-xxs font-mono uppercase tracking-wider"
+                                  >
+                                    <span className="flex items-center gap-1.5">
+                                      <Video className="h-3.5 w-3.5 text-neutral-400" />
+                                      <span>Demo Video</span>
+                                    </span>
+                                    <span className="text-sm text-neutral-500 font-sans">
+                                      {activeVideoId === team.id ? "Hide Player" : "Play Video"}
+                                    </span>
+                                  </button>
+                                )}
+                              </div>
+
+                              {/* Inline Video Player */}
+                              {videoUrl && activeVideoId === team.id && (
+                                <div className="border border-neutral-800 rounded-lg overflow-hidden bg-black p-1 animate-fade-in">
+                                  <video
+                                    src={videoUrl}
+                                    controls
+                                    className="w-full aspect-video rounded bg-black border border-neutral-900"
+                                    preload="metadata"
+                                  >
+                                    Your browser does not support the video tag.
+                                  </video>
+                                </div>
+                              )}
+
+                              {team.submission.notes && (
+                                <div>
+                                  <span className="text-sm uppercase font-bold tracking-widest text-neutral-500 font-mono">Submission Notes</span>
+                                  <div className="text-sm text-neutral-400 mt-1 leading-relaxed whitespace-pre-wrap max-h-24 overflow-y-auto bg-neutral-950/40 p-2.5 rounded border border-neutral-850/50">
+                                    {team.submission.notes}
+                                  </div>
+                                </div>
+                              )}
+
+                              <div className="border-t border-neutral-900 pt-3 flex items-center gap-1 text-sm text-neutral-500 font-mono">
+                                <Clock className="h-3 w-3" />
+                                <span>Sent: {new Date(team.submission.submitted_at).toLocaleDateString()}</span>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="p-6 text-center border border-dashed border-neutral-850 rounded-xl bg-neutral-950/20 text-neutral-500 text-xs">
+                              No project proposal submitted for this team.
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </Card>
+                </motion.div>
+              );
+            })}
+          </div>
+        ) : (
+          /* Empty state - Available Competitions cards catalog */
+          <div className="space-y-6">
+            <p className="text-sm text-neutral-400 font-sans">
+              You haven&apos;t registered for any competitions yet. Browse the listings below and secure your team&apos;s spot:
+            </p>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pt-2">
+              {allCompetitions.map((comp) => {
+                const coverImage =
+                  comp.coverImageUrl ||
+                  COMPETITION_IMAGES[comp.id] ||
+                  COMPETITION_IMAGES[comp.shortName?.toLowerCase()] ||
+                  "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?q=80&w=600";
+
+                return (
+                  <div
+                    key={comp.id}
+                    onClick={() => router.push(`/competitions/${comp.id}/register`)}
+                    className="relative bg-neutral-900/40 rounded-xl flex flex-col group border border-neutral-850 transition-all duration-normal hover:-translate-y-1 hover:shadow-[0_0_20px_rgba(99,102,241,0.15)] overflow-hidden cursor-pointer"
+                  >
+                    {/* Cover image header */}
+                    <div className="relative h-40 overflow-hidden">
+                      <div className="absolute inset-0 bg-linear-to-t from-neutral-950/90 to-transparent z-10" />
+                      <Image
+                        src={coverImage}
+                        alt={comp.name}
+                        fill
+                        className="object-cover group-hover:scale-105 transition-transform duration-500"
+                        sizes="(max-width: 768px) 100vw, 380px"
+                      />
+                      <div className="absolute top-4 right-4 z-20">
+                        <span className="bg-primary/20 backdrop-blur-md border border-primary/40 text-primary px-3 py-1 rounded-full text-sm font-bold font-sans">
+                          {comp.teamSize?.toUpperCase()}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Content */}
+                    <div className="p-5 grow flex flex-col justify-between space-y-4">
+                      <div>
+                        <div className="flex justify-between items-start gap-2 mb-2">
+                          <h3 className="font-heading font-extrabold text-base text-neutral-100 group-hover:text-primary transition-colors uppercase truncate">
+                            {comp.name}
+                          </h3>
+                        </div>
+                        <p className="text-neutral-400 text-xs line-clamp-3 leading-relaxed font-sans">
+                          {comp.shortDescription}
+                        </p>
+                      </div>
+
+                      <div className="space-y-3 pt-2">
+                        <div className="flex justify-between items-center text-xs py-2 border-y border-neutral-850/65 font-mono">
+                          <span className="text-neutral-500 font-bold uppercase">Entry Fee</span>
+                          <span className="text-neutral-200 font-bold">{comp.fee}</span>
+                        </div>
+                        <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
+                          <Link href={`/competitions/${comp.id}/register`} className="grow">
+                            <Button className="w-full bg-primary hover:bg-primary/95 text-white py-2 h-auto rounded-lg text-xs font-bold font-sans">
+                              Register
+                            </Button>
+                          </Link>
+                          {comp.rulebookUrl && (
+                            <a
+                              href={comp.rulebookUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="shrink-0"
+                            >
+                              <Button
+                                variant="secondary"
+                                className="px-3 border border-neutral-800 hover:border-neutral-700 bg-neutral-900/40 text-neutral-400 hover:text-neutral-200 py-2 h-auto rounded-lg text-xs"
+                              >
+                                Rulebook
+                              </Button>
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 );
               })}
             </div>
-          ) : (
-            <div className="py-14 border border-dashed border-border rounded-lg text-center bg-card space-y-4 shadow-sm">
-              <div className="p-3 bg-muted border border-border rounded-full w-fit mx-auto text-muted-foreground">
-                <Users className="h-6 w-6" />
-              </div>
-              <div className="space-y-1 max-w-xs mx-auto">
-                <h3 className="font-heading font-semibold text-foreground text-sm">No Active Teams</h3>
-                <p className="text-xs text-muted-foreground font-sans leading-relaxed">
-                  You haven&apos;t joined any teams. Create a new team or accept a pending invitation.
-                </p>
-              </div>
-              <Link href="/teams">
-                <Button
-                  variant="primary"
-                  disabled={isIncomplete}
-                  className="text-xs gap-1.5 mx-auto shadow-sm"
-                >
-                  Create Team
-                </Button>
-              </Link>
-            </div>
-          )}
-        </div>
-
-        {/* Right: Deadlines */}
-        <div className="space-y-5">
-          <div className="flex items-center gap-2">
-            <Flame className="h-4.5 w-4.5 text-muted-foreground" />
-            <h2 className="text-base font-heading font-semibold text-foreground">Deadlines</h2>
-          </div>
-
-          <Card variant="glass" className="p-5">
-            <div className="pb-3 mb-4 border-b border-neutral-800/60">
-              <div className="flex items-center gap-2">
-                <Calendar className="h-3.5 w-3.5 text-neutral-400" />
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-neutral-400">
-                  {teams.length > 0 ? "My Deadlines" : "Upcoming Deadlines"}
-                </h3>
-              </div>
-            </div>
-            <div className="font-sans text-xs">
-              {(() => {
-                const formatDeadlineDate = (dateStr: string) => {
-                  try {
-                    return new Date(dateStr).toLocaleDateString("en-US", {
-                      month: "short",
-                      day: "numeric",
-                      year: "numeric",
-                    });
-                  } catch {
-                    return "TBD";
-                  }
-                };
-
-                const isUpcoming = (dateStr: string) => {
-                  try {
-                    return new Date(dateStr) > new Date();
-                  } catch {
-                    return false;
-                  }
-                };
-
-                const deadlinesToDisplay: { label: string; date: string; compName: string; dateStr: string }[] = [];
-
-                if (teams.length > 0) {
-                  teams.forEach((team) => {
-                    if (team.competitions) {
-                      const comp = team.competitions;
-                      deadlinesToDisplay.push({
-                        label: "Registration Closes",
-                        date: formatDeadlineDate(comp.registration_end),
-                        compName: comp.name,
-                        dateStr: comp.registration_end,
-                      });
-                      if (comp.submission_required) {
-                        deadlinesToDisplay.push({
-                          label: "Submission Closes",
-                          date: formatDeadlineDate(comp.submission_end),
-                          compName: comp.name,
-                          dateStr: comp.submission_end,
-                        });
-                      }
-                    }
-                  });
-                } else {
-                  allCompetitions.forEach((comp) => {
-                    deadlinesToDisplay.push({
-                      label: "Registration Closes",
-                      date: formatDeadlineDate(comp.registration_end),
-                      compName: comp.name,
-                      dateStr: comp.registration_end,
-                    });
-                    if (comp.submission_required) {
-                      deadlinesToDisplay.push({
-                        label: "Submission Closes",
-                        date: formatDeadlineDate(comp.submission_end),
-                        compName: comp.name,
-                        dateStr: comp.submission_end,
-                      });
-                    }
-                  });
-                }
-
-                if (deadlinesToDisplay.length > 0) {
-                  return (
-                    <div className="relative pl-5 space-y-5">
-                      <div className="absolute left-1.5 top-2 bottom-2 w-px bg-border" />
-                      {deadlinesToDisplay.map((item, idx) => {
-                        const upcoming = isUpcoming(item.dateStr);
-                        return (
-                          <div key={idx} className="relative group">
-                            <div className={`absolute -left-[19px] top-1.5 w-2 h-2 rounded-full border border-border bg-card z-10 transition-colors ${
-                              upcoming ? "group-hover:border-primary" : ""
-                            }`} />
-                            <div className="space-y-0.5">
-                              <div className={`font-medium leading-snug ${upcoming ? "text-foreground" : "text-muted-foreground line-through"}`}>
-                                {item.compName}
-                              </div>
-                              <div className="text-[10px] text-muted-foreground">{item.label}</div>
-                              <div className={`font-mono text-[9px] ${upcoming ? "text-primary font-semibold" : "text-muted-foreground"}`}>
-                                {item.date}
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  );
-                }
-
-                return (
-                  <div className="text-muted-foreground text-center py-6 font-sans text-xs">
-                    No upcoming deadlines.
-                  </div>
-                );
-              })()}
-            </div>
-          </Card>
-        </div>
-      </motion.div>
-
-      {/* Rules & Instructions Modal */}
-      <AnimatePresence>
-        {selectedCompInfo && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setSelectedCompInfo(null)}
-              className="fixed inset-0 bg-black/60 backdrop-blur-sm"
-            />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.98, y: 10 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.98, y: 10 }}
-              transition={{ duration: 0.18, ease: "easeOut" }}
-              className="w-full max-w-3xl bg-card border border-border rounded-lg p-6 shadow-level-3 relative z-10 space-y-5 max-h-[85vh] overflow-y-auto font-sans text-foreground"
-            >
-              {/* Modal Header */}
-              <div className="flex justify-between items-start border-b border-border pb-4">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <Badge variant="accent" className="text-[10px] uppercase font-mono font-bold tracking-widest py-0.5 px-2 rounded">
-                      {selectedCompInfo.type}
-                    </Badge>
-                  </div>
-                  <h3 className="text-lg font-bold font-heading text-foreground tracking-tight mt-1">
-                    {selectedCompInfo.name}
-                  </h3>
-                </div>
-                <button
-                  onClick={() => setSelectedCompInfo(null)}
-                  className="p-1.5 rounded border border-border bg-muted hover:bg-muted/80 transition-colors text-muted-foreground hover:text-foreground cursor-pointer"
-                >
-                  <X className="h-4.5 w-4.5" />
-                </button>
-              </div>
-
-              <div className="space-y-5">
-                {/* Description */}
-                {selectedCompInfo.description && (
-                  <div className="space-y-1.5">
-                    <h4 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest font-mono">Overview</h4>
-                    <p className="text-sm text-foreground/80 leading-relaxed font-sans">
-                      {selectedCompInfo.description}
-                    </p>
-                  </div>
-                )}
-
-                {/* Quick Stats */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 border border-border bg-muted p-4 rounded-lg">
-                  <div className="space-y-1">
-                    <span className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground font-mono block">Entry Fee</span>
-                    <span className="text-sm font-semibold text-foreground block">
-                      {Number(selectedCompInfo.entry_fee) === 0 ? "Free" : `${selectedCompInfo.entry_fee} BDT`}
-                    </span>
-                  </div>
-                  <div className="space-y-1">
-                    <span className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground font-mono block">Eligibility</span>
-                    <span className="text-sm font-semibold text-foreground block capitalize">
-                      {selectedCompInfo.eligibility || "Open"}
-                    </span>
-                  </div>
-                  <div className="space-y-1">
-                    <span className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground font-mono block">Template</span>
-                    {selectedCompInfo.template_link ? (
-                      <a
-                        href={selectedCompInfo.template_link}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-sm font-semibold text-primary hover:text-primary/80 transition-colors inline-flex items-center gap-1"
-                      >
-                        <span>Download</span>
-                        <ExternalLink className="h-3 w-3" />
-                      </a>
-                    ) : (
-                      <span className="text-sm text-muted-foreground">Not required</span>
-                    )}
-                  </div>
-                </div>
-
-                {/* Rulebook */}
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center flex-wrap gap-2">
-                    <h4 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest font-mono">Official Rulebook</h4>
-                    {selectedCompInfo.rulebook_url && (
-                      <a href={selectedCompInfo.rulebook_url} target="_blank" rel="noopener noreferrer">
-                        <Button variant="secondary" className="text-[10px] py-1 px-2.5 h-auto gap-1 rounded border border-border bg-card text-foreground hover:bg-muted shadow-sm">
-                          <span>Open in Drive</span>
-                          <ExternalLink className="h-3 w-3" />
-                        </Button>
-                      </a>
-                    )}
-                  </div>
-
-                  {selectedCompInfo.rulebook_url ? (
-                    <div className="w-full aspect-[16/9] rounded border border-border bg-background overflow-hidden">
-                      <iframe
-                        src={getEmbedUrl(selectedCompInfo.rulebook_url)}
-                        className="w-full h-full border-0"
-                        allow="autoplay"
-                      />
-                    </div>
-                  ) : (
-                    <div className="p-8 text-center border border-dashed border-border rounded bg-muted">
-                      <FileText className="h-6 w-6 text-muted-foreground/60 mx-auto mb-2" />
-                      <p className="text-xs text-muted-foreground leading-normal max-w-sm mx-auto">
-                        No rulebook has been uploaded yet. Check back later or consult the coordinator desk.
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="flex justify-end pt-3 border-t border-border">
-                <Button variant="secondary" onClick={() => setSelectedCompInfo(null)} className="text-xs py-2 px-4 rounded border border-border bg-card text-foreground hover:bg-muted shadow-sm">
-                  Close
-                </Button>
-              </div>
-            </motion.div>
           </div>
         )}
-      </AnimatePresence>
+      </motion.div>
     </motion.div>
   );
 }
-

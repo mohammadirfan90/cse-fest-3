@@ -64,7 +64,7 @@ export function SubmissionDetailsCard({ submission }: SubmissionDetailsCardProps
       <CardContent className="space-y-5 pt-5">
         <div className="space-y-4">
           <div>
-            <div className="text-[10px] text-neutral-500 font-bold uppercase tracking-wider">
+            <div className="text-sm text-neutral-500 font-bold uppercase tracking-wider">
               Proposal Title
             </div>
             <div className="text-sm text-neutral-100 font-semibold mt-1 bg-neutral-950/60 py-2.5 px-3 rounded-lg border border-neutral-850">
@@ -75,7 +75,7 @@ export function SubmissionDetailsCard({ submission }: SubmissionDetailsCardProps
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* PDF Row */}
             <div>
-              <div className="text-[10px] text-neutral-500 font-bold uppercase tracking-wider mb-2">
+              <div className="text-sm text-neutral-500 font-bold uppercase tracking-wider mb-2">
                 Project PDF Report
               </div>
               <a
@@ -93,7 +93,7 @@ export function SubmissionDetailsCard({ submission }: SubmissionDetailsCardProps
             {/* Video Row */}
             {submission.video_path && (
               <div>
-                <div className="text-[10px] text-neutral-500 font-bold uppercase tracking-wider mb-2">
+                <div className="text-sm text-neutral-500 font-bold uppercase tracking-wider mb-2">
                   Demo Video
                 </div>
                 <button
@@ -124,7 +124,7 @@ export function SubmissionDetailsCard({ submission }: SubmissionDetailsCardProps
 
           {submission.notes && (
             <div>
-              <div className="text-[10px] text-neutral-500 font-bold uppercase tracking-wider">
+              <div className="text-sm text-neutral-500 font-bold uppercase tracking-wider">
                 Roster Notes
               </div>
               <div className="text-xs text-neutral-300 mt-1.5 leading-relaxed whitespace-pre-wrap bg-neutral-950/40 p-3.5 rounded-lg border border-neutral-850/60">

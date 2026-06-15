@@ -81,18 +81,41 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <head>
+        {/*
+          Pre-paint theme initializer (root).
+          This script runs in <head>, before any body markup is parsed
+          or any React hydration occurs, eliminating flash-of-light-content.
+
+          The `(public)` route group ships its *own* initializer in its
+          layout that runs immediately after this one and writes the
+          final `theme_public` value. Nested groups win when they exist,
+          so the public site defaults to dark regardless of what this
+          script decides. For dashboard/admin/auth, this script is the
+          authority: default light, override via the `theme` key.
+        */}
         <script
           suppressHydrationWarning
           dangerouslySetInnerHTML={{
             __html: `
-              try {
-                var theme = localStorage.getItem('theme') || 'light';
-                if (theme === 'dark') {
-                  document.documentElement.classList.add('dark');
-                } else {
-                  document.documentElement.classList.remove('dark');
+              (function () {
+                try {
+                  // If the public route group has already set the
+                  // attribute, defer entirely to it.
+                  if (document.documentElement.hasAttribute('data-public-theme')) {
+                    return;
+                  }
+                  var theme = localStorage.getItem('theme') || 'light';
+                  if (theme === 'dark') {
+                    document.documentElement.classList.add('dark');
+                    document.documentElement.classList.remove('light');
+                  } else {
+                    document.documentElement.classList.remove('dark');
+                    document.documentElement.classList.add('light');
+                  }
+                } catch (e) {
+                  /* localStorage unavailable: leave classes as SSR rendered them */
                 }
-              } catch (e) {}
+              })();
             `,
           }}
         />

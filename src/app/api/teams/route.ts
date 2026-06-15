@@ -3,6 +3,7 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { SupabaseClient } from "@supabase/supabase-js";
 import { uploadImage } from "@/lib/cloudinary";
+import { ensureUserAndProfileExists } from "@/lib/server/userSelfHeal";
 
 const createTeamSchema = z.object({
   name: z.string().min(3, "Team Name must be at least 3 characters"),
@@ -20,7 +21,7 @@ const addMemberSchema = z.object({
   semester: z.string().min(1, "Semester is required"),
   student_id: z.string().min(2, "Student ID is required"),
   tshirt_size: z.string().min(1, "T-shirt size is required"),
-  id_front_base64: z.string().min(1, "Front image is required"),
+  id_front_base64: z.string().optional().nullable(),
   id_back_base64: z.string().optional().nullable(),
 });
 
@@ -139,6 +140,9 @@ export async function GET(req: Request) {
       return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 });
     }
 
+    // Self-healing: Ensure user exists in public tables before querying teams
+    await ensureUserAndProfileExists(supabase, user);
+
     const { searchParams } = new URL(req.url);
     const mode = searchParams.get("mode");
 
@@ -237,6 +241,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 });
     }
 
+    // Self-healing: Ensure user exists in public tables before mutating teams/members
+    await ensureUserAndProfileExists(supabase, user);
+
     const { searchParams } = new URL(req.url);
     const action = searchParams.get("action");
 
@@ -251,19 +258,7 @@ export async function POST(req: Request) {
         );
       }
 
-      // Check user's profile is complete
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("profile_complete")
-        .eq("id", user.id)
-        .single();
-
-      if (!profile || !profile.profile_complete) {
-        return NextResponse.json(
-          { success: false, message: "Please complete your profile before creating a team." },
-          { status: 403 }
-        );
-      }
+      // Profile complete check skipped for registration-first flow
 
       // Check if user is already on a team in this competition
       const { data: existingTeamMember } = await supabase
@@ -414,11 +409,15 @@ export async function POST(req: Request) {
         }
       }
 
-      // Upload Student ID card front/back to Cloudinary
-      const frontUpload = await uploadImage(
-        id_front_base64,
-        `csefest/verifications/${team.id}/${email.replace(/[^a-zA-Z0-9]/g, "_")}/front`
-      );
+      // Upload Student ID card front/back to Cloudinary (only if provided)
+      let frontUploadUrl = null;
+      if (id_front_base64) {
+        const frontUpload = await uploadImage(
+          id_front_base64,
+          `csefest/verifications/${team.id}/${email.replace(/[^a-zA-Z0-9]/g, "_")}/front`
+        );
+        frontUploadUrl = frontUpload.secure_url;
+      }
 
       let backUploadUrl = null;
       if (id_back_base64) {
@@ -446,7 +445,7 @@ export async function POST(req: Request) {
         semester,
         student_id,
         tshirt_size,
-        id_front_url: frontUpload.secure_url,
+        id_front_url: frontUploadUrl,
         id_back_url: backUploadUrl,
       });
 

@@ -78,10 +78,17 @@ export async function writeSubmissionFile(
   fileName: string,
   buffer: Buffer
 ): Promise<string> {
+  const folder = isSlug(categoryOrSlug) ? categoryOrSlug : getCompetitionCategory(categoryOrSlug);
+  const safeFileName = `${crypto.randomUUID()}${path.extname(fileName)}`;
+
+  // Bypass physical fs writes on Vercel serverless environment
+  if (process.env.VERCEL) {
+    return `${folder}/${teamId}/${safeFileName}`;
+  }
+
   const dir = submissionDirPath(categoryOrSlug, teamId);
   await fs.mkdir(dir, { recursive: true });
 
-  const safeFileName = `${crypto.randomUUID()}${path.extname(fileName)}`;
   const absPath = path.join(dir, safeFileName);
   await fs.writeFile(absPath, buffer);
 
@@ -91,6 +98,7 @@ export async function writeSubmissionFile(
 
 export async function deleteSubmissionFile(relativeUrl: string): Promise<void> {
   if (!relativeUrl) return;
+  if (process.env.VERCEL) return; // Bypass fs operations on Vercel
   try {
     const absPath = path.join(SUBMISSIONS_ROOT, relativeUrl);
     // Path traversal protection

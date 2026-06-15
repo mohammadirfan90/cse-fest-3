@@ -1,9 +1,9 @@
-﻿"use client";
+"use client";
 
 import * as React from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Eye, ArrowRight, Sparkles } from "lucide-react";
+import { ArrowRight, Sparkles } from "lucide-react";
 import useSWR from "swr";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -20,6 +20,8 @@ interface Competition {
   eligibility: string;
   prizePool: string;
   coverImageUrl?: string;
+  rulebookUrl?: string;
+  status?: string;
 }
 
 const COMPETITION_FALLBACK_IMAGES: Record<string, string> = {
@@ -128,7 +130,7 @@ export function FeaturedCompetitions() {
               <div className="absolute inset-0 bg-linear-to-br from-primary/5 via-transparent to-accent/5 opacity-0 group-hover:opacity-100 transition-opacity duration-complex pointer-events-none" />
 
               {/* Cover image header */}
-              <div className="relative h-44 overflow-hidden rounded-t-2xl">
+              <Link href={`/competitions/${comp.id}`} className="relative h-44 overflow-hidden rounded-t-2xl block">
                 <div className="absolute inset-0 bg-linear-to-t from-neutral-950/90 via-neutral-950/25 to-transparent z-10" />
                 <Image
                   src={coverImage}
@@ -138,45 +140,59 @@ export function FeaturedCompetitions() {
                   sizes="(max-width: 768px) 100vw, 380px"
                 />
                 <div className="absolute top-4 right-4 z-20">
-                  <span className="bg-primary/25 backdrop-blur-md border border-primary/40 text-primary px-3.5 py-1 rounded-full text-[10px] font-bold font-mono tracking-wider">
+                  <span className="bg-primary/25 backdrop-blur-md border border-primary/40 text-primary px-3.5 py-1 rounded-full text-sm font-bold font-mono tracking-wider">
                     {comp.teamSize.toUpperCase()}
                   </span>
                 </div>
-              </div>
+              </Link>
 
               {/* Content */}
               <div className="p-6 grow flex flex-col justify-between relative z-10 select-text">
-                <div>
+                <Link href={`/competitions/${comp.id}`} className="block group-hover:opacity-95 transition-opacity">
                   <div className="flex justify-between items-start mb-3 gap-2">
                     <h3 className="font-heading font-extrabold text-xl text-neutral-100 group-hover:text-neutral-50 transition-colors tracking-tight">
                       {comp.name}
                     </h3>
-                    <Badge variant="accent" className="text-[9px] font-mono shrink-0 uppercase tracking-wider">
+                    <Badge variant="accent" className="text-sm font-mono shrink-0 uppercase tracking-wider">
                       {comp.eligibility}
                     </Badge>
                   </div>
                   <p className="text-neutral-400 text-xs sm:text-sm mb-4 line-clamp-2 leading-relaxed font-sans font-light">
                     {comp.shortDescription}
                   </p>
-                </div>
+                </Link>
 
                 <div className="mt-auto space-y-4">
-                  <div className="flex justify-between items-center py-3.5 border-y border-neutral-850/60 font-mono">
-                    <span className="text-[9px] font-bold text-neutral-500 uppercase tracking-wider">Prize Pool</span>
+                  <Link href={`/competitions/${comp.id}`} className="flex justify-between items-center py-3.5 border-y border-neutral-850/60 font-mono block hover:text-neutral-200 transition-colors">
+                    <span className="text-sm font-bold text-neutral-500 uppercase tracking-wider">Prize Pool</span>
                     <span className="text-secondary text-sm font-black">{comp.prizePool}</span>
-                  </div>
+                  </Link>
                   <div className="flex gap-3">
-                    <Link href="/register" className="grow">
-                      <Button className="w-full bg-primary hover:bg-primary/95 text-white py-2.5 h-auto rounded-xl text-xs font-bold font-sans">
-                        Register
+                    {comp.status === "registration_closed" ? (
+                      <Button
+                        disabled
+                        className="grow bg-neutral-900 text-neutral-500 border border-neutral-850 py-3 h-auto rounded-xl text-sm font-bold font-sans cursor-not-allowed"
+                      >
+                        Registration Closed
                       </Button>
-                    </Link>
-                    <Link href={`/competitions/${comp.id}`}>
+                    ) : (
+                      <Link href={`/competitions/${comp.id}/register`} className="grow">
+                        <Button className="w-full bg-primary hover:bg-primary/95 text-white py-3 h-auto rounded-xl text-sm font-bold font-sans">
+                          Register
+                        </Button>
+                      </Link>
+                    )}
+                    <Link
+                      href={comp.rulebookUrl || `/competitions/${comp.id}`}
+                      target={comp.rulebookUrl ? "_blank" : undefined}
+                      rel={comp.rulebookUrl ? "noopener noreferrer" : undefined}
+                      className="grow"
+                    >
                       <Button
                         variant="secondary"
-                        className="px-3 border border-neutral-800 hover:border-neutral-700 bg-neutral-900/40 text-neutral-400 hover:text-neutral-200 py-2.5 h-auto rounded-xl"
+                        className="w-full border border-neutral-800 hover:border-neutral-700 bg-neutral-900/40 text-neutral-300 hover:text-neutral-100 py-3 h-auto rounded-xl text-sm font-bold font-sans"
                       >
-                        <Eye className="h-4 w-4" />
+                        Rulebook
                       </Button>
                     </Link>
                   </div>

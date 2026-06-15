@@ -303,7 +303,7 @@ export default function AdminExportsPage() {
                           <Icon className="h-5 w-5" />
                         </div>
                         {opt.badge && (
-                          <span className="text-[10px] uppercase font-mono font-bold tracking-wider px-2 py-0.5 rounded-full bg-primary/10 text-primary">
+                          <span className="text-sm uppercase font-mono font-bold tracking-wider px-2 py-0.5 rounded-full bg-primary/10 text-primary">
                             {opt.badge}
                           </span>
                         )}
@@ -332,7 +332,7 @@ export default function AdminExportsPage() {
             </CardHeader>
             <CardContent className="p-6">
               <div className="space-y-2 max-w-md">
-                <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest font-mono">
+                <label className="text-sm font-bold text-muted-foreground uppercase tracking-widest font-mono">
                   Competition Filter
                 </label>
                 <Select value={competitionId} onValueChange={setCompetitionId}>
@@ -348,7 +348,7 @@ export default function AdminExportsPage() {
                     ))}
                   </SelectContent>
                 </Select>
-                <p className="text-[11px] text-muted-foreground flex items-center gap-1.5 mt-2">
+                <p className="text-sm text-muted-foreground flex items-center gap-1.5 mt-2">
                   <Info className="h-3 w-3 shrink-0" />
                   <span>Only reports support filtering (e.g. Participants or Submissions). Others will ignore filter.</span>
                 </p>
@@ -384,7 +384,7 @@ export default function AdminExportsPage() {
                   </div>
                   <div className="flex justify-between items-center text-xs py-1 border-b border-sidebar-border/30">
                     <span className="text-muted-foreground">Format:</span>
-                    <span className="font-mono bg-neutral-900 border border-sidebar-border px-1.5 py-0.5 rounded text-[10px] text-primary">
+                    <span className="font-mono bg-neutral-900 border border-sidebar-border px-1.5 py-0.5 rounded text-sm text-primary">
                       CSV (.csv)
                     </span>
                   </div>
@@ -403,12 +403,12 @@ export default function AdminExportsPage() {
                 {/* Headers preview if populated */}
                 {previewHeaders.length > 0 && (
                   <div className="space-y-2">
-                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest font-mono">
+                    <label className="text-sm font-bold text-muted-foreground uppercase tracking-widest font-mono">
                       Export Columns
                     </label>
                     <div className="flex flex-wrap gap-1.5 max-h-[140px] overflow-y-auto pr-1">
                       {previewHeaders.map((header, idx) => (
-                        <span key={idx} className="text-[10px] font-mono bg-background border border-sidebar-border px-2 py-0.5 rounded-md text-foreground">
+                        <span key={idx} className="text-sm font-mono bg-background border border-sidebar-border px-2 py-0.5 rounded-md text-foreground">
                           {header}
                         </span>
                       ))}
@@ -469,9 +469,9 @@ export default function AdminExportsPage() {
                       {row.map((cell: unknown, cIdx) => (
                         <td key={cIdx} className="p-3 text-xs font-sans text-foreground truncate max-w-[200px] border-r border-sidebar-border/20 last:border-r-0" title={String(cell)}>
                           {cell === null || cell === undefined || cell === "NA" ? (
-                            <span className="text-muted-foreground italic text-[11px]">NA</span>
+                            <span className="text-muted-foreground italic text-sm">NA</span>
                           ) : typeof cell === "boolean" ? (
-                            <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${cell ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'}`}>
+                            <span className={`px-1.5 py-0.5 rounded text-sm font-bold ${cell ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'}`}>
                               {cell ? 'TRUE' : 'FALSE'}
                             </span>
                           ) : (

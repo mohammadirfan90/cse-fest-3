@@ -2,7 +2,11 @@
 
 # UI/UX DESIGN SPECIFICATION
 
-Version 1.0
+Version 1.1
+
+> **Changelog**
+> - **v1.1 (2026-06-15)** — Typography floor raised to **16px**. `text-xs` and `text-sm` now resolve to 16px; heading/body scales were retuned upward. The 14px caption rule from v1.0 is **superseded** by this floor. See the *Hierarchy* table below for the new values.
+> - v1.0 — Initial specification.
 
 ---
 
@@ -155,6 +159,41 @@ Very lightweight.
 
 ---
 
+## Public Site Is Dark-First
+
+The public route group (`src/app/(public)/**` — `/`, `/competitions`, `/competitions/[id]`, `/schedule`, `/finalists`) renders **dark by default** for every visitor. This is not a theme preference — it is a brand contract:
+
+* Every illustration, gradient, glassmorphism, neon accent, floating orb and grid pattern in the public surface is authored against a near-black canvas (`bg-neutral-950`). Rendering those surfaces in light mode would break the visual identity and most `dark:`-prefixed shadcn primitive variants.
+* Dashboard, admin and auth surfaces remain **light-default** because their tokens, charts, and tables were designed against a light surface.
+
+### Implementation Contract
+
+| Surface          | Default Theme | localStorage key   | Source of truth                               |
+|------------------|---------------|---------------------|-----------------------------------------------|
+| Public (`(public)`) | **dark**      | `theme_public`      | `src/app/(public)/layout.tsx` pre-paint script |
+| Dashboard / Admin / Auth | **light**   | `theme`             | `src/app/layout.tsx` pre-paint script         |
+
+The two keys are deliberately disjoint. A visitor who clicks the navbar's theme toggler on a public page writes `theme_public`, and that choice never bleeds into the dashboard. A participant who toggles dark in their dashboard writes `theme`, and that choice never bleeds back into the public site on a separate visit.
+
+### Pre-Paint Script Rules
+
+Both pre-paint scripts run synchronously in `<head>`, before any React hydration. They MUST:
+
+1. Set `<html>` class to either `dark` or `light` (no in-between state).
+2. Set `color-scheme` on `<html>` so native form controls and scrollbars match.
+3. Catch `localStorage` exceptions silently (Safari Private Mode, blocked storage) and fall back to the surface default.
+4. Never cause a hydration mismatch — both scripts carry `suppressHydrationWarning`.
+
+The public script additionally writes `data-public-theme` on `<html>`. The root script **must** check for that attribute and defer entirely to the public script when present.
+
+### Anti-Patterns
+
+* **Do not** ship a public route that depends on a light-mode CSS file being loaded. The `dark:` variants are the canonical styling.
+* **Do not** write the `theme` key from a component rendered on a public route.
+* **Do not** read `prefers-color-scheme` for the public site. The brand is dark regardless of OS preference; a user opt-out is the only way to flip.
+
+---
+
 # Typography
 
 ## Font Strategy
@@ -175,25 +214,51 @@ Geist Mono
 
 ## Hierarchy
 
-Hero:
+> All sizes use `clamp()` for fluid scaling. **The minimum readable size in v1.1 is 16px** — nothing on the page should render below this floor.
 
-72–96px
+Hero (display-xl):
 
-Section Titles:
+60–100px
 
-48–56px
+Section Titles (display-lg):
 
-Card Titles:
+44–76px
 
-24–32px
+Display (display-sm):
 
-Body:
+32–52px
+
+H1 (page titles):
+
+32–56px
+
+H2 (section titles):
+
+26–42px
+
+H3 (sub-section):
+
+22–32px
+
+H4 (card titles):
+
+20–30px
+
+H5 (small headings):
+
+18–26px
+
+Body Large:
+
+18–20px
+
+Body (default):
 
 16–18px
 
-Captions:
+Small (text-sm / text-xs):
 
-14px
+16px (floor — was 14px / 12px in v1.0)
 
 ---
 

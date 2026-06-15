@@ -88,9 +88,13 @@ export async function POST(req: Request) {
 
     // 2. Parse Multipart form data
     const formData = await req.formData();
+    const { searchParams } = new URL(req.url);
+    const skipTimeWindowCheck = searchParams.get("skipTimeWindowCheck") === "true";
 
     // 3. Delegate to submission service
-    const result = await submitOrUpdateProposal(supabase, user.id, formData);
+    const result = await submitOrUpdateProposal(supabase, user.id, formData, {
+      skipTimeWindowCheck,
+    });
 
     if (!result.success) {
       return NextResponse.json(

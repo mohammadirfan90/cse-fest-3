@@ -41,10 +41,10 @@ export function NavUser() {
 						<div>
 							<span className="font-medium text-foreground">{user.name}</span>{" "}
 							<br />
-							<div className="max-w-full overflow-hidden overflow-ellipsis whitespace-nowrap text-muted-foreground text-xs">
+							<div className="max-w-full overflow-hidden overflow-ellipsis whitespace-nowrap text-muted-foreground text-sm">
 								{user.email}
 							</div>
-							<div className="mt-0.5 text-[10px] text-muted-foreground">
+							<div className="mt-1 text-sm text-muted-foreground/80">
 								Store owner
 							</div>
 						</div>

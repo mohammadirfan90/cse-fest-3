@@ -114,7 +114,7 @@ export function Footer() {
 
           {/* Quick Links */}
           <div>
-            <h4 className="font-heading font-semibold text-neutral-300 mb-5 uppercase tracking-widest text-[10px]">
+            <h4 className="font-heading font-semibold text-neutral-300 mb-5 uppercase tracking-widest text-sm">
               Quick Links
             </h4>
             <ul className="space-y-2.5 text-sm text-neutral-500 font-sans">
@@ -139,7 +139,7 @@ export function Footer() {
 
           {/* Contact Details */}
           <div className="space-y-3">
-            <h4 className="font-heading font-semibold text-neutral-300 mb-5 uppercase tracking-widest text-[10px]">
+            <h4 className="font-heading font-semibold text-neutral-300 mb-5 uppercase tracking-widest text-sm">
               Contact Info
             </h4>
             <ul className="space-y-3 text-sm text-neutral-500 font-sans">
@@ -176,7 +176,7 @@ export function Footer() {
 
           {/* Venue map */}
           <div>
-            <h4 className="font-heading font-semibold text-neutral-300 mb-5 uppercase tracking-widest text-[10px]">
+            <h4 className="font-heading font-semibold text-neutral-300 mb-5 uppercase tracking-widest text-sm">
               Venue
             </h4>
             <div className="rounded-md overflow-hidden border border-neutral-800/60 bg-neutral-900/50 p-2 space-y-2">
@@ -193,14 +193,14 @@ export function Footer() {
                 />
               </div>
               <div className="flex justify-between items-center px-1">
-                <span className="text-[10px] text-neutral-500 font-sans leading-normal">
+                <span className="text-sm text-neutral-500 font-sans leading-normal">
                   Sector 17, Uttara, Dhaka
                 </span>
                 <a
                   href={contact.mapsUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 text-[10px] font-semibold text-accent hover:text-accent/80 hover:underline font-sans transition-colors"
+                  className="inline-flex items-center gap-1 text-sm font-semibold text-accent hover:text-accent/80 hover:underline font-sans transition-colors"
                 >
                   <span>Open Maps</span>
                   <ArrowUpRight className="h-3 w-3" />
@@ -221,7 +221,7 @@ export function Footer() {
             }}
             aria-hidden="true"
           />
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4 text-[11px] text-neutral-600 font-sans">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-neutral-600 font-sans">
             <p>
               © {currentYear}{" "}
               <span className="text-neutral-500">Department of CSE &amp; CSIT, SMUCT.</span>

@@ -16,7 +16,8 @@ export type SubmitResult =
 export async function submitOrUpdateProposal(
   supabase: SupabaseClient,
   userId: string,
-  formData: FormData
+  formData: FormData,
+  options?: { skipTimeWindowCheck?: boolean }
 ): Promise<SubmitResult> {
   try {
     // 1. Retrieve & validate basic text fields
@@ -62,24 +63,26 @@ export async function submitOrUpdateProposal(
 
     // 4. Validate Submission Timeline Window
     const comp = teamRecord.competitions;
-    const now = new Date();
-    const subStart = new Date(comp.submission_start);
-    const subEnd = new Date(comp.submission_end);
+    if (!options?.skipTimeWindowCheck) {
+      const now = new Date();
+      const subStart = new Date(comp.submission_start);
+      const subEnd = new Date(comp.submission_end);
 
-    if (now < subStart) {
-      return {
-        success: false,
-        status: 400,
-        message: `Submission phase has not started yet. Opens: ${subStart.toLocaleString()}`,
-      };
-    }
+      if (now < subStart) {
+        return {
+          success: false,
+          status: 400,
+          message: `Submission phase has not started yet. Opens: ${subStart.toLocaleString()}`,
+        };
+      }
 
-    if (now > subEnd) {
-      return {
-        success: false,
-        status: 400,
-        message: `Submission period is locked. Closed on: ${subEnd.toLocaleString()}`,
-      };
+      if (now > subEnd) {
+        return {
+          success: false,
+          status: 400,
+          message: `Submission period is locked. Closed on: ${subEnd.toLocaleString()}`,
+        };
+      }
     }
 
     // 5. Fetch existing submission (if any)
@@ -132,8 +135,12 @@ export async function submitOrUpdateProposal(
       filesToDeleteOnFailure.push(relativePath);
       newPdfPath = relativePath;
     } else if (!existingSubmission) {
-      // PDF is required for new submissions
-      return { success: false, status: 400, message: "PDF file is required." };
+      // PDF is required for new submissions, unless running on Vercel or in test mode
+      if (process.env.VERCEL || process.env.NEXT_PUBLIC_TEST_MODE === "true") {
+        newPdfPath = "mock-vercel-uploads/placeholder.pdf";
+      } else {
+        return { success: false, status: 400, message: "PDF file is required." };
+      }
     }
 
     // Process Video

@@ -27,11 +27,11 @@ export function LatestChange() {
 				"transition-opacity group-data-[collapsible=icon]:pointer-events-none group-data-[collapsible=icon]:opacity-0"
 			)}
 		>
-			<span className="font-light font-mono text-[10px] text-muted-foreground">
+			<span className="font-light font-mono text-sm text-muted-foreground">
 				{latestChange.badge}
 			</span>
 			<p className="font-medium text-xs">{latestChange.title}</p>
-			<span className="text-[10px] text-muted-foreground">
+			<span className="text-sm text-muted-foreground">
 				{latestChange.description}
 			</span>
 			<a

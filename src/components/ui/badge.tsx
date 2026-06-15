@@ -11,7 +11,7 @@ export function Badge({ className, variant = "neutral", ...props }: BadgeProps) 
     <span
       className={twMerge(
         clsx(
-          "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold font-sans tracking-wide select-none border border-transparent transition-colors",
+          "inline-flex items-center rounded-full px-3 py-1 text-sm font-semibold font-sans select-none border border-transparent transition-colors",
           {
             // Primary: Indigo badge
             "bg-primary/10 border-primary/20 text-primary": variant === "primary",

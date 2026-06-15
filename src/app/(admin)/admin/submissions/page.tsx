@@ -232,7 +232,7 @@ React.useEffect(() => {
                 : 'text-neutral-555 hover:text-neutral-300'
             }`}
           >
-            All Competitions <span className="ml-1 font-mono text-[10px] text-neutral-500">({submissions.length})</span>
+            All Competitions <span className="ml-1 font-mono text-sm text-neutral-500">({submissions.length})</span>
           </button>
           {competitions.map((comp) => (
             <button
@@ -244,7 +244,7 @@ React.useEffect(() => {
                   : 'text-neutral-555 hover:text-neutral-300'
               }`}
             >
-              {comp.name} <span className="ml-1 font-mono text-[10px] text-neutral-500">({countByComp[comp.id] ?? 0})</span>
+              {comp.name} <span className="ml-1 font-mono text-sm text-neutral-500">({countByComp[comp.id] ?? 0})</span>
             </button>
           ))}
         </div>
@@ -298,10 +298,10 @@ React.useEffect(() => {
                 <div className="flex flex-col sm:flex-row justify-between sm:items-start gap-4">
                   <div className="space-y-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-[10px] font-bold font-mono text-neutral-500 uppercase tracking-widest">
+                      <span className="text-sm font-bold font-mono text-neutral-500 uppercase tracking-widest">
                         {s.competitions?.name}
                       </span>
-                      <span className="text-[10px] font-mono text-neutral-600 uppercase tracking-widest">
+                      <span className="text-sm font-mono text-neutral-600 uppercase tracking-widest">
                         • {s.competitions?.type}
                       </span>
                       <Badge
@@ -314,7 +314,7 @@ React.useEffect(() => {
                             ? "warning"
                             : "neutral"
                         }
-                        className="capitalize text-[10px] py-0.5 px-2 font-semibold tracking-wider font-mono rounded"
+                        className="capitalize text-sm py-0.5 px-2 font-semibold tracking-wider font-mono rounded"
                       >
                         {s.status.replace("_", " ")}
                       </Badge>
@@ -347,7 +347,7 @@ React.useEffect(() => {
                           onClick={() => handleScoreSave(s.id, s.team_id, s.competition_id || "", s.score)}
                           isLoading={mutatingState?.id === s.id && mutatingState?.status === "score"}
                           disabled={!!mutatingState}
-                          className="h-8 text-[10px] px-3"
+                          className="h-8 text-sm px-3"
                         >
                           Save Score
                         </Button>
@@ -399,7 +399,7 @@ React.useEffect(() => {
                 <div className="pt-4 border-t border-neutral-850 space-y-4 font-sans">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="flex items-center justify-between bg-neutral-955 p-3 rounded-lg border border-neutral-850/60">
-                      <div className="text-[10px] text-neutral-500 font-bold uppercase tracking-wider flex items-center gap-1.5 font-mono">
+                      <div className="text-sm text-neutral-500 font-bold uppercase tracking-wider flex items-center gap-1.5 font-mono">
                         <FileText className="h-3.5 w-3.5 text-neutral-450" />
                         <span>Proposal PDF</span>
                       </div>
@@ -416,7 +416,7 @@ React.useEffect(() => {
 
                     {s.video_path ? (
                       <div className="flex items-center justify-between bg-neutral-955 p-3 rounded-lg border border-neutral-850/60">
-                        <div className="text-[10px] text-neutral-500 font-bold uppercase tracking-wider flex items-center gap-1.5 font-mono">
+                        <div className="text-sm text-neutral-500 font-bold uppercase tracking-wider flex items-center gap-1.5 font-mono">
                           <Video className="h-3.5 w-3.5 text-neutral-455" />
                           <span>Demo Video</span>
                         </div>
@@ -430,7 +430,7 @@ React.useEffect(() => {
                       </div>
                     ) : (
                       <div className="flex items-center justify-between bg-neutral-955 p-3 rounded-lg border border-neutral-850/20 opacity-50 select-none">
-                        <div className="text-[10px] text-neutral-600 font-bold uppercase tracking-wider flex items-center gap-1.5 font-mono">
+                        <div className="text-sm text-neutral-600 font-bold uppercase tracking-wider flex items-center gap-1.5 font-mono">
                           <Video className="h-3.5 w-3.5" />
                           <span>No Video Provided</span>
                         </div>
@@ -462,7 +462,7 @@ React.useEffect(() => {
                     </div>
                   )}
 
-                  <div className="text-[10px] text-neutral-600 pt-1 flex items-center justify-between font-mono">
+                  <div className="text-sm text-neutral-600 pt-1 flex items-center justify-between font-mono">
                     <span>ID: {s.id}</span>
                     <span>Submitted: {new Date(s.submitted_at).toLocaleString()}</span>
                   </div>

@@ -393,7 +393,7 @@ export default function PaymentsPage() {
               <CardContent className="space-y-6">
                 <div className="max-w-md space-y-4 font-sans">
                   <div>
-                    <div className="text-[10px] text-neutral-500 font-bold uppercase tracking-wider">
+                    <div className="text-sm text-neutral-500 font-bold uppercase tracking-wider">
                       Transaction ID
                     </div>
                     <div className="text-sm text-neutral-200 font-mono font-bold mt-1 bg-neutral-950/60 py-1.5 px-2.5 rounded-lg border border-neutral-850 w-fit">
@@ -401,7 +401,7 @@ export default function PaymentsPage() {
                     </div>
                   </div>
                   <div>
-                    <div className="text-[10px] text-neutral-500 font-bold uppercase tracking-wider">
+                    <div className="text-sm text-neutral-500 font-bold uppercase tracking-wider">
                       Method & Amount
                     </div>
                     <div className="text-sm text-neutral-200 font-semibold mt-1 uppercase">
@@ -409,7 +409,7 @@ export default function PaymentsPage() {
                     </div>
                   </div>
                   <div>
-                    <div className="text-[10px] text-neutral-500 font-bold uppercase tracking-wider">
+                    <div className="text-sm text-neutral-500 font-bold uppercase tracking-wider">
                       Submitted Date
                     </div>
                     <div className="text-xs text-neutral-400 mt-1">
@@ -600,7 +600,7 @@ export default function PaymentsPage() {
                       <Button
                         variant="ghost"
                         onClick={() => handleCopy(selectedMethodObj.number, selectedMethodObj.name)}
-                        className="h-8 px-3 text-[11px] font-semibold active:scale-95"
+                        className="h-8 px-3 text-sm font-semibold active:scale-95"
                       >
                         {copiedText === selectedMethodObj.name ? (
                           <span className="flex items-center gap-1 text-success"><Check className="h-3.5 w-3.5" /> Copied</span>
@@ -621,7 +621,7 @@ export default function PaymentsPage() {
                   <p className="whitespace-pre-wrap leading-relaxed text-neutral-400">
                     {selectedMethodObj.instructions}
                   </p>
-                  <div className="pt-2.5 border-t border-neutral-850/40 font-mono text-[10px] text-neutral-500">
+                  <div className="pt-2.5 border-t border-neutral-850/40 font-mono text-sm text-neutral-500">
                     Send exact fee: <strong className="text-neutral-300">{entryFee} BDT</strong>
                   </div>
                 </div>

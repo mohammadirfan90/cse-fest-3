@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
+import { ensureUserAndProfileExists } from "@/lib/server/userSelfHeal";
 
 // Normalizes a URL by prepending https:// if no protocol is present
 function normalizeUrl(val: string | undefined): string {
@@ -37,6 +38,9 @@ export async function POST(req: Request) {
         { status: 401 }
       );
     }
+
+    // Self-healing: Ensure user exists in public tables before profile operations
+    await ensureUserAndProfileExists(supabase, user);
 
     // 1b. Rate limit: 20 profile saves per minute per user
     const { success: withinLimit } = checkRateLimit(`profile:${user.id}`, {
@@ -113,6 +117,9 @@ export async function GET() {
         { status: 401 }
       );
     }
+
+    // Self-healing: Ensure user exists in public tables before profile operations
+    await ensureUserAndProfileExists(supabase, user);
 
     const { data: profile, error } = await supabase
       .from("profiles")

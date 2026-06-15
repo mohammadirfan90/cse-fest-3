@@ -522,7 +522,7 @@ export default function AdminDashboardPage() {
                             <h4 className="font-semibold text-sm text-foreground">
                               {v.profiles?.full_name || "Applicant"}
                             </h4>
-                            <span className="text-[10px] font-medium tracking-wide uppercase px-1.5 py-0.5 rounded-sm bg-warning/10 text-warning border border-warning/20 font-mono">
+                            <span className="text-sm font-medium tracking-wide uppercase px-1.5 py-0.5 rounded-sm bg-warning/10 text-warning border border-warning/20 font-mono">
                               Pending
                             </span>
                           </div>
@@ -531,7 +531,7 @@ export default function AdminDashboardPage() {
                             <span className="w-1 h-1 rounded-full bg-border" />
                             <span className="truncate max-w-[150px]">{v.profiles?.university || "\u2014"}</span>
                             <span className="w-1 h-1 rounded-full bg-border" />
-                            <span className="text-[10px] font-mono">
+                            <span className="text-sm font-mono">
                               {new Date(v.created_at).toLocaleDateString()}
                             </span>
                           </div>
@@ -613,17 +613,17 @@ export default function AdminDashboardPage() {
                                 {" "}
                                 <span className="text-muted-foreground">on</span>
                                 {" "}
-                                <code className="font-mono text-[9px] bg-muted text-foreground px-1.5 py-0.5 rounded border border-border">
+                                <code className="font-mono text-sm bg-muted text-foreground px-1.5 py-0.5 rounded border border-border">
                                   {log.resource_type}
                                 </code>
                               </p>
                               {log.resource_id && (
-                                <p className="text-[10px] text-muted-foreground font-mono">
+                                <p className="text-sm text-muted-foreground font-mono">
                                   ref: <span>{log.resource_id.slice(0, 16)}...</span>
                                 </p>
                               )}
                             </div>
-                            <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground font-mono shrink-0">
+                            <div className="flex items-center gap-1.5 text-sm text-muted-foreground font-mono shrink-0">
                               <Clock className="h-3 w-3" />
                               <span>{new Date(log.created_at).toLocaleString()}</span>
                             </div>
@@ -670,7 +670,7 @@ export default function AdminDashboardPage() {
                   transition={{ duration: 0.8, ease: "easeOut", delay: 0.3 }}
                 />
               </div>
-              <div className="flex justify-between text-[10px] text-muted-foreground font-mono">
+              <div className="flex justify-between text-sm text-muted-foreground font-mono">
                 <span>0</span>
                 <span>{stats.totalUsers} total</span>
               </div>
@@ -678,14 +678,14 @@ export default function AdminDashboardPage() {
 
             <div className="grid grid-cols-2 gap-3 pt-3 border-t border-border">
               <div className="space-y-1 p-3 rounded-lg bg-muted/40 border border-border text-center">
-                <span className="text-muted-foreground text-[9px] uppercase tracking-widest block font-bold">Verified</span>
+                <span className="text-muted-foreground text-sm uppercase tracking-widest block font-bold">Verified</span>
                 <div className="flex items-center justify-center gap-1.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-success shrink-0" />
                   <span className="font-bold text-foreground font-mono text-sm">{stats.verifiedUsers}</span>
                 </div>
               </div>
               <div className="space-y-1 p-3 rounded-lg bg-muted/40 border border-border text-center">
-                <span className="text-muted-foreground text-[9px] uppercase tracking-widest block font-bold">Pending</span>
+                <span className="text-muted-foreground text-sm uppercase tracking-widest block font-bold">Pending</span>
                 <div className="flex items-center justify-center gap-1.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-warning shrink-0" />
                   <span className="font-bold text-foreground font-mono text-sm">{stats.pendingUsers}</span>

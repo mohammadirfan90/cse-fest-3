@@ -51,6 +51,15 @@ interface Competition {
   rulebookUrl?: string;
 }
 
+const COMPETITION_IMAGES: Record<string, string> = {
+  "e0bb66f8-45e0-4c12-a1f7-418f773b069d": "/software-showcase-logo.png",
+  "318a4a58-89c0-449e-ba60-318df883ba58": "/iot-showcase-logo.png",
+  "dfec0659-6308-42e3-aaf6-dfdc85eb2cfa": "/idea-showcase-logo.png",
+  "software-showcase": "/software-showcase-logo.png",
+  "iot-showcase": "/iot-showcase-logo.png",
+  "idea-showcase": "/idea-showcase-logo.png",
+};
+
 export default function CompetitionDetailPage() {
   const params = useParams();
   const [activeTab, setActiveTab] = React.useState<"overview" | "rules" | "timeline" | "prizes">("overview");
@@ -121,10 +130,10 @@ export default function CompetitionDetailPage() {
         {/* Hero Area */}
         <div className="relative rounded-2xl border border-neutral-850 bg-neutral-950 p-8 md:p-12 overflow-hidden">
           {/* Background image if added */}
-          {(competition.bannerImageUrl || competition.coverImageUrl) ? (
+          {(competition.bannerImageUrl || competition.coverImageUrl || COMPETITION_IMAGES[competition.id]) ? (
             <>
               <Image
-                src={competition.bannerImageUrl || competition.coverImageUrl || ""}
+                src={competition.bannerImageUrl || competition.coverImageUrl || COMPETITION_IMAGES[competition.id] || ""}
                 alt={competition.name}
                 fill
                 className="object-cover opacity-20 pointer-events-none"
@@ -135,13 +144,14 @@ export default function CompetitionDetailPage() {
           ) : (
             <div className="absolute inset-0 bg-linear-to-r from-primary/10 to-transparent pointer-events-none" />
           )}
+
           <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div className="space-y-4 max-w-2xl">
               <div className="flex flex-wrap items-center gap-3">
                 <Badge variant="accent" className="text-xs uppercase font-mono font-bold tracking-wider py-1">
                   {competition.type}
                 </Badge>
-                <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-accent/10 border border-accent/20 text-accent font-sans text-[10px] font-bold uppercase tracking-wider animate-pulse">
+                <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-accent/10 border border-accent/20 text-accent font-sans text-sm font-bold uppercase tracking-wider animate-pulse">
                   <span className="w-1.5 h-1.5 rounded-full bg-accent" />
                   Registrations Open
                 </div>
@@ -154,7 +164,7 @@ export default function CompetitionDetailPage() {
               </p>
             </div>
             <div className="shrink-0">
-              <Link href="/register">
+              <Link href={`/competitions/${compId}/register`}>
                 <Button className="w-full md:w-auto bg-primary hover:bg-primary/95 text-white font-heading font-bold text-sm px-8 py-4 h-auto rounded-xl hover:shadow-[0_0_20px_rgba(99,102,241,0.4)] transition-all active:scale-[0.98]">
                   Register Your Team
                 </Button>
@@ -308,28 +318,28 @@ export default function CompetitionDetailPage() {
                     <div className="bg-neutral-950 border border-neutral-850 p-6 rounded-2xl border-t-4 border-t-gold/50 flex flex-col items-center text-center space-y-4 hover:-translate-y-1 transition-transform duration-normal">
                       <Trophy className="h-10 w-10 text-gold" />
                       <div>
-                        <h5 className="font-sans text-[10px] font-bold uppercase tracking-widest text-neutral-500">Champion</h5>
+                        <h5 className="font-sans text-sm font-bold uppercase tracking-widest text-neutral-500">Champion</h5>
                         <div className="font-mono text-xl font-black text-neutral-100 mt-1">{competition.championPrize}</div>
                       </div>
-                      <p className="text-[10px] text-neutral-500 leading-normal">Certificate + Team Delegate Kit</p>
+                      <p className="text-sm text-neutral-500 leading-normal">Certificate + Team Delegate Kit</p>
                     </div>
 
                     <div className="bg-neutral-950 border border-neutral-850 p-6 rounded-2xl border-t-4 border-t-silver/50 flex flex-col items-center text-center space-y-4 hover:-translate-y-1 transition-transform duration-normal">
                       <Trophy className="h-10 w-10 text-silver" />
                       <div>
-                        <h5 className="font-sans text-[10px] font-bold uppercase tracking-widest text-neutral-500">Runner Up</h5>
+                        <h5 className="font-sans text-sm font-bold uppercase tracking-widest text-neutral-500">Runner Up</h5>
                         <div className="font-mono text-xl font-black text-neutral-100 mt-1">{competition.runnerUpPrize}</div>
                       </div>
-                      <p className="text-[10px] text-neutral-500 leading-normal">Certificate + Team Vouchers</p>
+                      <p className="text-sm text-neutral-500 leading-normal">Certificate + Team Vouchers</p>
                     </div>
 
                     <div className="bg-neutral-950 border border-neutral-850 p-6 rounded-2xl border-t-4 border-t-bronze/50 flex flex-col items-center text-center space-y-4 hover:-translate-y-1 transition-transform duration-normal">
                       <Trophy className="h-10 w-10 text-bronze" />
                       <div>
-                        <h5 className="font-sans text-[10px] font-bold uppercase tracking-widest text-neutral-500">2nd Runner Up</h5>
+                        <h5 className="font-sans text-sm font-bold uppercase tracking-widest text-neutral-500">2nd Runner Up</h5>
                         <div className="font-mono text-xl font-black text-neutral-100 mt-1">{competition.secondRunnerUp}</div>
                       </div>
-                      <p className="text-[10px] text-neutral-500 leading-normal">Certificate + Tech Perks</p>
+                      <p className="text-sm text-neutral-500 leading-normal">Certificate + Tech Perks</p>
                     </div>
                   </div>
                 </div>
@@ -350,7 +360,7 @@ export default function CompetitionDetailPage() {
                     <CreditCard className="h-4 w-4 text-primary" />
                   </div>
                   <div>
-                    <div className="text-[9px] uppercase tracking-widest text-neutral-500 font-mono font-bold">Entry Fee</div>
+                    <div className="text-sm uppercase tracking-widest text-neutral-500 font-mono font-bold">Entry Fee</div>
                     <div className="text-neutral-200 font-semibold text-sm">{competition.fee}</div>
                   </div>
                 </div>
@@ -360,7 +370,7 @@ export default function CompetitionDetailPage() {
                     <Users className="h-4 w-4 text-secondary" />
                   </div>
                   <div>
-                    <div className="text-[9px] uppercase tracking-widest text-neutral-500 font-mono font-bold">Team Size</div>
+                    <div className="text-sm uppercase tracking-widest text-neutral-500 font-mono font-bold">Team Size</div>
                     <div className="text-neutral-200 font-semibold text-sm">{competition.teamSize}</div>
                   </div>
                 </div>
@@ -370,13 +380,13 @@ export default function CompetitionDetailPage() {
                     <Shield className="h-4 w-4 text-accent" />
                   </div>
                   <div>
-                    <div className="text-[9px] uppercase tracking-widest text-neutral-500 font-mono font-bold">Eligibility</div>
+                    <div className="text-sm uppercase tracking-widest text-neutral-500 font-mono font-bold">Eligibility</div>
                     <div className="text-neutral-200 font-semibold text-sm capitalize">{competition.eligibility} Only</div>
                   </div>
                 </div>
               </div>
 
-              <Link href="/register">
+              <Link href={`/competitions/${compId}/register`}>
                 <Button className="w-full bg-primary hover:bg-primary/95 text-white font-sans font-bold text-xs uppercase tracking-widest py-3 h-auto rounded-lg">
                   Apply to Participate
                 </Button>
@@ -388,7 +398,7 @@ export default function CompetitionDetailPage() {
               <HelpCircle className="h-5 w-5 text-primary" />
               <div>
                 <h4 className="font-sans text-xs font-bold text-neutral-200">Need Assistance?</h4>
-                <p className="text-[10px] text-neutral-500">Contact our coordination desk</p>
+                <p className="text-sm text-neutral-500">Contact our coordination desk</p>
               </div>
             </div>
           </aside>

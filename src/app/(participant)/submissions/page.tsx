@@ -352,14 +352,14 @@ export default function SubmissionsPage() {
                     <div className="absolute -left-[5px] top-1.5 h-2.5 w-2.5 rounded-full bg-neutral-400" />
                     <div className="space-y-1">
                       <div className="font-semibold text-neutral-200">Submissions Open</div>
-                      <div className="text-neutral-500 font-mono text-[11px] mt-0.5">{subStart?.toLocaleString()}</div>
+                      <div className="text-neutral-500 font-mono text-sm mt-0.5">{subStart?.toLocaleString()}</div>
                     </div>
                   </div>
                   <div className="relative pl-6 border-l border-transparent">
                     <div className="absolute -left-[5px] top-1.5 h-2.5 w-2.5 rounded-full bg-neutral-700" />
                     <div className="space-y-1">
                       <div className="font-semibold text-neutral-200">Submissions Locked</div>
-                      <div className="text-neutral-500 font-mono text-[11px] mt-0.5">{subEnd?.toLocaleString()}</div>
+                      <div className="text-neutral-500 font-mono text-sm mt-0.5">{subEnd?.toLocaleString()}</div>
                     </div>
                   </div>
                 </CardContent>

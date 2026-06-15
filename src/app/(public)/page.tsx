@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronDown, Calendar, Users, Sparkles } from "lucide-react";
+import { ChevronDown, Sparkles } from "lucide-react";
 import useSWR from "swr";
 import { Navbar } from "@/components/shared/Navbar";
 import { NewsTicker } from "@/components/public/NewsTicker";
@@ -63,70 +63,6 @@ export default function PublicHomePage() {
         {/* Hero Section */}
         <HeroSection />
 
-        {/* Pioneering Technical Creativity (About Section) */}
-        <section id="about" className="max-w-[1280px] mx-auto px-4 md:px-16 py-28 border-t border-neutral-850 relative overflow-hidden">
-          {/* Watermark */}
-          <div className="absolute top-6 left-6 select-none pointer-events-none z-0">
-            <h2 className="text-[100px] md:text-[160px] font-black text-neutral-100 opacity-[0.02] tracking-tighter leading-none font-heading uppercase">
-              ABOUT
-            </h2>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-16 items-center relative z-10">
-            <motion.div 
-              className="space-y-6"
-              initial={{ opacity: 0, x: -30 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true, margin: "-60px" }}
-              transition={{ duration: 0.5 }}
-            >
-              <h2 className="font-heading text-4xl font-extrabold text-neutral-100 tracking-tight leading-tight">Pioneering Technical Creativity</h2>
-              <p className="text-neutral-400 font-sans leading-relaxed text-sm font-light">
-                Organized by the <span className="text-primary font-bold">SMUCT CSE & CSIT Department</span>, CSE FEST 26 is the premier technology event of Shanto-Mariam University of Creative Technology. We bridge the gap between creative design and technical precision.
-              </p>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div className="p-6 rounded-2xl bg-glass border border-glass shadow-level-1 hover:border-primary/30 hover:shadow-level-2 transition-all duration-normal group">
-                  <div className="text-4xl font-black text-primary mb-1 font-heading group-hover:scale-102 transition-transform">500k+</div>
-                  <div className="text-[9px] uppercase tracking-widest text-neutral-500 font-mono font-bold">Prize Pool BDT</div>
-                </div>
-                <div className="p-6 rounded-2xl bg-glass border border-glass shadow-level-1 hover:border-secondary/30 hover:shadow-level-2 transition-all duration-normal group">
-                  <div className="text-4xl font-black text-secondary mb-1 font-heading group-hover:scale-102 transition-transform">1500+</div>
-                  <div className="text-[9px] uppercase tracking-widest text-neutral-500 font-mono font-bold">Participants</div>
-                </div>
-              </div>
-            </motion.div>
-
-            <div className="grid grid-cols-2 gap-6 relative">
-              <motion.div 
-                className="aspect-square rounded-3xl bg-glass border border-glass p-8 flex flex-col justify-between group hover:border-primary/40 hover:-translate-y-1 hover:shadow-level-2 transition-all duration-normal cursor-pointer"
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.4 }}
-              >
-                <Calendar className="text-primary h-9 w-9 group-hover:scale-105 transition-transform" />
-                <div>
-                  <div className="text-3xl font-heading font-black text-neutral-200">15+</div>
-                  <div className="text-xs text-neutral-500 font-sans tracking-wide">Tech Events</div>
-                </div>
-              </motion.div>
-              <motion.div 
-                className="aspect-square rounded-3xl bg-glass border border-glass p-8 flex flex-col justify-between group hover:border-secondary/40 hover:-translate-y-1 hover:shadow-level-2 transition-all duration-normal cursor-pointer translate-y-8"
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.4, delay: 0.15 }}
-              >
-                <Users className="text-secondary h-9 w-9 group-hover:scale-105 transition-transform" />
-                <div>
-                  <div className="text-3xl font-heading font-black text-neutral-200">20+</div>
-                  <div className="text-xs text-neutral-500 font-sans tracking-wide">Partners</div>
-                </div>
-              </motion.div>
-            </div>
-          </div>
-        </section>
 
         {/* Competitions Section */}
         <FeaturedCompetitions />

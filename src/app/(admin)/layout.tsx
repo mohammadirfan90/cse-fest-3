@@ -185,7 +185,7 @@ export default function AdminLayout({
                   className="h-7.5 w-auto object-contain hidden dark:block"
                 />
               </div>
-              <span className="font-heading font-bold text-[10px] tracking-widest text-primary border-l border-sidebar-border pl-3">
+              <span className="font-heading font-bold text-sm tracking-widest text-primary border-l border-sidebar-border pl-3">
                 ADMIN
               </span>
             </>
@@ -335,7 +335,7 @@ export default function AdminLayout({
             </button>
             <button className="relative h-10 w-10 flex items-center justify-center rounded-md hover:bg-muted text-sidebar-foreground cursor-pointer">
               <Bell className="h-4.5 w-4.5" />
-              <span className="absolute top-1.5 right-1.5 h-4 w-4 bg-primary text-primary-foreground text-[9px] font-bold rounded-full flex items-center justify-center">
+              <span className="absolute top-1.5 right-1.5 h-4 w-4 bg-primary text-primary-foreground text-sm font-bold rounded-full flex items-center justify-center">
                 3
               </span>
             </button>

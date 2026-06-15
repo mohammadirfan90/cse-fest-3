@@ -26,10 +26,23 @@ export function Navbar() {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = React.useState(false);
   const [user, setUser] = React.useState<User | null>(null);
-  // Default to "dark" — the site is dark-first by design
+  // Default to "dark" — the public site is dark-first by design.
   const [theme, setTheme] = React.useState<"light" | "dark">("dark");
   const [scrolled, setScrolled] = React.useState(false);
   const [activeSection, setActiveSection] = React.useState<string>("");
+
+  // Theme keys are scoped per route group so a user's choice on the
+  // public site never bleeds into the dashboard / admin surfaces (and
+  // vice versa). Public routes use `theme_public`; everything else
+  // uses the canonical `theme` key. The pre-paint script in
+  // src/app/(public)/layout.tsx reads from `theme_public` first, so
+  // toggling here is in lockstep with what the browser painted.
+  const isPublicRoute = pathname?.startsWith("/competitions") ||
+    pathname === "/" ||
+    pathname === "/schedule" ||
+    pathname === "/finalists" ||
+    pathname?.startsWith("/competitions/");
+  const themeStorageKey = isPublicRoute ? "theme_public" : "theme";
 
   // Scroll listener for glassmorphism intensify
   React.useEffect(() => {
@@ -41,10 +54,16 @@ export function Navbar() {
   // Sync theme from DOM on mount (respects existing localStorage preference)
   React.useEffect(() => {
     if (typeof window === "undefined") return;
-    const saved = localStorage.getItem("theme");
-    const prefersDark = saved
-      ? saved === "dark"
-      : !document.documentElement.classList.contains("light");
+    const key = isPublicRoute ? "theme_public" : "theme";
+    const saved = localStorage.getItem(key);
+    // Default rules per surface:
+    //   - public: dark (brand)
+    //   - dashboard/admin: light (matches design tokens)
+    const prefersDark = isPublicRoute
+      ? saved !== "light" // dark unless user explicitly chose light
+      : saved
+        ? saved === "dark"
+        : !document.documentElement.classList.contains("light");
     // Apply class and sync state via requestAnimationFrame to avoid
     // synchronous setState in effect body (react-hooks/set-state-in-effect)
     if (prefersDark) {
@@ -52,12 +71,13 @@ export function Navbar() {
       document.documentElement.classList.remove("light");
     } else {
       document.documentElement.classList.remove("dark");
+      document.documentElement.classList.add("light");
     }
     const raf = requestAnimationFrame(() => {
       setTheme(prefersDark ? "dark" : "light");
     });
     return () => cancelAnimationFrame(raf);
-  }, []);
+  }, [isPublicRoute]);
 
   // IntersectionObserver for active section highlight
   React.useEffect(() => {
@@ -94,11 +114,13 @@ export function Navbar() {
   const toggleTheme = () => {
     if (theme === "light") {
       document.documentElement.classList.add("dark");
-      localStorage.setItem("theme", "dark");
+      document.documentElement.classList.remove("light");
+      localStorage.setItem(themeStorageKey, "dark");
       setTheme("dark");
     } else {
       document.documentElement.classList.remove("dark");
-      localStorage.setItem("theme", "light");
+      document.documentElement.classList.add("light");
+      localStorage.setItem(themeStorageKey, "light");
       setTheme("light");
     }
   };

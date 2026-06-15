@@ -30,6 +30,8 @@ const competitionValidationSchema = z.object({
   hero_capacity: z.number().int().min(0).max(100).default(80),
   rounds_count: z.number().int().min(1).max(2).default(1),
   slug: z.string().optional().nullable(),
+  cover_image_url: z.string().optional().nullable(),
+  banner_image_url: z.string().optional().nullable(),
 });
 
 function slugify(name: string): string {

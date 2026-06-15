@@ -90,18 +90,18 @@ interface ReviewTeam {
 function VerifBadge({ status }: { status: string }) {
   if (status === "approved")
     return (
-      <span className="flex items-center gap-1 px-1.5 py-0.5 rounded border border-success/30 bg-success/10 text-success text-[9px] font-mono uppercase tracking-wider">
+      <span className="flex items-center gap-1 px-1.5 py-0.5 rounded border border-success/30 bg-success/10 text-success text-sm font-mono uppercase tracking-wider">
         <ShieldCheck className="h-3 w-3" /> Approved
       </span>
     );
   if (status === "rejected")
     return (
-      <span className="flex items-center gap-1 px-1.5 py-0.5 rounded border border-error/30 bg-error/10 text-error text-[9px] font-mono uppercase tracking-wider">
+      <span className="flex items-center gap-1 px-1.5 py-0.5 rounded border border-error/30 bg-error/10 text-error text-sm font-mono uppercase tracking-wider">
         <ShieldX className="h-3 w-3" /> Rejected
       </span>
     );
   return (
-    <span className="flex items-center gap-1 px-1.5 py-0.5 rounded border border-warning/30 bg-warning/10 text-warning text-[9px] font-mono uppercase tracking-wider">
+    <span className="flex items-center gap-1 px-1.5 py-0.5 rounded border border-warning/30 bg-warning/10 text-warning text-sm font-mono uppercase tracking-wider">
       <Clock className="h-3 w-3" /> Pending
     </span>
   );
@@ -118,7 +118,7 @@ function TeamStatusBadge({ status }: { status: string }) {
     finalist: "border-secondary/30 bg-secondary/10 text-secondary",
   };
   return (
-    <span className={`px-2 py-0.5 border rounded text-[9px] uppercase font-mono tracking-widest ${map[status] ?? "border-neutral-800 bg-neutral-900 text-neutral-400"}`}>
+    <span className={`px-2 py-0.5 border rounded text-sm uppercase font-mono tracking-widest ${map[status] ?? "border-neutral-800 bg-neutral-900 text-neutral-400"}`}>
       {status}
     </span>
   );
@@ -273,7 +273,7 @@ export default function TeamReviewPage() {
           { label: "Rejected", value: teams.filter((t) => t.status === "rejected").length, color: "text-error" },
         ].map((s) => (
           <div key={s.label} className="p-3 rounded border border-neutral-800/40 bg-neutral-900/10 space-y-1">
-            <p className="text-[10px] text-neutral-500 font-mono uppercase tracking-wider">{s.label}</p>
+            <p className="text-sm text-neutral-500 font-mono uppercase tracking-wider">{s.label}</p>
             <p className={`text-2xl font-heading font-bold ${s.color}`}>{s.value}</p>
           </div>
         ))}
@@ -311,7 +311,7 @@ export default function TeamReviewPage() {
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="text-sm font-heading font-bold text-neutral-100">{team.name}</span>
                         {team.leader_confirmed && (
-                          <span className="flex items-center gap-1 px-1.5 py-0.5 rounded border border-success/30 bg-success/10 text-success text-[9px] font-mono uppercase tracking-wider">
+                          <span className="flex items-center gap-1 px-1.5 py-0.5 rounded border border-success/30 bg-success/10 text-success text-sm font-mono uppercase tracking-wider">
                             <Crown className="h-2.5 w-2.5" /> Leader Set
                           </span>
                         )}
@@ -324,7 +324,7 @@ export default function TeamReviewPage() {
 
                   <div className="flex items-center gap-3 shrink-0">
                     {/* Member verification mini-stats */}
-                    <div className="hidden sm:flex items-center gap-2 text-[10px] font-mono">
+                    <div className="hidden sm:flex items-center gap-2 text-sm font-mono">
                       {approvedCount > 0 && (
                         <span className="text-success">{approvedCount} ✓</span>
                       )}
@@ -371,7 +371,7 @@ export default function TeamReviewPage() {
                       className="overflow-hidden"
                     >
                       <div className="px-5 pb-5 pt-3 border-t border-neutral-800/40 space-y-2">
-                        <p className="text-[10px] font-mono text-neutral-600 uppercase tracking-widest mb-3">
+                        <p className="text-sm font-mono text-neutral-600 uppercase tracking-widest mb-3">
                           Roster Members
                         </p>
                         {acceptedMembers.length === 0 ? (
@@ -398,7 +398,7 @@ export default function TeamReviewPage() {
                                   >
                                     {member.profile?.full_name || "Unknown"}
                                   </button>
-                                  <p className="text-[10px] text-neutral-500 font-mono truncate">
+                                  <p className="text-sm text-neutral-500 font-mono truncate">
                                     {member.profile?.university || "—"} • {member.profile?.student_id || "No ID"}
                                   </p>
                                 </div>
@@ -474,7 +474,7 @@ export default function TeamReviewPage() {
                       {selectedMember.member.profile?.full_name || "Unknown Member"}
                     </h2>
                     <div className="flex items-center gap-2 mt-0.5">
-                      <span className="text-[10px] text-neutral-500 font-mono">
+                      <span className="text-sm text-neutral-500 font-mono">
                         {selectedMember.member.role === "leader" ? "Team Leader" : "Member"}
                       </span>
                       <VerifBadge status={selectedMember.member.verification_status} />
@@ -494,7 +494,7 @@ export default function TeamReviewPage() {
               <div className="overflow-y-auto flex-1 p-5 space-y-6">
                 {/* Profile Info Grid */}
                 <div>
-                  <p className="text-[10px] font-mono text-neutral-500 uppercase tracking-widest mb-3">Profile Information</p>
+                  <p className="text-sm font-mono text-neutral-500 uppercase tracking-widest mb-3">Profile Information</p>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs font-sans">
                     {[
                       { label: "Full Name", value: selectedMember.member.profile?.full_name },
@@ -508,7 +508,7 @@ export default function TeamReviewPage() {
                       { label: "T-Shirt Size", value: selectedMember.member.profile?.tshirt_size },
                     ].map((field) => (
                       <div key={field.label} className="space-y-1 p-2.5 rounded bg-neutral-950/60 border border-neutral-800/60">
-                        <p className="text-[9px] font-mono text-neutral-600 uppercase tracking-widest">{field.label}</p>
+                        <p className="text-sm font-mono text-neutral-600 uppercase tracking-widest">{field.label}</p>
                         <p className="text-neutral-200 font-semibold break-all">{field.value || "—"}</p>
                       </div>
                     ))}
@@ -520,13 +520,13 @@ export default function TeamReviewPage() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs font-sans">
                     {selectedMember.member.profile?.skills && (
                       <div className="space-y-1 p-2.5 rounded bg-neutral-950/60 border border-neutral-800/60">
-                        <p className="text-[9px] font-mono text-neutral-600 uppercase tracking-widest">Skills</p>
+                        <p className="text-sm font-mono text-neutral-600 uppercase tracking-widest">Skills</p>
                         <p className="text-neutral-300 leading-relaxed">{selectedMember.member.profile.skills}</p>
                       </div>
                     )}
                     {selectedMember.member.profile?.bio && (
                       <div className="space-y-1 p-2.5 rounded bg-neutral-950/60 border border-neutral-800/60">
-                        <p className="text-[9px] font-mono text-neutral-600 uppercase tracking-widest">Bio</p>
+                        <p className="text-sm font-mono text-neutral-600 uppercase tracking-widest">Bio</p>
                         <p className="text-neutral-300 leading-relaxed">{selectedMember.member.profile.bio}</p>
                       </div>
                     )}
@@ -536,14 +536,14 @@ export default function TeamReviewPage() {
                 {/* Student ID Cards */}
                 {selectedMember.member.id_card ? (
                   <div>
-                    <p className="text-[10px] font-mono text-neutral-500 uppercase tracking-widest mb-3">Student ID Card</p>
+                    <p className="text-sm font-mono text-neutral-500 uppercase tracking-widest mb-3">Student ID Card</p>
                     <div className="grid grid-cols-2 gap-3">
                       {[
                         { label: "Front", url: selectedMember.member.id_card.front_url },
                         { label: "Back", url: selectedMember.member.id_card.back_url },
                       ].map((side) => (
                         <div key={side.label} className="space-y-1.5">
-                          <p className="text-[9px] font-mono text-neutral-600 uppercase tracking-widest">{side.label}</p>
+                          <p className="text-sm font-mono text-neutral-600 uppercase tracking-widest">{side.label}</p>
                           {side.url ? (
                             <div className="w-full aspect-3/2 relative rounded border border-neutral-800 bg-neutral-950/40 overflow-hidden flex items-center justify-center">
                               <img
@@ -597,7 +597,7 @@ export default function TeamReviewPage() {
               {selectedMember.member.verification_status !== "pending" && (
                 <div className="p-5 border-t border-neutral-800/60 text-center">
                   <VerifBadge status={selectedMember.member.verification_status} />
-                  <p className="text-[10px] text-neutral-600 font-mono mt-2">
+                  <p className="text-sm text-neutral-600 font-mono mt-2">
                     This member has already been reviewed.
                   </p>
                 </div>
@@ -640,21 +640,21 @@ export default function TeamReviewPage() {
               </div>
               <div className="p-5 space-y-4 text-xs font-sans">
                 <div className="space-y-1 p-3 rounded bg-neutral-950/60 border border-neutral-800">
-                  <p className="text-[9px] font-mono text-neutral-600 uppercase tracking-widest">Title</p>
+                  <p className="text-sm font-mono text-neutral-600 uppercase tracking-widest">Title</p>
                   <p className="text-neutral-100 font-semibold text-sm">{viewSubmission.title}</p>
                 </div>
                 <div className="space-y-1 p-3 rounded bg-neutral-950/60 border border-neutral-800">
-                  <p className="text-[9px] font-mono text-neutral-600 uppercase tracking-widest">Status</p>
-                  <Badge variant="neutral" className="font-mono capitalize text-[10px]">{viewSubmission.status}</Badge>
+                  <p className="text-sm font-mono text-neutral-600 uppercase tracking-widest">Status</p>
+                  <Badge variant="neutral" className="font-mono capitalize text-sm">{viewSubmission.status}</Badge>
                 </div>
                 {viewSubmission.notes && (
                   <div className="space-y-1 p-3 rounded bg-neutral-950/60 border border-neutral-800">
-                    <p className="text-[9px] font-mono text-neutral-600 uppercase tracking-widest">Notes</p>
+                    <p className="text-sm font-mono text-neutral-600 uppercase tracking-widest">Notes</p>
                     <p className="text-neutral-300 leading-relaxed">{viewSubmission.notes}</p>
                   </div>
                 )}
                 <div className="space-y-1 p-3 rounded bg-neutral-950/60 border border-neutral-800">
-                  <p className="text-[9px] font-mono text-neutral-600 uppercase tracking-widest">Submitted At</p>
+                  <p className="text-sm font-mono text-neutral-600 uppercase tracking-widest">Submitted At</p>
                   <p className="text-neutral-300">{new Date(viewSubmission.submitted_at).toLocaleString()}</p>
                 </div>
                 <div className="space-y-2">

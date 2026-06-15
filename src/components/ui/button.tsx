@@ -30,13 +30,13 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
               "bg-success hover:bg-success/90 text-white hover:shadow-level-2 hover:-translate-y-[1px] active:translate-y-0 border border-success/20": variant === "success",
             },
             {
-              // Sizes
-              "py-2.5 px-5 text-sm": size === "default",
-              "py-1.5 px-3.5 text-xs": size === "sm",
-              "py-1 px-2.5 text-[10px]": size === "xs",
-              "py-3 px-6 text-base": size === "lg",
-              "h-10 w-10 p-0 flex items-center justify-center": size === "icon",
-              "h-8 w-8 p-0 flex items-center justify-center": size === "icon-sm",
+              // Sizes — v1.1: floors at 16px, so xs size is deprecated in favor of sm
+              "py-2.5 px-5 text-sm h-11": size === "default",
+              "py-2 px-4 text-sm h-9": size === "sm",
+              "py-1.5 px-3 text-sm h-8": size === "xs",
+              "py-3 px-7 text-base h-12": size === "lg",
+              "h-11 w-11 p-0 flex items-center justify-center": size === "icon",
+              "h-9 w-9 p-0 flex items-center justify-center": size === "icon-sm",
             },
             className
           )

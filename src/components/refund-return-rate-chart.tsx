@@ -115,7 +115,7 @@ export function RefundReturnRateChart({
 					</span>
 				</div>
 				<a
-					className="text-muted-foreground relative inline-flex items-center justify-center font-sans font-semibold rounded-lg text-sm transition-all duration-normal select-none cursor-pointer bg-transparent text-neutral-400 hover:text-neutral-50 hover:bg-neutral-800/40 py-1 px-2.5 text-[10px] gap-1"
+					className="text-muted-foreground relative inline-flex items-center justify-center font-sans font-semibold rounded-lg text-sm transition-all duration-normal select-none cursor-pointer bg-transparent text-neutral-400 hover:text-neutral-50 hover:bg-neutral-800/40 py-1 px-2.5 text-sm gap-1"
 					href="/admin/submissions"
 				>
 					Review desk

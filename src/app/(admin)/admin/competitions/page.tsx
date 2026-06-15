@@ -770,11 +770,11 @@ export default function AdminCompetitionsPage() {
                 You are about to permanently delete <span className="font-bold text-neutral-100">{deleteConfirm.name}</span>.
               </p>
               <div className="p-3 bg-error/5 border border-error/15 rounded-lg space-y-1.5">
-                <p className="text-[11px] text-error font-semibold font-sans flex items-center gap-1.5">
+                <p className="text-sm text-error font-semibold font-sans flex items-center gap-1.5">
                   <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
                   This action is irreversible
                 </p>
-                <p className="text-[11px] text-error/80 font-sans leading-relaxed">
+                <p className="text-sm text-error/80 font-sans leading-relaxed">
                   All associated teams, submissions, scores, rankings, and payment records will be permanently removed.
                 </p>
               </div>

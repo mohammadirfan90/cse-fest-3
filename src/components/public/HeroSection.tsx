@@ -525,19 +525,19 @@ export function HeroSection() {
 
         {/* Localized Telemetry info (DHAKA, 18 JULY, SMUCT) */}
         <div className="flex items-center justify-start gap-4 md:gap-8 animate-fade-up text-left" style={{ animationDelay: "0.4s" }}>
-          <div className="group cursor-default">
-            <p className="text-[9px] text-neutral-500 tracking-[0.2em] font-mono mb-1 group-hover:text-accent transition-colors">LOCATION</p>
+          {/* <div className="group cursor-default">
+            <p className="text-sm text-neutral-500 tracking-[0.2em] font-mono mb-1 group-hover:text-accent transition-colors">LOCATION</p>
             <p className="text-base font-bold text-neutral-100 tracking-wide font-heading">DHAKA</p>
-          </div>
+          </div> */}
           <div className="h-8 w-px bg-linear-to-b from-transparent via-neutral-800 to-transparent" />
           <div className="group cursor-default">
-            <p className="text-[9px] text-neutral-500 tracking-[0.2em] font-mono mb-1 group-hover:text-accent transition-colors">DATE</p>
+            <p className="text-sm text-neutral-500 tracking-[0.2em] font-mono mb-1 group-hover:text-accent transition-colors">DATE</p>
             <p className="text-base font-bold text-neutral-100 tracking-wide font-heading">18 JULY</p>
           </div>
           <div className="h-8 w-px bg-linear-to-b from-transparent via-neutral-800 to-transparent" />
           <div className="group cursor-default">
-            <p className="text-[9px] text-neutral-500 tracking-[0.2em] font-mono mb-1 group-hover:text-accent transition-colors">VENUE</p>
-            <p className="text-base font-bold text-neutral-100 tracking-wide font-heading">SMUCT</p>
+            <p className="text-sm text-neutral-500 tracking-[0.2em] font-mono mb-1 group-hover:text-accent transition-colors">VENUE</p>
+            <p className="text-base font-bold text-neutral-100 tracking-wide font-heading">Permanent Campus, Shanto-Mariam Univevsity of Creative Technology</p>
           </div>
         </div>
 
@@ -551,19 +551,19 @@ export function HeroSection() {
             <div className="grid grid-cols-4 gap-3 font-mono select-none relative z-10">
               <div className="bg-neutral-950/40 border border-neutral-850/80 p-3 rounded-xl text-center backdrop-blur-md group-hover:border-primary/45 transition-colors duration-normal">
                 <div className="text-2xl font-black text-primary tracking-tight">{padZero(timeLeft.days)}</div>
-                <div className="text-[8px] uppercase tracking-widest text-neutral-500 font-sans font-bold mt-1">Days</div>
+                <div className="text-sm uppercase tracking-widest text-neutral-500 font-sans font-bold mt-1">Days</div>
               </div>
               <div className="bg-neutral-950/40 border border-neutral-850/80 p-3 rounded-xl text-center backdrop-blur-md group-hover:border-primary/45 transition-colors duration-normal">
                 <div className="text-2xl font-black text-primary tracking-tight">{padZero(timeLeft.hours)}</div>
-                <div className="text-[8px] uppercase tracking-widest text-neutral-500 font-sans font-bold mt-1">Hrs</div>
+                <div className="text-sm uppercase tracking-widest text-neutral-500 font-sans font-bold mt-1">Hrs</div>
               </div>
               <div className="bg-neutral-950/40 border border-neutral-850/80 p-3 rounded-xl text-center backdrop-blur-md group-hover:border-primary/45 transition-colors duration-normal">
                 <div className="text-2xl font-black text-primary tracking-tight">{padZero(timeLeft.minutes)}</div>
-                <div className="text-[8px] uppercase tracking-widest text-neutral-500 font-sans font-bold mt-1">Mins</div>
+                <div className="text-sm uppercase tracking-widest text-neutral-500 font-sans font-bold mt-1">Mins</div>
               </div>
               <div className="bg-neutral-950/40 border border-neutral-850/80 p-3 rounded-xl text-center backdrop-blur-md group-hover:border-primary/45 transition-colors duration-normal">
                 <div className="text-2xl font-black text-primary tracking-tight">{padZero(timeLeft.seconds)}</div>
-                <div className="text-[8px] uppercase tracking-widest text-neutral-500 font-sans font-bold mt-1">Secs</div>
+                <div className="text-sm uppercase tracking-widest text-neutral-500 font-sans font-bold mt-1">Secs</div>
               </div>
             </div>
           </div>
@@ -572,16 +572,12 @@ export function HeroSection() {
         )}
 
         <div className="flex flex-wrap gap-4 pt-4 animate-fade-up" style={{ animationDelay: "0.6s" }}>
-          <Link href="/register">
+          <Link href="/competitions">
             <Button className="bg-primary hover:bg-primary/95 text-white font-heading text-sm font-bold px-8 py-4 h-auto rounded-xl hover:shadow-[0_0_20px_rgba(99,102,241,0.4)] transition-all active:scale-[0.98]">
               Register Now
             </Button>
           </Link>
-          <Link href="#about">
-            <Button variant="secondary" className="border border-neutral-800 hover:border-neutral-700 bg-neutral-900/40 text-neutral-300 hover:text-neutral-100 font-heading text-sm font-bold px-8 py-4 h-auto rounded-xl transition-all">
-              Learn More
-            </Button>
-          </Link>
+          
         </div>
       </div>
 
@@ -738,10 +734,10 @@ export function HeroSection() {
                 <div className="flex-1 w-full space-y-4 font-mono select-text z-10">
                   <div>
                     <div className="flex items-center justify-between">
-                      <span className="text-[10px] uppercase font-bold text-neutral-500 tracking-wider">
+                      <span className="text-sm uppercase font-bold text-neutral-500 tracking-wider">
                         [SYS_COCKPIT: {currentTrack.category}]
                       </span>
-                      <span className="text-[10px] text-neutral-500 font-bold bg-neutral-950 px-2 py-0.5 rounded border border-neutral-850">
+                      <span className="text-sm text-neutral-500 font-bold bg-neutral-950 px-2 py-0.5 rounded border border-neutral-850">
                         {currentTrack.shortName.toUpperCase()}
                       </span>
                     </div>
@@ -763,7 +759,7 @@ export function HeroSection() {
 
                   {/* Progress Fill capacity */}
                   <div className="space-y-1">
-                    <div className="flex justify-between text-[9px] text-neutral-500 font-bold">
+                    <div className="flex justify-between text-sm text-neutral-500 font-bold">
                       <span>FLOW_CAPACITY_LIMIT</span>
                       <span className="text-primary">{currentTrack.capacity}% FILLED</span>
                     </div>
@@ -785,7 +781,7 @@ export function HeroSection() {
                   </div>
 
                   {/* Telemetry Metrics Footer */}
-                  <div className="grid grid-cols-2 gap-4 pt-3 border-t border-neutral-850/60 text-[9px] font-sans text-neutral-500">
+                  <div className="grid grid-cols-2 gap-4 pt-3 border-t border-neutral-850/60 text-sm font-sans text-neutral-500">
                     <div>
                       <span className="block text-neutral-600 font-bold uppercase tracking-wider">PRIZE POOL</span>
                       <span className="text-xs font-mono font-bold text-accent">{currentTrack.prize}</span>
@@ -812,7 +808,7 @@ export function HeroSection() {
                   {/* Dynamic exploration button linking straight to detail route */}
                   <div className="pt-2">
                     <Link href={`/competitions/${currentTrack.id}`}>
-                      <button className="w-full py-1.5 px-3 rounded-lg bg-primary/10 hover:bg-primary border border-primary/30 hover:border-primary/50 text-[10px] font-bold text-primary hover:text-white transition-all select-none duration-200 cursor-pointer">
+                      <button className="w-full py-1.5 px-3 rounded-lg bg-primary/10 hover:bg-primary border border-primary/30 hover:border-primary/50 text-sm font-bold text-primary hover:text-white transition-all select-none duration-200 cursor-pointer">
                         EXPLORE RULES & REGISTRATION
                       </button>
                     </Link>

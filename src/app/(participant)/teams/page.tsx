@@ -156,7 +156,7 @@ function VerifBadge({ status }: { status: string }) {
   };
   return (
     <span
-      className={`px-1.5 py-0.5 border rounded text-[9px] font-mono uppercase tracking-widest shrink-0 ${
+      className={`px-1.5 py-0.5 border rounded text-sm font-mono uppercase tracking-widest shrink-0 ${
         map[status] ?? "border-neutral-800 bg-neutral-900 text-neutral-400"
       }`}
     >
@@ -236,7 +236,7 @@ function MemberCard({
                 </span>
               )}
             </div>
-            <div className="text-[10px] text-neutral-500 font-mono truncate">{p?.email}</div>
+            <div className="text-sm text-neutral-500 font-mono truncate">{p?.email}</div>
           </div>
         </div>
 
@@ -290,7 +290,7 @@ function MemberCard({
             transition={{ duration: 0.2 }}
             className="overflow-hidden border-t border-neutral-800/70"
           >
-            <div className="px-4 py-3 grid grid-cols-2 gap-x-4 gap-y-2 text-[10px] font-sans text-neutral-400">
+            <div className="px-4 py-3 grid grid-cols-2 gap-x-4 gap-y-2 text-sm font-sans text-neutral-400">
               {p.university && (
                 <div className="flex items-start gap-1.5 col-span-2">
                   <GraduationCap className="h-3 w-3 text-neutral-500 mt-0.5 shrink-0" />
@@ -727,7 +727,7 @@ export default function TeamsPage() {
               <CardContent className="p-0">
                 <form onSubmit={handleCreateTeam} className="space-y-4">
                   <div className="flex flex-col space-y-1.5 w-full">
-                    <label className="text-[10px] font-semibold text-neutral-400 font-mono uppercase tracking-widest select-none">
+                    <label className="text-sm font-semibold text-neutral-400 font-mono uppercase tracking-widest select-none">
                       Team Name
                     </label>
                     <Input
@@ -740,7 +740,7 @@ export default function TeamsPage() {
                     />
                   </div>
                   <div className="flex flex-col space-y-1.5 w-full">
-                    <label className="text-[10px] font-semibold text-neutral-400 font-mono uppercase tracking-widest select-none">
+                    <label className="text-sm font-semibold text-neutral-400 font-mono uppercase tracking-widest select-none">
                       Competition
                     </label>
                     <select
@@ -842,14 +842,14 @@ export default function TeamsPage() {
                       <Crown className="h-3.5 w-3.5 shrink-0" />
                       <span>LEADER NOT CONFIRMED — Submission locked until a leader is designated.</span>
                     </div>
-                    <p className="text-[10px] text-warning/70 font-sans">
+                    <p className="text-sm text-warning/70 font-sans">
                       Click the crown icon next to any member to designate them, or confirm yourself below.
                     </p>
                     <button
                       type="button"
                       onClick={() => handleSetLeader(team.id, currentUserId!)}
                       disabled={setLeaderLoading[`${team.id}-${currentUserId}`]}
-                      className="flex items-center gap-1.5 px-2.5 py-1 rounded border border-warning/30 text-warning hover:bg-warning/15 hover:border-warning/60 transition-all text-[10px] font-mono uppercase tracking-wider cursor-pointer disabled:opacity-50 bg-transparent"
+                      className="flex items-center gap-1.5 px-2.5 py-1 rounded border border-warning/30 text-warning hover:bg-warning/15 hover:border-warning/60 transition-all text-sm font-mono uppercase tracking-wider cursor-pointer disabled:opacity-50 bg-transparent"
                     >
                       <ShieldCheck className="h-3 w-3" />
                       {setLeaderLoading[`${team.id}-${currentUserId}`]
@@ -930,7 +930,7 @@ export default function TeamsPage() {
                       </p>
 
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className={`px-2 py-0.5 border rounded text-[9px] uppercase font-mono tracking-widest ${
+                        <span className={`px-2 py-0.5 border rounded text-sm uppercase font-mono tracking-widest ${
                           isLeader
                             ? "border-neutral-500 bg-neutral-900 text-neutral-200 font-semibold"
                             : "border-neutral-800 bg-neutral-950/45 text-neutral-500"
@@ -938,7 +938,7 @@ export default function TeamsPage() {
                           {isLeader ? "Leader" : "Member"}
                         </span>
 
-                        <span className={`px-2 py-0.5 border rounded text-[9px] uppercase font-mono tracking-widest ${
+                        <span className={`px-2 py-0.5 border rounded text-sm uppercase font-mono tracking-widest ${
                           team.status === "finalist" || team.status === "selected"
                             ? "border-success/30 bg-success/10 text-success"
                             : team.status === "rejected"
@@ -950,14 +950,14 @@ export default function TeamsPage() {
                           {team.status}
                         </span>
 
-                        <span className="px-2 py-0.5 border border-neutral-800 rounded text-[9px] font-mono text-neutral-500 bg-neutral-950/40">
+                        <span className="px-2 py-0.5 border border-neutral-800 rounded text-sm font-mono text-neutral-500 bg-neutral-950/40">
                           {acceptedCount} / {maxMembers} members
                         </span>
 
                         {team.competitions && (
                           <button
                             onClick={() => setSelectedCompInfo(team.competitions)}
-                            className="flex items-center gap-1 px-2 py-0.5 border border-neutral-800 rounded text-[9px] font-mono text-neutral-500 bg-neutral-950/40 hover:border-neutral-700 hover:text-neutral-300 transition-all cursor-pointer"
+                            className="flex items-center gap-1 px-2 py-0.5 border border-neutral-800 rounded text-sm font-mono text-neutral-500 bg-neutral-950/40 hover:border-neutral-700 hover:text-neutral-300 transition-all cursor-pointer"
                           >
                             <BookOpen className="h-3 w-3" />
                             Rules
@@ -996,10 +996,10 @@ export default function TeamsPage() {
                   {/* Roster */}
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <h4 className="text-[10px] font-semibold text-neutral-500 uppercase tracking-widest font-mono">
+                      <h4 className="text-sm font-semibold text-neutral-500 uppercase tracking-widest font-mono">
                         Roster
                       </h4>
-                      <span className="text-[10px] text-neutral-600 font-mono">
+                      <span className="text-sm text-neutral-600 font-mono">
                         Click <UserCheck className="h-3 w-3 inline" /> to expand member details
                       </span>
                     </div>
@@ -1059,7 +1059,7 @@ export default function TeamsPage() {
                   </strong>{" "}
                   as the official team leader. This confirms their role and unlocks submissions.
                 </p>
-                <p className="text-[10px] text-neutral-500 font-mono">
+                <p className="text-sm text-neutral-500 font-mono">
                   You can still transfer leadership before the registration deadline.
                 </p>
               </div>
@@ -1253,19 +1253,19 @@ export default function TeamsPage() {
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 border border-neutral-800/80 bg-neutral-950/50 p-4 rounded-lg">
                   <div>
-                    <span className="text-[10px] uppercase font-bold tracking-wider text-neutral-500 block">Entry Fee</span>
+                    <span className="text-sm uppercase font-bold tracking-wider text-neutral-500 block">Entry Fee</span>
                     <span className="text-sm font-semibold text-neutral-200 mt-0.5 block">
                       {Number(selectedCompInfo.entry_fee) === 0 ? "Free" : `${selectedCompInfo.entry_fee} BDT`}
                     </span>
                   </div>
                   <div>
-                    <span className="text-[10px] uppercase font-bold tracking-wider text-neutral-500 block">Eligibility</span>
+                    <span className="text-sm uppercase font-bold tracking-wider text-neutral-500 block">Eligibility</span>
                     <span className="text-sm font-semibold text-neutral-200 mt-0.5 block capitalize">
                       {selectedCompInfo.eligibility || "Open"}
                     </span>
                   </div>
                   <div>
-                    <span className="text-[10px] uppercase font-bold tracking-wider text-neutral-500 block">Template</span>
+                    <span className="text-sm uppercase font-bold tracking-wider text-neutral-500 block">Template</span>
                     {selectedCompInfo.template_link ? (
                       <a href={selectedCompInfo.template_link} target="_blank" rel="noopener noreferrer"
                         className="text-sm font-semibold text-accent hover:text-accent/85 transition-colors inline-flex items-center gap-1 mt-0.5">
@@ -1283,7 +1283,7 @@ export default function TeamsPage() {
                     <h4 className="text-xs font-semibold text-neutral-400 uppercase tracking-widest font-mono">Official Rulebook</h4>
                     {selectedCompInfo.rulebook_url && (
                       <a href={selectedCompInfo.rulebook_url} target="_blank" rel="noopener noreferrer">
-                        <Button variant="secondary" className="text-[11px] py-1.5 px-3 h-auto gap-1">
+                        <Button variant="secondary" className="text-sm py-1.5 px-3 h-auto gap-1">
                           <span>Open in Drive</span>
                           <ExternalLink className="h-3 w-3" />
                         </Button>
@@ -1336,7 +1336,7 @@ export default function TeamsPage() {
                   <h3 className="text-base font-bold font-heading text-neutral-100 uppercase tracking-tight">
                     Roster Wizard: Register Member {rosterWizardMemberIndex}
                   </h3>
-                  <p className="text-[10px] text-neutral-550 mt-0.5">
+                  <p className="text-sm text-neutral-550 mt-0.5">
                     Team: {activeWizardTeam.name} | Roster size required: {activeWizardTeam.competitions?.min_members ?? 1} to {activeWizardTeam.competitions?.max_members ?? 3} members
                   </p>
                 </div>
@@ -1356,10 +1356,10 @@ export default function TeamsPage() {
                   const isDone = rosterWizardMemberIndex > mIndex;
                   return (
                     <div key={mIndex} className="flex items-center gap-1.5 grow">
-                      <div className={`flex items-center gap-1.5 text-[10px] font-mono ${
+                      <div className={`flex items-center gap-1.5 text-sm font-mono ${
                         isCurrent ? "text-neutral-100" : isDone ? "text-success" : "text-neutral-600"
                       }`}>
-                        <div className={`w-5 h-5 rounded-full flex items-center justify-center border text-[9px] ${
+                        <div className={`w-5 h-5 rounded-full flex items-center justify-center border text-sm ${
                           isCurrent ? "border-neutral-200 bg-neutral-850" : isDone ? "border-success bg-success/10" : "border-neutral-800"
                         }`}>
                           {isDone ? <Check className="h-2.5 w-2.5" /> : mIndex}
@@ -1393,7 +1393,7 @@ export default function TeamsPage() {
                     { label: "Student ID", key: "student_id", placeholder: "e.g. 201071024", required: true },
                   ].map(({ label, key, placeholder, required, type }) => (
                     <div key={key} className="flex flex-col space-y-1.5">
-                      <label className="text-[9px] font-semibold text-neutral-400 font-mono uppercase tracking-widest">
+                      <label className="text-sm font-semibold text-neutral-400 font-mono uppercase tracking-widest">
                         {label}
                       </label>
                       <Input
@@ -1409,7 +1409,7 @@ export default function TeamsPage() {
 
                   {/* Gender */}
                   <div className="flex flex-col space-y-1.5">
-                    <label className="text-[9px] font-semibold text-neutral-400 font-mono uppercase tracking-widest">Gender</label>
+                    <label className="text-sm font-semibold text-neutral-400 font-mono uppercase tracking-widest">Gender</label>
                     <select
                       value={rosterForm.gender}
                       onChange={(e) => setRosterForm((prev) => ({ ...prev, gender: e.target.value }))}
@@ -1425,7 +1425,7 @@ export default function TeamsPage() {
 
                   {/* T-Shirt Size */}
                   <div className="flex flex-col space-y-1.5">
-                    <label className="text-[9px] font-semibold text-neutral-400 font-mono uppercase tracking-widest">T-Shirt Size</label>
+                    <label className="text-sm font-semibold text-neutral-400 font-mono uppercase tracking-widest">T-Shirt Size</label>
                     <select
                       value={rosterForm.tshirt_size}
                       onChange={(e) => setRosterForm((prev) => ({ ...prev, tshirt_size: e.target.value }))}
@@ -1442,7 +1442,7 @@ export default function TeamsPage() {
 
                 {/* ID Card Front Upload */}
                 <div className="flex flex-col space-y-2 pt-2">
-                  <label className="text-[9px] font-semibold text-neutral-400 font-mono uppercase tracking-widest">
+                  <label className="text-sm font-semibold text-neutral-400 font-mono uppercase tracking-widest">
                     Student ID Card (Front Side) Image
                   </label>
                   <div className={`relative border border-dashed rounded-lg p-5 bg-neutral-950/40 text-center transition-all cursor-pointer ${
@@ -1459,13 +1459,13 @@ export default function TeamsPage() {
                       {idFrontFileName ? (
                         <>
                           <CheckCircle2 className="h-5 w-5 text-success shrink-0" />
-                          <span className="text-[11px] text-neutral-300 font-semibold">{idFrontFileName}</span>
-                          <span className="text-[9px] text-success/60 font-mono">Front Side Attached</span>
+                          <span className="text-sm text-neutral-300 font-semibold">{idFrontFileName}</span>
+                          <span className="text-sm text-success/60 font-mono">Front Side Attached</span>
                         </>
                       ) : (
                         <>
                           <Upload className="h-5 w-5 text-neutral-550 shrink-0" />
-                          <span className="text-[10px] text-neutral-400 font-mono">
+                          <span className="text-sm text-neutral-400 font-mono">
                             Select image or drag here
                           </span>
                         </>

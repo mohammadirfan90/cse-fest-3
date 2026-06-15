@@ -46,3 +46,26 @@ next-env.d.ts
 # local submission storage
 /storage/
 
+# IDE configurations
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Windows / OS files
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+Desktop.ini
+
+# AI agent & MCP config files
+.agent/
+.agents/
+.claude/
+.stitch/
+.mcp.json
+skills-lock.json
+skills.txt

@@ -70,7 +70,7 @@ const CustomTooltip = ({ active, payload, label }: CustomTooltipProps) => {
   if (active && payload && payload.length) {
     return (
       <div className="bg-neutral-950 border border-neutral-850 rounded p-2.5 shadow-level-2 min-w-[120px] text-left">
-        <p className="text-[9px] font-mono text-neutral-500 uppercase tracking-widest mb-1">{label}</p>
+        <p className="text-sm font-mono text-neutral-500 uppercase tracking-widest mb-1">{label}</p>
         <div className="space-y-1">
           {payload.map((entry, index: number) => {
             const color = entry.color || entry.fill;
@@ -83,11 +83,11 @@ const CustomTooltip = ({ active, payload, label }: CustomTooltipProps) => {
               : color;
             return (
               <div key={index} className="flex items-center justify-between gap-4">
-                <span className="text-[11px] font-sans text-neutral-400 flex items-center gap-1.5">
+                <span className="text-sm font-sans text-neutral-400 flex items-center gap-1.5">
                   <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: displayColor || "transparent" }} />
                   {entry.name}
                 </span>
-                <span className="text-[11px] font-mono font-bold text-neutral-200">
+                <span className="text-sm font-mono font-bold text-neutral-200">
                   {entry.value.toLocaleString()}
                 </span>
               </div>
@@ -209,7 +209,7 @@ export default function AdminAnalyticsPage() {
           >
             <Card variant="glass" className="border-neutral-800/40 bg-neutral-900/10 hover:border-neutral-700/60 transition-all duration-150 p-5 rounded-lg flex items-center justify-between w-full relative group">
               <div className="space-y-1">
-                <span className="text-[10px] font-semibold text-neutral-500 font-sans uppercase tracking-widest block">{card.label}</span>
+                <span className="text-sm font-semibold text-neutral-500 font-sans uppercase tracking-widest block">{card.label}</span>
                 <h4 className="text-2xl font-heading font-bold font-mono text-neutral-200">{card.value}</h4>
               </div>
               <div className="p-2.5 rounded border border-neutral-850 bg-neutral-950 text-neutral-400 transition-colors group-hover:text-neutral-200">
@@ -329,7 +329,7 @@ export default function AdminAnalyticsPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <label className="font-semibold text-neutral-500 text-[10px] font-mono uppercase tracking-widest block">Export Category</label>
+              <label className="font-semibold text-neutral-500 text-sm font-mono uppercase tracking-widest block">Export Category</label>
               <div className="relative">
                 <select
                   className="flex h-10 w-full rounded-lg border border-neutral-800 bg-neutral-950 px-3.5 py-2 text-xs text-neutral-200 focus:border-neutral-700 hover:border-neutral-700/80 outline-none font-sans cursor-pointer appearance-none pr-10 transition-colors"
@@ -347,7 +347,7 @@ export default function AdminAnalyticsPage() {
             </div>
 
             <div className="space-y-1.5">
-              <label className="font-semibold text-neutral-500 text-[10px] font-mono uppercase tracking-widest block">Competition Filter</label>
+              <label className="font-semibold text-neutral-500 text-sm font-mono uppercase tracking-widest block">Competition Filter</label>
               <div className="relative">
                 <select
                   className="flex h-10 w-full rounded-lg border border-neutral-800 bg-neutral-950 px-3.5 py-2 text-xs text-neutral-200 focus:border-neutral-700 hover:border-neutral-700/80 outline-none font-sans cursor-pointer appearance-none pr-10 transition-colors"

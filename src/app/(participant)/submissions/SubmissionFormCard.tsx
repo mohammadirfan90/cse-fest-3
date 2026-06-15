@@ -104,7 +104,7 @@ export function SubmissionFormCard({
           />
 
           {/* Video compression guidance */}
-          <div className="text-[11px] text-neutral-500 font-sans leading-relaxed space-y-1 p-3 bg-neutral-950/60 border border-neutral-850 rounded-lg">
+          <div className="text-sm text-neutral-500 font-sans leading-relaxed space-y-1 p-3 bg-neutral-950/60 border border-neutral-850 rounded-lg">
             <p className="font-semibold text-neutral-400">📹 Video Upload Tips</p>
             <ul className="list-disc list-inside space-y-0.5 ml-1">
               <li>Compress to under 100 MB for faster upload — use <span className="font-mono text-neutral-400">HandBrake</span> (free) or an online compressor</li>
@@ -114,7 +114,7 @@ export function SubmissionFormCard({
           </div>
 
           {videoFile && (
-            <p className="text-[11px] text-neutral-500 font-mono mt-1">
+            <p className="text-sm text-neutral-500 font-mono mt-1">
               Selected: {videoFile.name} ({(videoFile.size / 1024 / 1024).toFixed(1)} MB)
             </p>
           )}
@@ -122,7 +122,7 @@ export function SubmissionFormCard({
           {/* Upload Progress Bar */}
           {formLoading && uploadProgress > 0 && (
             <div className="space-y-2 p-3 bg-neutral-950/60 border border-neutral-850 rounded-lg animate-fade-in">
-              <div className="flex items-center justify-between text-[11px] font-mono">
+              <div className="flex items-center justify-between text-sm font-mono">
                 <span className="text-neutral-400 font-semibold">
                   {isProcessing ? "Processing submission..." : "Uploading files..."}
                 </span>
@@ -142,7 +142,7 @@ export function SubmissionFormCard({
                 />
               </div>
               {isUploading && (
-                <p className="text-[10px] text-neutral-500 font-sans">
+                <p className="text-sm text-neutral-500 font-sans">
                   Please keep this tab open until the upload completes.
                 </p>
               )}

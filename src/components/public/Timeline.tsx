@@ -55,24 +55,24 @@ export function Timeline() {
 
     return [
       {
-        date: formatDate(earliestRegStart),
+        date: "17 June",
         title: "Registration Launch",
         description: "Phase 1 free registration and team formation portal opens for all showcases.",
       },
       {
-        date: formatDate(earliestRegEnd),
-        title: "Proposal Deadline",
+        date: "3 July",
+        title: "Registration Deadline",
         description: "Initial proposal submission (PDF/Video format) closes for external events.",
       },
       {
-        date: formatDate(earliestSubStart),
-        title: "Round 1 Selection",
-        description: "Announcements of teams selected for Phase 2 presentation rounds.",
+        date: "7 July",
+        title: "Onsite Selection & Fee payment",
+        description: "Onsite teams published and fee payment",
       },
       {
-        date: formatDate(earliestSubEnd),
-        title: "Final Registration & Fee Payment",
-        description: "Fee verification process and team finalist state confirmation closes.",
+        date: "10 July",
+        title: "Finalist Announcement",
+        description: "Official announcement of teams shortlisted for the final showcase.",
       },
       {
         date: "July 18, 2026",

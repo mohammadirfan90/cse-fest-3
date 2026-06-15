@@ -202,7 +202,7 @@ export default function ProfileSetupWizard() {
           </p>
         </div>
         <div className="shrink-0">
-          <span className="font-mono text-[10px] uppercase tracking-widest text-neutral-400 bg-neutral-900/50 border border-neutral-800/60 px-3 py-1.5 rounded">
+          <span className="font-mono text-sm uppercase tracking-widest text-neutral-400 bg-neutral-900/50 border border-neutral-800/60 px-3 py-1.5 rounded">
             STEP {step} OF 3
           </span>
         </div>
@@ -228,7 +228,7 @@ export default function ProfileSetupWizard() {
                   className="flex items-center gap-2 outline-none focus:outline-none text-left disabled:cursor-not-allowed group"
                 >
                   <div
-                    className={`w-6 h-6 rounded flex items-center justify-center border text-[10px] font-mono transition-all duration-150 shrink-0 ${
+                    className={`w-6 h-6 rounded flex items-center justify-center border text-sm font-mono transition-all duration-150 shrink-0 ${
                       isActive
                         ? "border-neutral-400 bg-neutral-900 text-neutral-100 font-bold"
                         : isCompleted
@@ -240,7 +240,7 @@ export default function ProfileSetupWizard() {
                   </div>
                   <div className="hidden md:block">
                     <p
-                      className={`text-[9px] font-mono tracking-widest uppercase transition-colors ${
+                      className={`text-sm font-mono tracking-widest uppercase transition-colors ${
                         isActive
                           ? "text-neutral-200 font-semibold"
                           : isCompleted
@@ -301,7 +301,7 @@ export default function ProfileSetupWizard() {
                     </div>
 
                     <div className="flex flex-col space-y-1.5 w-full">
-                      <label className="text-[10px] font-semibold text-neutral-400 font-mono uppercase tracking-widest select-none">Full Name</label>
+                      <label className="text-sm font-semibold text-neutral-400 font-mono uppercase tracking-widest select-none">Full Name</label>
                       <Input
                         placeholder="e.g. Abdullah Al Mamun"
                         error={errors.full_name?.message}
@@ -311,7 +311,7 @@ export default function ProfileSetupWizard() {
                     </div>
 
                     <div className="flex flex-col space-y-1.5 w-full relative">
-                      <label className="text-[10px] font-semibold text-neutral-400 font-mono uppercase tracking-widest select-none">University Email Address</label>
+                      <label className="text-sm font-semibold text-neutral-400 font-mono uppercase tracking-widest select-none">University Email Address</label>
                       <div className="relative">
                         <Input
                           value={userEmail}
@@ -325,7 +325,7 @@ export default function ProfileSetupWizard() {
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="flex flex-col space-y-1.5 w-full">
-                        <label className="text-[10px] font-semibold text-neutral-400 font-mono uppercase tracking-widest select-none">Phone Number</label>
+                        <label className="text-sm font-semibold text-neutral-400 font-mono uppercase tracking-widest select-none">Phone Number</label>
                         <Input
                           placeholder="+880 1XXX-XXXXXX"
                           error={errors.phone?.message}
@@ -335,7 +335,7 @@ export default function ProfileSetupWizard() {
                       </div>
 
                       <div className="flex flex-col space-y-1.5 w-full">
-                        <label className="text-[10px] font-semibold text-neutral-400 font-mono uppercase tracking-widest select-none">
+                        <label className="text-sm font-semibold text-neutral-400 font-mono uppercase tracking-widest select-none">
                           Gender
                         </label>
                         <div className="grid grid-cols-2 gap-2 h-9">
@@ -381,7 +381,7 @@ export default function ProfileSetupWizard() {
                     </div>
 
                     <div className="flex flex-col space-y-1.5 w-full">
-                      <label className="text-[10px] font-semibold text-neutral-400 font-mono uppercase tracking-widest select-none">University Name</label>
+                      <label className="text-sm font-semibold text-neutral-400 font-mono uppercase tracking-widest select-none">University Name</label>
                       <Input
                         placeholder="e.g. Shanto-Mariam University of Creative Technology"
                         error={errors.university?.message}
@@ -391,7 +391,7 @@ export default function ProfileSetupWizard() {
                     </div>
 
                     <div className="flex flex-col space-y-1.5 w-full">
-                      <label className="text-[10px] font-semibold text-neutral-400 font-mono uppercase tracking-widest select-none">Department</label>
+                      <label className="text-sm font-semibold text-neutral-400 font-mono uppercase tracking-widest select-none">Department</label>
                       <Input
                         placeholder="e.g. Computer Science & Engineering"
                         error={errors.department?.message}
@@ -402,7 +402,7 @@ export default function ProfileSetupWizard() {
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="flex flex-col space-y-1.5 w-full">
-                        <label className="text-[10px] font-semibold text-neutral-400 font-mono uppercase tracking-widest select-none">Semester</label>
+                        <label className="text-sm font-semibold text-neutral-400 font-mono uppercase tracking-widest select-none">Semester</label>
                         <Input
                           placeholder="e.g. 8th"
                           error={errors.semester?.message}
@@ -412,7 +412,7 @@ export default function ProfileSetupWizard() {
                       </div>
 
                       <div className="flex flex-col space-y-1.5 w-full">
-                        <label className="text-[10px] font-semibold text-neutral-400 font-mono uppercase tracking-widest select-none">Student ID</label>
+                        <label className="text-sm font-semibold text-neutral-400 font-mono uppercase tracking-widest select-none">Student ID</label>
                         <Input
                           placeholder="e.g. 201071000"
                           error={errors.student_id?.message}
@@ -424,7 +424,7 @@ export default function ProfileSetupWizard() {
 
                     {/* T-Shirt Size — button toggle */}
                     <div className="flex flex-col space-y-1.5 pt-2">
-                      <label className="text-[10px] font-semibold text-neutral-400 font-mono uppercase tracking-widest select-none font-mono">Festival T-Shirt Size</label>
+                      <label className="text-sm font-semibold text-neutral-400 font-mono uppercase tracking-widest select-none font-mono">Festival T-Shirt Size</label>
                       <div className="grid grid-cols-5 gap-2">
                         {(["S", "M", "L", "XL", "XXL"] as const).map((size) => {
                           const isSelected = watch("tshirt_size") === size;
@@ -466,7 +466,7 @@ export default function ProfileSetupWizard() {
                     </div>
 
                     <div className="space-y-2">
-                      <label className="text-[10px] font-mono font-bold tracking-widest text-neutral-400 uppercase select-none">ID Front Side Image</label>
+                      <label className="text-sm font-mono font-bold tracking-widest text-neutral-400 uppercase select-none">ID Front Side Image</label>
                       <div
                         onDragOver={(e) => handleDrag(e, true)}
                         onDragLeave={(e) => handleDrag(e, false)}
@@ -489,7 +489,7 @@ export default function ProfileSetupWizard() {
                         ) : (
                           <div className="text-center p-4 space-y-2.5 pointer-events-none">
                             <Upload className="h-6 w-6 text-neutral-550 mx-auto" />
-                            <div className="text-[10px] text-neutral-400 font-mono uppercase tracking-widest">
+                            <div className="text-sm text-neutral-400 font-mono uppercase tracking-widest">
                               Drop front side, or <span className="text-neutral-200 underline font-semibold cursor-pointer">Browse</span>
                             </div>
                           </div>
@@ -560,15 +560,15 @@ export default function ProfileSetupWizard() {
                   className="space-y-3 font-sans"
                 >
                   <h3 className="text-xs font-mono uppercase tracking-widest text-neutral-200">Why Identity?</h3>
-                  <p className="text-[11px] text-neutral-500 leading-relaxed">
+                  <p className="text-sm text-neutral-500 leading-relaxed">
                     Your name and gender details are mapped directly onto the printed Delegate Badges and certificates. Please double-check spelling.
                   </p>
                   <div className="bg-neutral-900/40 border border-neutral-800/40 rounded p-3 mt-4">
                     <div className="flex gap-2">
                       <Shield className="h-4 w-4 text-neutral-400 shrink-0 mt-0.5" />
                       <div className="space-y-0.5">
-                        <h4 className="text-[9px] font-mono font-bold text-neutral-300 uppercase tracking-widest">Encrypted Storage</h4>
-                        <p className="text-[10px] text-neutral-500 leading-tight">All personal records are encrypted and kept strictly confidential.</p>
+                        <h4 className="text-sm font-mono font-bold text-neutral-300 uppercase tracking-widest">Encrypted Storage</h4>
+                        <p className="text-sm text-neutral-500 leading-tight">All personal records are encrypted and kept strictly confidential.</p>
                       </div>
                     </div>
                   </div>
@@ -584,10 +584,10 @@ export default function ProfileSetupWizard() {
                   className="space-y-3 font-sans"
                 >
                   <h3 className="text-xs font-mono uppercase tracking-widest text-neutral-200">Academic Check</h3>
-                  <p className="text-[11px] text-neutral-500 leading-relaxed">
+                  <p className="text-sm text-neutral-500 leading-relaxed">
                     CSE Fest 2026 hosts contests targeting specific student demographics (e.g. internal university vs national level external hackathons).
                   </p>
-                  <p className="text-[11px] text-neutral-500 leading-relaxed">
+                  <p className="text-sm text-neutral-500 leading-relaxed">
                     Providing your accurate department and registration ID allows instant verification rules to be met.
                   </p>
                 </motion.div>
@@ -602,10 +602,10 @@ export default function ProfileSetupWizard() {
                   className="space-y-3 font-sans"
                 >
                   <h3 className="text-xs font-mono uppercase tracking-widest text-neutral-200">Verification Tips</h3>
-                  <p className="text-[11px] text-neutral-500 leading-relaxed">
+                  <p className="text-sm text-neutral-500 leading-relaxed">
                     Please upload high-resolution photos of your physical student ID card (Front side).
                   </p>
-                  <ul className="text-[11px] text-neutral-500 list-disc pl-4 space-y-1 leading-relaxed">
+                  <ul className="text-sm text-neutral-500 list-disc pl-4 space-y-1 leading-relaxed">
                     <li>Avoid heavy glare or shadows on text.</li>
                     <li>Ensure registration/roll number is legible.</li>
                     <li>Expired cards will be flagged by admins.</li>
@@ -620,8 +620,8 @@ export default function ProfileSetupWizard() {
               <div className="flex items-start gap-2.5">
                 <HelpCircle className="h-4 w-4 text-neutral-500 shrink-0 mt-0.5" />
                 <div>
-                  <h4 className="text-[9px] font-mono font-bold text-neutral-400 uppercase tracking-widest">Need Assistance?</h4>
-                  <p className="text-[9px] text-neutral-500 font-sans leading-tight mt-0.5">Contact the registration helpline at register@csefest2026.com</p>
+                  <h4 className="text-sm font-mono font-bold text-neutral-400 uppercase tracking-widest">Need Assistance?</h4>
+                  <p className="text-sm text-neutral-500 font-sans leading-tight mt-0.5">Contact the registration helpline at register@csefest2026.com</p>
                 </div>
               </div>
             </div>

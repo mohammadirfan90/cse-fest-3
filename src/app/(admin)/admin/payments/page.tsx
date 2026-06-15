@@ -422,11 +422,11 @@ export default function AdminPaymentsPage() {
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <div className="flex items-center gap-1.5 text-[10px] font-mono bg-warning/10 border border-warning/20 text-warning px-3 py-1 rounded">
+          <div className="flex items-center gap-1.5 text-sm font-mono bg-warning/10 border border-warning/20 text-warning px-3 py-1 rounded">
             <Clock className="h-3 w-3" />
             <span>{pendingCount} pending</span>
           </div>
-          <div className="flex items-center gap-1.5 text-[10px] font-mono bg-success/10 border border-success/20 text-success px-3 py-1 rounded">
+          <div className="flex items-center gap-1.5 text-sm font-mono bg-success/10 border border-success/20 text-success px-3 py-1 rounded">
             <Check className="h-3 w-3" />
             <span>{totalRevenue.toLocaleString()} BDT collected</span>
           </div>
@@ -532,7 +532,7 @@ export default function AdminPaymentsPage() {
                   >
                     {tab.label}
                     {statusFilter === tab.value && (
-                      <span className="ml-1.5 font-mono text-[10px] text-neutral-400">({filteredPayments.length})</span>
+                      <span className="ml-1.5 font-mono text-sm text-neutral-400">({filteredPayments.length})</span>
                     )}
                   </button>
                 ))}
@@ -567,7 +567,7 @@ export default function AdminPaymentsPage() {
                       <div className="space-y-3 flex-1">
                         <div className="space-y-0.5">
                           <div className="flex items-center flex-wrap gap-2">
-                            <span className="text-[10px] font-bold font-mono text-neutral-500 uppercase tracking-widest">
+                            <span className="text-sm font-bold font-mono text-neutral-500 uppercase tracking-widest">
                               {p.competitions?.name}
                             </span>
                             <Badge
@@ -576,12 +576,12 @@ export default function AdminPaymentsPage() {
                                 : p.status === "pending" ? "warning"
                                 : "error"
                               }
-                              className="capitalize text-[10px] py-0.5 rounded px-2 font-mono font-semibold"
+                              className="capitalize text-sm py-0.5 rounded px-2 font-mono font-semibold"
                             >
                               {p.status.replace("_", " ")}
                             </Badge>
                             {!amountMatches && isPending && (
-                              <Badge variant="error" className="flex items-center gap-1 text-[10px] font-mono py-0.5 rounded px-2 font-semibold">
+                              <Badge variant="error" className="flex items-center gap-1 text-sm font-mono py-0.5 rounded px-2 font-semibold">
                                 <AlertTriangle className="h-2.5 w-2.5" />
                                 <span>Fee Mismatch (Expected {expectedFee} BDT)</span>
                               </Badge>
@@ -594,25 +594,25 @@ export default function AdminPaymentsPage() {
 
                         <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 text-xs font-sans">
                           <div className="p-2 rounded bg-neutral-950 border border-neutral-850 space-y-0.5">
-                            <p className="text-neutral-600 text-[9px] uppercase tracking-widest font-mono">Transaction ID</p>
+                            <p className="text-neutral-600 text-sm uppercase tracking-widest font-mono">Transaction ID</p>
                             <p className="text-neutral-200 font-mono font-semibold">{p.transaction_id}</p>
                           </div>
                           <div className="p-2 rounded bg-neutral-950 border border-neutral-850 space-y-0.5">
-                            <p className="text-neutral-600 text-[9px] uppercase tracking-widest font-mono">Amount</p>
+                            <p className="text-neutral-600 text-sm uppercase tracking-widest font-mono">Amount</p>
                             <p className={`font-semibold font-mono ${amountMatches ? "text-neutral-200" : "text-error"}`}>
                               {p.amount} BDT
                             </p>
                           </div>
                           <div className="p-2 rounded bg-neutral-950 border border-neutral-850 space-y-0.5">
-                            <p className="text-neutral-600 text-[9px] uppercase tracking-widest font-mono">Method</p>
+                            <p className="text-neutral-600 text-sm uppercase tracking-widest font-mono">Method</p>
                             <p className="text-neutral-200 font-medium uppercase font-mono">{p.method}</p>
                           </div>
                           <div className="p-2 rounded bg-neutral-950 border border-neutral-850 space-y-0.5">
-                            <p className="text-neutral-600 text-[9px] uppercase tracking-widest font-mono">Score</p>
+                            <p className="text-neutral-600 text-sm uppercase tracking-widest font-mono">Score</p>
                             <p className="text-neutral-200 font-mono font-semibold">{p.team_score ?? "—"}</p>
                           </div>
                           <div className="p-2 rounded bg-neutral-950 border border-neutral-850 space-y-0.5">
-                            <p className="text-neutral-600 text-[9px] uppercase tracking-widest font-mono">Rank</p>
+                            <p className="text-neutral-600 text-sm uppercase tracking-widest font-mono">Rank</p>
                             <p className="text-neutral-200 font-mono font-semibold">{p.team_rank ? `#${p.team_rank}` : "—"}</p>
                           </div>
                         </div>
@@ -738,7 +738,7 @@ export default function AdminPaymentsPage() {
                       required
                       className="flex h-10 w-full rounded border border-neutral-800 bg-neutral-950 px-3 py-2 text-sm text-neutral-200 placeholder:text-neutral-600 focus:border-neutral-700 outline-none transition-all font-mono"
                     />
-                    <span className="text-[10px] text-neutral-500 mt-1 block">Used system-wide for transaction references.</span>
+                    <span className="text-sm text-neutral-500 mt-1 block">Used system-wide for transaction references.</span>
                   </div>
                 </div>
 
@@ -800,7 +800,7 @@ export default function AdminPaymentsPage() {
                     <div className="flex justify-between items-start gap-4">
                       <div>
                         <h3 className="font-heading font-bold text-neutral-100 text-base">{m.display_name}</h3>
-                        <span className="text-[10px] font-mono text-neutral-500 uppercase tracking-widest">{m.name}</span>
+                        <span className="text-sm font-mono text-neutral-500 uppercase tracking-widest">{m.name}</span>
                       </div>
                       <Badge variant={m.active ? "success" : "neutral"} className="capitalize font-mono text-xxs">
                         {m.active ? "Active" : "Inactive"}
@@ -808,7 +808,7 @@ export default function AdminPaymentsPage() {
                     </div>
 
                     <div className="p-3 bg-neutral-950 border border-neutral-850 rounded-lg font-sans space-y-1">
-                      <span className="text-[9px] font-mono text-neutral-500 uppercase tracking-widest block">Account Number</span>
+                      <span className="text-sm font-mono text-neutral-500 uppercase tracking-widest block">Account Number</span>
                       <strong className="text-neutral-200 font-mono text-sm">{m.number}</strong>
                     </div>
 

@@ -44,7 +44,7 @@ const securityHeaders = [
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       // Google Fonts, Cloudinary assets, Supabase storage
       "font-src 'self' https://fonts.gstatic.com",
-      "img-src 'self' data: blob: https://res.cloudinary.com https://*.supabase.co https://lh3.googleusercontent.com https://images.unsplash.com",
+      "img-src 'self' data: blob: https:",
       // Supabase REST & Auth endpoints
       `connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.cloudinary.com`,
       "media-src 'self'",
@@ -71,23 +71,7 @@ const nextConfig: NextConfig = {
     remotePatterns: [
       {
         protocol: "https",
-        hostname: "res.cloudinary.com",
-        pathname: "/**",
-      },
-      {
-        protocol: "https",
-        hostname: "*.supabase.co",
-        pathname: "/storage/v1/object/public/**",
-      },
-      {
-        protocol: "https",
-        hostname: "lh3.googleusercontent.com",
-        pathname: "/**",
-      },
-      {
-        protocol: "https",
-        hostname: "images.unsplash.com",
-        pathname: "/**",
+        hostname: "**",
       },
     ],
     formats: ["image/avif", "image/webp"],

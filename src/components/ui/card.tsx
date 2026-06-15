@@ -47,7 +47,7 @@ export const CardTitle = React.forwardRef<HTMLHeadingElement, React.HTMLAttribut
   ({ className, ...props }, ref) => (
     <h3
       ref={ref}
-      className={twMerge(clsx("text-lg font-semibold font-heading tracking-tight leading-none text-neutral-50", className))}
+      className={twMerge(clsx("text-xl font-semibold font-heading tracking-tight leading-tight text-neutral-50", className))}
       {...props}
     />
   )
@@ -58,7 +58,7 @@ export const CardDescription = React.forwardRef<HTMLParagraphElement, React.HTML
   ({ className, ...props }, ref) => (
     <p
       ref={ref}
-      className={twMerge(clsx("text-sm text-neutral-400 font-sans", className))}
+      className={twMerge(clsx("text-base text-neutral-400 font-sans leading-relaxed", className))}
       {...props}
     />
   )

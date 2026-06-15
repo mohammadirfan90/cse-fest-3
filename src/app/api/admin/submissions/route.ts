@@ -9,9 +9,10 @@ const submissionReviewSchema = z.object({
 });
 
 // GET: Fetch all submissions for admin review
-export async function GET() {
+export async function GET(req: Request) {
   try {
     const supabase = await createClient();
+    const { searchParams } = new URL(req.url);
 
     // 1. Authenticate user
     const {
@@ -40,16 +41,44 @@ export async function GET() {
     }
 
     // 3. Fetch submissions with team and competition details
-    const { data: submissions, error } = await supabase
+    // Retrieve optional competition filter
+    const competitionId = searchParams.get("competition_id");
+
+    // Base query for submissions with related team and competition info
+    let query = supabase
       .from("submissions")
       .select("*, teams(id, name, leader_id), competitions(id, name, type)")
       .order("submitted_at", { ascending: false });
 
+    // Apply competition filter if provided
+    if (competitionId) {
+      query = query.eq("competition_id", competitionId);
+    }
+
+    const { data: submissions, error } = await query;
+
     if (error) throw error;
+
+    // Fetch scores for the selected submissions (join on team_id and competition_id)
+    const teamIds = (submissions || []).map((s) => s.team_id);
+    const competitionIds = (submissions || []).map((s) => s.competition_id);
+    const { data: scores } = await supabase
+      .from("scores")
+      .select("team_id, competition_id, score")
+      .in("team_id", teamIds)
+      .in("competition_id", competitionIds);
+
+    // Map scores to submissions
+    const submissionsWithScore = (submissions || []).map((sub) => {
+      const matched = (scores || []).find(
+        (sc) => sc.team_id === sub.team_id && sc.competition_id === sub.competition_id
+      );
+      return { ...sub, score: matched ? matched.score : null };
+    });
 
     return NextResponse.json({
       success: true,
-      data: submissions || [],
+      data: submissionsWithScore,
     });
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : "Failed to load submissions queue.";

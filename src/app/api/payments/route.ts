@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
-import { uploadImage } from "@/lib/cloudinary";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
 
 const paymentSubmissionSchema = z.object({
@@ -9,7 +8,6 @@ const paymentSubmissionSchema = z.object({
   amount: z.number().positive("Amount must be a positive number"),
   transaction_id: z.string().min(6, "Transaction ID must be at least 6 characters"),
   method: z.string().min(2, "Payment method is required"),
-  screenshot_base64: z.string().min(1, "Screenshot image is required"),
 });
 
 // GET: Fetch payment history/status for a team
@@ -120,12 +118,12 @@ export async function POST(req: Request) {
       );
     }
 
-    const { team_id, amount, transaction_id, method, screenshot_base64 } = parseResult.data;
+    const { team_id, amount, transaction_id, method } = parseResult.data;
 
     // 3. Authorize (Must be accepted member of the team)
     const { data: teamRecord, error: teamQueryErr } = await supabase
       .from("teams")
-      .select("*, competitions(*)")
+      .select("id, name, status, competitions(id, name, entry_fee, eligibility, payment_instructions, rounds_count, preliminary_published)")
       .eq("id", team_id)
       .single();
 
@@ -151,7 +149,22 @@ export async function POST(req: Request) {
       );
     }
 
-    const comp = teamRecord.competitions;
+    const comp = teamRecord.competitions as unknown as {
+      id: string;
+      name: string;
+      entry_fee: number;
+      eligibility: string;
+      payment_instructions: string | null;
+      rounds_count: number;
+      preliminary_published: boolean;
+    } | null;
+
+    if (!comp) {
+      return NextResponse.json(
+        { success: false, message: "Associated competition not found." },
+        { status: 404 }
+      );
+    }
 
     // 4. Validate registration fee requirements
     if (comp.entry_fee <= 0) {
@@ -178,26 +191,38 @@ export async function POST(req: Request) {
     }
 
     // 5. Verify flow state eligibility
-    // 2-round competitions require proposal selection (clearing round 1) before payment
-    if (comp.rounds_count === 2 && teamRecord.status !== "selected") {
-      // If payment has already been submitted or rejected, the team status might still be something else.
-      // But they can pay only if their proposal is selected.
-      // Let's verify if they have any existing payment that was rejected or needs resubmission.
-      const { data: latestPayment } = await supabase
-        .from("payments")
-        .select("status")
-        .eq("team_id", team_id)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      const canResubmit = latestPayment && (latestPayment.status === "rejected" || latestPayment.status === "resubmission_required");
-
-      if (!canResubmit) {
+    // For two-round competitions, require preliminary_published = true
+    if (comp.rounds_count === 2) {
+      if (!comp.preliminary_published) {
         return NextResponse.json(
-          { success: false, message: "For 2-round competitions, payment is only open after clearing Round 1 verification." },
+          {
+            success: false,
+            message: "Payment is not yet open. Preliminary results have not been announced yet. Please wait for the organizers to publish preliminary selections.",
+          },
           { status: 400 }
         );
+      }
+      // Team must be in "selected" status (set during preliminary publish)
+      if (teamRecord.status !== "selected") {
+        // Allow resubmission if a previous payment was rejected
+        const { data: latestPayment } = await supabase
+          .from("payments")
+          .select("status")
+          .eq("team_id", team_id)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        const canResubmit = latestPayment &&
+          (latestPayment.status === "rejected" || latestPayment.status === "resubmission_required");
+        if (!canResubmit) {
+          return NextResponse.json(
+            {
+              success: false,
+              message: "Your team has not been selected in the preliminary results. Payment is only available to selected teams.",
+            },
+            { status: 400 }
+          );
+        }
       }
     }
 
@@ -217,12 +242,6 @@ export async function POST(req: Request) {
       );
     }
 
-    // 6. Upload screenshot to Cloudinary
-    const uploadRes = await uploadImage(
-      screenshot_base64,
-      `csefest/payments/${team_id}`
-    );
-
     // 7. Insert payment record
     const { error: insertErr } = await supabase
       .from("payments")
@@ -231,7 +250,7 @@ export async function POST(req: Request) {
         competition_id: comp.id,
         amount,
         transaction_id,
-        screenshot_url: uploadRes.secure_url,
+        screenshot_url: "",
         method,
         status: "pending",
       });

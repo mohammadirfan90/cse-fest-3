@@ -5,7 +5,6 @@ import {
   Search,
   Check,
   X,
-  Eye,
   AlertCircle,
   Clock,
   CreditCard,
@@ -21,7 +20,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { motion, AnimatePresence } from "framer-motion";
-import { useBodyScrollLock } from "@/hooks/useBodyScrollLock";
 
 interface PaymentItem {
   id: string;
@@ -45,6 +43,8 @@ interface PaymentItem {
     type: string;
     entry_fee: number;
   } | null;
+  team_score: number | null;
+  team_rank: number | null;
 }
 
 interface PaymentGateway {
@@ -81,16 +81,34 @@ export default function AdminPaymentsPage() {
   });
   const [methodFormLoading, setMethodFormLoading] = React.useState(false);
 
+  const [competitionFilter, setCompetitionFilter] = React.useState<string>("all");
+  const [competitions, setCompetitions] = React.useState<{ id: string; name: string }[]>([]);
+
   // Note dialog state
   const [actioningPaymentId, setActioningPaymentId] = React.useState<string | null>(null);
   const [actionType, setActionType] = React.useState<"reject" | "resubmission_required" | null>(null);
   const [reviewNotes, setReviewNotes] = React.useState("");
   const [actionLoading, setActionLoading] = React.useState(false);
 
-  // Lightbox zoom modal state
-  const [zoomImage, setZoomImage] = React.useState<{ url: string; teamName: string; txid: string } | null>(null);
-
-  useBodyScrollLock(zoomImage !== null);
+  // Load competitions on mount
+  React.useEffect(() => {
+    let active = true;
+    async function loadComps() {
+      try {
+        const res = await fetch("/api/admin/competitions");
+        const data = await res.json();
+        if (data.success && active) {
+          setCompetitions(data.data || []);
+        }
+      } catch {
+        // Ignore fallback
+      }
+    }
+    loadComps();
+    return () => {
+      active = false;
+    };
+  }, []);
 
   React.useEffect(() => {
     let active = true;
@@ -98,11 +116,15 @@ export default function AdminPaymentsPage() {
       setLoading(true);
       setErrorMsg(null);
       try {
-        const url = statusFilter === "all" 
-          ? "/api/admin/payments" 
-          : `/api/admin/payments?status=${statusFilter}`;
-        
-        const res = await fetch(url);
+        const url = new URL("/api/admin/payments", window.location.origin);
+        if (statusFilter !== "all") {
+          url.searchParams.set("status", statusFilter);
+        }
+        if (competitionFilter !== "all") {
+          url.searchParams.set("competition_id", competitionFilter);
+        }
+
+        const res = await fetch(url.toString());
         const data = await res.json();
         if (!data.success) throw new Error(data.message);
         if (active) {
@@ -125,7 +147,7 @@ export default function AdminPaymentsPage() {
     return () => {
       active = false;
     };
-  }, [statusFilter, refreshTrigger]);
+  }, [statusFilter, competitionFilter, refreshTrigger]);
 
   // Load payment methods configuration
   React.useEffect(() => {
@@ -318,6 +340,53 @@ export default function AdminPaymentsPage() {
     }
   };
 
+  const handleConfirmFinal = async (paymentId: string) => {
+    setErrorMsg(null);
+    setSuccessMsg(null);
+    try {
+      const res = await fetch("/api/admin/payments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ payment_id: paymentId, status: "approved", confirm_final: true }),
+      });
+      const data = await res.json();
+      if (!data.success) {
+        throw new Error(data.message || "Failed to confirm final selection.");
+      }
+      setSuccessMsg(data.message);
+      setRefreshTrigger((prev) => prev + 1);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "An error occurred.";
+      setErrorMsg(errorMessage);
+    }
+  };
+
+  const handleDeclineFinal = async (paymentId: string) => {
+    if (!confirm("Are you sure you want to decline this team from final selection? This will mark payment as rejected.")) return;
+    setErrorMsg(null);
+    setSuccessMsg(null);
+    try {
+      const res = await fetch("/api/admin/payments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          payment_id: paymentId,
+          status: "rejected",
+          notes: "Declined from final selection",
+        }),
+      });
+      const data = await res.json();
+      if (!data.success) {
+        throw new Error(data.message || "Failed to decline team from final selection.");
+      }
+      setSuccessMsg(data.message);
+      setRefreshTrigger((prev) => prev + 1);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "An error occurred.";
+      setErrorMsg(errorMessage);
+    }
+  };
+
   // Search filter matching
   const filteredPayments = payments.filter((p) => {
     const txid = p.transaction_id?.toLowerCase() || "";
@@ -412,40 +481,62 @@ export default function AdminPaymentsPage() {
       {activeTab === "queue" ? (
         <>
           {/* Search and Tab Filters */}
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-            {/* Pill Tabs */}
-            <div className="flex items-center gap-1 bg-neutral-900/60 border border-neutral-850 rounded-lg p-1 flex-wrap backdrop-blur-md">
-              {[
-                { value: "pending", label: "Pending" },
-                { value: "approved", label: "Approved" },
-                { value: "rejected", label: "Rejected" },
-                { value: "resubmission_required", label: "Resubmit" },
-                { value: "all", label: "All" },
-              ].map((tab) => (
-                <button
-                  key={tab.value}
-                  onClick={() => setStatusFilter(tab.value)}
-                  className={`py-1.5 px-3 text-xs font-semibold font-sans capitalize rounded-md transition-all duration-150 outline-none cursor-pointer ${
-                    statusFilter === tab.value
-                      ? "bg-neutral-800 text-neutral-50 shadow-sm"
-                      : "text-neutral-500 hover:text-neutral-300"
-                  }`}
+          <div className="flex flex-col space-y-4">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              {/* Competition Selector Filter */}
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold text-neutral-400 uppercase tracking-wider font-mono">Filter by Competition:</span>
+                <select
+                  value={competitionFilter}
+                  onChange={(e) => setCompetitionFilter(e.target.value)}
+                  className="flex h-9 rounded border border-neutral-800 bg-neutral-950 px-3 py-1 text-xs text-neutral-200 focus:border-neutral-700 outline-none cursor-pointer"
                 >
-                  {tab.label}
-                  {statusFilter === tab.value && (
-                    <span className="ml-1.5 font-mono text-[10px] text-neutral-400">({filteredPayments.length})</span>
-                  )}
-                </button>
-              ))}
+                  <option value="all">All Competitions</option>
+                  {competitions.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="w-full sm:w-72 relative">
+                <Input
+                  placeholder="Search TXID, team, competition..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-9 h-9.5 text-xs bg-neutral-950 border-neutral-800/80 focus:border-neutral-700"
+                />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-neutral-500 pointer-events-none" />
+              </div>
             </div>
-            <div className="w-full md:w-72 relative">
-              <Input
-                placeholder="Search TXID, team, competition..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-9 h-9.5 text-xs bg-neutral-950 border-neutral-800/80 focus:border-neutral-700"
-              />
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-neutral-500 pointer-events-none" />
+
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+              {/* Pill Tabs */}
+              <div className="flex items-center gap-1 bg-neutral-900/60 border border-neutral-850 rounded-lg p-1 flex-wrap backdrop-blur-md">
+                {[
+                  { value: "pending", label: "Pending" },
+                  { value: "approved", label: "Approved" },
+                  { value: "rejected", label: "Rejected" },
+                  { value: "resubmission_required", label: "Resubmit" },
+                  { value: "all", label: "All" },
+                ].map((tab) => (
+                  <button
+                    key={tab.value}
+                    onClick={() => setStatusFilter(tab.value)}
+                    className={`py-1.5 px-3 text-xs font-semibold font-sans capitalize rounded-md transition-all duration-150 outline-none cursor-pointer ${
+                      statusFilter === tab.value
+                        ? "bg-neutral-800 text-neutral-50 shadow-sm"
+                        : "text-neutral-500 hover:text-neutral-300"
+                    }`}
+                  >
+                    {tab.label}
+                    {statusFilter === tab.value && (
+                      <span className="ml-1.5 font-mono text-[10px] text-neutral-400">({filteredPayments.length})</span>
+                    )}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 
@@ -501,7 +592,7 @@ export default function AdminPaymentsPage() {
                           </h3>
                         </div>
 
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs font-sans">
+                        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 text-xs font-sans">
                           <div className="p-2 rounded bg-neutral-950 border border-neutral-850 space-y-0.5">
                             <p className="text-neutral-600 text-[9px] uppercase tracking-widest font-mono">Transaction ID</p>
                             <p className="text-neutral-200 font-mono font-semibold">{p.transaction_id}</p>
@@ -516,26 +607,21 @@ export default function AdminPaymentsPage() {
                             <p className="text-neutral-600 text-[9px] uppercase tracking-widest font-mono">Method</p>
                             <p className="text-neutral-200 font-medium uppercase font-mono">{p.method}</p>
                           </div>
+                          <div className="p-2 rounded bg-neutral-950 border border-neutral-850 space-y-0.5">
+                            <p className="text-neutral-600 text-[9px] uppercase tracking-widest font-mono">Score</p>
+                            <p className="text-neutral-200 font-mono font-semibold">{p.team_score ?? "—"}</p>
+                          </div>
+                          <div className="p-2 rounded bg-neutral-950 border border-neutral-850 space-y-0.5">
+                            <p className="text-neutral-600 text-[9px] uppercase tracking-widest font-mono">Rank</p>
+                            <p className="text-neutral-200 font-mono font-semibold">{p.team_rank ? `#${p.team_rank}` : "—"}</p>
+                          </div>
                         </div>
                       </div>
 
-                      {/* Screenshot preview */}
-                      <div className="space-y-1.5 shrink-0 w-full md:w-auto">
-                        <p className="text-[10px] text-neutral-500 font-mono uppercase tracking-widest">Payment Proof</p>
-                        <div className="relative group w-full md:w-36 aspect-video rounded border border-neutral-850 overflow-hidden bg-neutral-950 flex items-center justify-center hover:border-neutral-700 transition-colors">
-                          <img src={p.screenshot_url} alt="Screenshot" className="object-contain w-full h-full" />
-                          <button
-                            onClick={() => setZoomImage({ url: p.screenshot_url, teamName: p.teams?.name || "N/A", txid: p.transaction_id })}
-                            className="absolute inset-0 bg-neutral-950/80 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-1.5 transition-opacity text-xs font-semibold text-neutral-100 cursor-pointer"
-                          >
-                            <Eye className="h-3.5 w-3.5" />
-                            <span>Zoom</span>
-                          </button>
-                        </div>
-                      </div>
+
 
                       {/* Actions */}
-                      {isPending && (
+                      {isPending ? (
                         <div className="flex md:flex-col gap-2 self-stretch md:self-start shrink-0">
                           <Button variant="success" onClick={() => handleApprove(p.id)} className="text-xs py-1.5 px-3.5 gap-1.5 rounded border border-success/20">
                             <Check className="h-3.5 w-3.5" />
@@ -550,7 +636,18 @@ export default function AdminPaymentsPage() {
                             Reject
                           </Button>
                         </div>
-                      )}
+                      ) : p.status === "approved" ? (
+                        <div className="flex md:flex-col gap-2 self-stretch md:self-start shrink-0">
+                          <Button variant="success" onClick={() => handleConfirmFinal(p.id)} className="text-xs py-1.5 px-3.5 gap-1.5 rounded border border-success/20">
+                            <Check className="h-3.5 w-3.5" />
+                            Confirm Final
+                          </Button>
+                          <Button variant="destructive" onClick={() => handleDeclineFinal(p.id)} className="text-xs py-1.5 px-3.5 gap-1.5 rounded border border-error/20">
+                            <X className="h-3.5 w-3.5" />
+                            Decline Final
+                          </Button>
+                        </div>
+                      ) : null}
                     </div>
 
                     {/* Inline action dialog */}
@@ -765,40 +862,7 @@ export default function AdminPaymentsPage() {
         </div>
       )}
 
-      {/* Zoom Lightbox */}
-      <AnimatePresence>
-        {zoomImage && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/95 backdrop-blur-md" onClick={() => setZoomImage(null)}
-            />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.98, y: 10 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.98, y: 10 }}
-              transition={{ duration: 0.18 }}
-              className="relative z-10 w-full max-w-4xl bg-neutral-950 border border-neutral-850 rounded-lg p-6 space-y-4 shadow-level-3"
-            >
-              <div className="flex justify-between items-start border-b border-neutral-850 pb-4">
-                <div>
-                  <p className="text-[10px] text-neutral-550 font-mono uppercase tracking-widest">Payment Proof</p>
-                  <h3 className="font-heading font-bold text-neutral-100 text-base mt-0.5">{zoomImage.teamName}</h3>
-                  <p className="text-xs font-mono text-neutral-500 mt-0.5">TX: {zoomImage.txid}</p>
-                </div>
-                <button
-                  onClick={() => setZoomImage(null)}
-                  className="p-1.5 rounded border border-neutral-800 bg-neutral-900 hover:bg-neutral-800/80 transition-colors text-neutral-400 hover:text-neutral-100 cursor-pointer"
-                >
-                  <X className="h-4.5 w-4.5" />
-                </button>
-              </div>
-              <div className="border border-neutral-850 rounded overflow-hidden bg-black max-h-[70vh] flex items-center justify-center">
-                <img src={zoomImage.url} alt="Payment proof" className="object-contain w-full h-full" />
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+
     </motion.div>
   );
 }

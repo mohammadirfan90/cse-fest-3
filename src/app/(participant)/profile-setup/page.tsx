@@ -12,50 +12,16 @@ import { Input } from "@/components/ui/input";
 
 import { createClient } from "@/lib/supabase/client";
 
-
-// Normalizes a URL by prepending https:// if no protocol is present
-function normalizeUrl(val: string | undefined): string {
-  if (!val || val.trim() === "") return "";
-  const trimmed = val.trim();
-  if (/^https?:\/\//i.test(trimmed)) return trimmed;
-  return `https://${trimmed}`;
-}
-
 const wizardSchema = z.object({
-  // Step 1: Personal
+  // Step 1: Identity
   full_name: z.string().min(2, "Full Name must be at least 2 characters"),
   phone: z.string().min(10, "Phone number must be valid"),
   gender: z.string().min(1, "Please select your gender"),
-  // Step 2: Academic
+  // Step 2: Academic & Festival
   university: z.string().min(2, "University name is required"),
   department: z.string().min(2, "Department name is required"),
   semester: z.string().min(1, "Semester is required"),
   student_id: z.string().min(2, "Student ID is required"),
-  // Step 4: Professional
-  github: z
-    .string()
-    .optional()
-    .or(z.literal(""))
-    .transform((val) => normalizeUrl(val))
-    .pipe(
-      z.string().refine(
-        (val) => val === "" || z.string().url().safeParse(val).success,
-        "Please enter a valid online profile URL (e.g. github.com/username)"
-      )
-    ),
-  portfolio: z
-    .string()
-    .optional()
-    .or(z.literal(""))
-    .transform((val) => normalizeUrl(val))
-    .pipe(
-      z.string().refine(
-        (val) => val === "" || z.string().url().safeParse(val).success,
-        "Please enter a valid portfolio URL (e.g. mysite.com)"
-      )
-    ),
-  skills: z.string().optional().or(z.literal("")),
-  bio: z.string().max(500, "Bio must be under 500 characters").optional().or(z.literal("")),
   tshirt_size: z.string().min(1, "T-shirt size is required"),
 });
 
@@ -70,13 +36,10 @@ export default function ProfileSetupWizard() {
 
   // File Upload State (Base64 data for API processing)
   const [idFront, setIdFront] = React.useState<string | null>(null);
-  const [idBack, setIdBack] = React.useState<string | null>(null);
   const [idFrontError, setIdFrontError] = React.useState<string | null>(null);
-  const [idBackError, setIdBackError] = React.useState<string | null>(null);
 
   // Drag and drop hover states
   const [dragActiveFront, setDragActiveFront] = React.useState(false);
-  const [dragActiveBack, setDragActiveBack] = React.useState(false);
 
   // Retrieve user email from Supabase session and guard re-entry
   React.useEffect(() => {
@@ -101,7 +64,6 @@ export default function ProfileSetupWizard() {
     fetchUser();
   }, [router]);
 
-
   const {
     register,
     handleSubmit,
@@ -112,89 +74,63 @@ export default function ProfileSetupWizard() {
   } = useForm<WizardFormData>({
     resolver: zodResolver(wizardSchema),
     mode: "all",
-    defaultValues: {
-      skills: "",
-    },
   });
 
-
-
   // Convert uploaded file to Base64
-  const processFile = (file: File, type: "front" | "back") => {
+  const processFile = (file: File) => {
     // Validate size limit (5MB max)
     if (file.size > 5 * 1024 * 1024) {
-      const msg = "File exceeds the 5MB size limit. Please upload a smaller image.";
-      if (type === "front") setIdFrontError(msg);
-      else setIdBackError(msg);
+      setIdFrontError("File exceeds the 5MB size limit. Please upload a smaller image.");
       return;
     }
 
     // Validate type limit (jpg/png)
     if (!["image/jpeg", "image/png", "image/jpg"].includes(file.type)) {
-      const msg = "Only JPG, JPEG, and PNG images are supported.";
-      if (type === "front") setIdFrontError(msg);
-      else setIdBackError(msg);
+      setIdFrontError("Only JPG, JPEG, and PNG images are supported.");
       return;
     }
 
-    if (type === "front") setIdFrontError(null);
-    else setIdBackError(null);
+    setIdFrontError(null);
 
     const reader = new FileReader();
     reader.onloadend = () => {
-      if (type === "front") {
-        setIdFront(reader.result as string);
-      } else {
-        setIdBack(reader.result as string);
-      }
+      setIdFront(reader.result as string);
     };
     reader.readAsDataURL(file);
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, type: "front" | "back") => {
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) processFile(file, type);
+    if (file) processFile(file);
   };
 
   // Drag handlers
-  const handleDrag = (e: React.DragEvent, type: "front" | "back", status: boolean) => {
+  const handleDrag = (e: React.DragEvent, status: boolean) => {
     e.preventDefault();
     e.stopPropagation();
-    if (type === "front") setDragActiveFront(status);
-    else setDragActiveBack(status);
+    setDragActiveFront(status);
   };
 
-  const handleDrop = (e: React.DragEvent, type: "front" | "back") => {
+  const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (type === "front") setDragActiveFront(false);
-    else setDragActiveBack(false);
+    setDragActiveFront(false);
 
     const file = e.dataTransfer.files?.[0];
-    if (file) processFile(file, type);
+    if (file) processFile(file);
   };
 
   const nextStep = async () => {
-    // Validate current fields before advancing step
     let isValid = false;
     if (step === 1) {
       isValid = await trigger(["full_name", "phone", "gender"]);
     } else if (step === 2) {
-      isValid = await trigger(["university", "department", "semester", "student_id"]);
-    } else if (step === 3) {
-      if (!idFront || !idBack) {
-        if (!idFront) setIdFrontError("Student ID front card image is required.");
-        if (!idBack) setIdBackError("Student ID back card image is required.");
-        return;
-      }
-      isValid = true;
-    } else if (step === 4) {
-      isValid = await trigger(["github", "portfolio", "skills", "bio", "tshirt_size"]);
+      isValid = await trigger(["university", "department", "semester", "student_id", "tshirt_size"]);
     }
 
     if (isValid) {
       setErrorMsg(null);
-      setStep((prev) => Math.min(prev + 1, 5));
+      setStep((prev) => Math.min(prev + 1, 3));
     }
   };
 
@@ -203,7 +139,10 @@ export default function ProfileSetupWizard() {
   };
 
   const onSubmit = async (data: WizardFormData) => {
-    if (!idFront || !idBack) return;
+    if (!idFront) {
+      setIdFrontError("Student ID front card image is required.");
+      return;
+    }
     setLoading(true);
     setErrorMsg(null);
 
@@ -212,24 +151,20 @@ export default function ProfileSetupWizard() {
       const profileRes = await fetch("/api/profile", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...data,
-          github: normalizeUrl(data.github) || "",
-          portfolio: normalizeUrl(data.portfolio) || "",
-        }),
+        body: JSON.stringify(data),
       });
       const profileData = await profileRes.json();
       if (!profileData.success) {
         throw new Error(profileData.message || "Failed to update profile information.");
       }
 
-      // 2. Upload Verification Files
+      // 2. Upload Verification Files (only front required now)
       const verifyRes = await fetch("/api/verification", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           id_front_base64: idFront,
-          id_back_base64: idBack,
+          id_back_base64: null,
         }),
       });
       const verifyData = await verifyRes.json();
@@ -251,8 +186,6 @@ export default function ProfileSetupWizard() {
     { id: 1, label: "Identity", icon: Fingerprint },
     { id: 2, label: "Academic", icon: GraduationCap },
     { id: 3, label: "Verification", icon: ShieldCheck },
-    { id: 4, label: "Technical", icon: Terminal },
-    { id: 5, label: "Review", icon: CheckCircle2 },
   ];
 
   return (
@@ -261,7 +194,7 @@ export default function ProfileSetupWizard() {
       <div className="flex flex-col md:flex-row justify-between md:items-center gap-4 border-b border-neutral-800/40 pb-4">
         <div>
           <h1 className="text-lg md:text-xl font-heading font-bold text-neutral-100 flex items-center gap-2.5 tracking-tight uppercase">
-            <Terminal className="h-5 w-5 text-neutral-405" />
+            <Terminal className="h-5 w-5 text-neutral-400" />
             <span>Delegate Onboarding Wizard</span>
           </h1>
           <p className="text-xs text-neutral-500 font-sans mt-1">
@@ -270,14 +203,14 @@ export default function ProfileSetupWizard() {
         </div>
         <div className="shrink-0">
           <span className="font-mono text-[10px] uppercase tracking-widest text-neutral-400 bg-neutral-900/50 border border-neutral-800/60 px-3 py-1.5 rounded">
-            STEP {step} OF 5
+            STEP {step} OF 3
           </span>
         </div>
       </div>
 
       {/* Horizontal Stepper */}
       <div className="bg-neutral-900/10 border border-neutral-800/40 rounded p-4 shadow-none">
-        <div className="flex items-center justify-between max-w-3xl mx-auto">
+        <div className="flex items-center justify-between max-w-xl mx-auto">
           {stepsConfig.map((item, idx) => {
             const isCompleted = step > item.id;
             const isActive = step === item.id;
@@ -300,7 +233,7 @@ export default function ProfileSetupWizard() {
                         ? "border-neutral-400 bg-neutral-900 text-neutral-100 font-bold"
                         : isCompleted
                         ? "border-neutral-800 bg-neutral-900/45 text-neutral-300 group-hover:border-neutral-700 cursor-pointer"
-                        : "border-neutral-900 bg-neutral-950 text-neutral-605"
+                        : "border-neutral-900 bg-neutral-950 text-neutral-600"
                     }`}
                   >
                     {isCompleted ? <Check className="h-3 w-3" /> : item.id}
@@ -322,7 +255,7 @@ export default function ProfileSetupWizard() {
                 {/* Connector Line */}
                 {idx < stepsConfig.length - 1 && (
                   <div
-                    className={`grow h-px mx-3 transition-colors duration-155 ${
+                    className={`grow h-px mx-3 transition-colors duration-150 ${
                       step > item.id ? "bg-neutral-800/80" : "bg-neutral-900/85"
                     }`}
                   />
@@ -368,7 +301,7 @@ export default function ProfileSetupWizard() {
                     </div>
 
                     <div className="flex flex-col space-y-1.5 w-full">
-                      <label className="text-[10px] font-semibold text-neutral-400 font-mono uppercase tracking-widest select-none">Full Name (As per NID/Passport)</label>
+                      <label className="text-[10px] font-semibold text-neutral-400 font-mono uppercase tracking-widest select-none">Full Name</label>
                       <Input
                         placeholder="e.g. Abdullah Al Mamun"
                         error={errors.full_name?.message}
@@ -488,214 +421,9 @@ export default function ProfileSetupWizard() {
                         />
                       </div>
                     </div>
-                  </motion.div>
-                )}
-
-                {step === 3 && (
-                  <motion.div
-                    key="step-3"
-                    initial={{ opacity: 0, x: 10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -10 }}
-                    className="space-y-4"
-                  >
-                    <div className="border-b border-neutral-800/30 pb-3 mb-4">
-                      <h2 className="text-xs uppercase font-mono tracking-widest text-neutral-400 font-semibold">Student ID Verification</h2>
-                      <p className="text-xs text-neutral-500 font-sans mt-1">Upload clear images of your Student ID card. Limits: Max 5MB, JPG/PNG only.</p>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {/* Front ID Dropzone */}
-                      <div className="space-y-2">
-                        <label className="text-[10px] font-mono font-bold tracking-widest text-neutral-400 uppercase select-none">ID Front Side</label>
-                        <div
-                          onDragOver={(e) => handleDrag(e, "front", true)}
-                          onDragLeave={(e) => handleDrag(e, "front", false)}
-                          onDrop={(e) => handleDrop(e, "front")}
-                          className={`relative h-32 border border-dashed rounded flex flex-col items-center justify-center bg-neutral-950 transition-all duration-150 ${
-                            dragActiveFront ? "border-neutral-500 bg-neutral-900/30" : "border-neutral-800/85 hover:border-neutral-700/60"
-                          }`}
-                        >
-                          {idFront ? (
-                            <div className="relative w-full h-full p-2 flex items-center justify-center">
-                              <img src={idFront} alt="ID Front preview" className="max-h-full rounded object-contain" />
-                              <button
-                                type="button"
-                                onClick={() => setIdFront(null)}
-                                className="absolute top-1.5 right-1.5 p-1 bg-neutral-900 border border-neutral-850 rounded-full text-neutral-400 hover:text-neutral-100 transition-colors"
-                              >
-                                <X className="h-3 w-3" />
-                              </button>
-                            </div>
-                          ) : (
-                            <div className="text-center p-3 space-y-1.5 pointer-events-none">
-                              <Upload className="h-4 w-4 text-neutral-500 mx-auto" />
-                              <div className="text-[10px] text-neutral-400 font-mono uppercase tracking-widest">
-                                Drop front side, or <span className="text-neutral-200 underline font-semibold cursor-pointer">Browse</span>
-                              </div>
-                            </div>
-                          )}
-                          <input
-                            type="file"
-                            accept="image/jpeg,image/png,image/jpg"
-                            onChange={(e) => handleFileChange(e, "front")}
-                            className="absolute inset-0 opacity-0 cursor-pointer"
-                          />
-                        </div>
-                        {idFrontError && <span className="text-xs text-error font-sans font-medium">{idFrontError}</span>}
-                      </div>
-
-                      {/* Back ID Dropzone */}
-                      <div className="space-y-2">
-                        <label className="text-[10px] font-mono font-bold tracking-widest text-neutral-400 uppercase select-none">ID Back Side</label>
-                        <div
-                          onDragOver={(e) => handleDrag(e, "back", true)}
-                          onDragLeave={(e) => handleDrag(e, "back", false)}
-                          onDrop={(e) => handleDrop(e, "back")}
-                          className={`relative h-32 border border-dashed rounded flex flex-col items-center justify-center bg-neutral-950 transition-all duration-150 ${
-                            dragActiveBack ? "border-neutral-500 bg-neutral-900/30" : "border-neutral-800/85 hover:border-neutral-700/60"
-                          }`}
-                        >
-                          {idBack ? (
-                            <div className="relative w-full h-full p-2 flex items-center justify-center">
-                              <img src={idBack} alt="ID Back preview" className="max-h-full rounded object-contain" />
-                              <button
-                                type="button"
-                                onClick={() => setIdBack(null)}
-                                className="absolute top-1.5 right-1.5 p-1 bg-neutral-900 border border-neutral-850 rounded-full text-neutral-400 hover:text-neutral-100 transition-colors"
-                              >
-                                <X className="h-3 w-3" />
-                              </button>
-                            </div>
-                          ) : (
-                            <div className="text-center p-3 space-y-1.5 pointer-events-none">
-                              <Upload className="h-4 w-4 text-neutral-550 mx-auto" />
-                              <div className="text-[10px] text-neutral-400 font-mono uppercase tracking-widest">
-                                Drop back side, or <span className="text-neutral-200 underline font-semibold cursor-pointer">Browse</span>
-                              </div>
-                            </div>
-                          )}
-                          <input
-                            type="file"
-                            accept="image/jpeg,image/png,image/jpg"
-                            onChange={(e) => handleFileChange(e, "back")}
-                            className="absolute inset-0 opacity-0 cursor-pointer"
-                          />
-                        </div>
-                        {idBackError && <span className="text-xs text-error font-sans font-medium">{idBackError}</span>}
-                      </div>
-                    </div>
-
-                    {(idFront || idBack) && (
-                      <div className="space-y-2 pt-2">
-                        <label className="text-[10px] font-mono font-bold tracking-widest text-neutral-500 uppercase">Uploaded Attachments</label>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                          {idFront && (
-                            <div className="bg-neutral-900/20 border border-neutral-800/60 rounded p-2 flex items-center gap-3">
-                              <div className="w-10 h-8 bg-neutral-950 rounded overflow-hidden shrink-0 flex items-center justify-center border border-neutral-800/60">
-                                <img src={idFront} alt="Thumbnail Front" className="h-full w-full object-cover" />
-                              </div>
-                              <div className="grow min-w-0">
-                                <p className="text-[11px] font-semibold text-neutral-300 truncate">id_card_front.png</p>
-                                <p className="text-[9px] font-mono text-success font-bold">READY • VERIFIABLE</p>
-                              </div>
-                              <button
-                                type="button"
-                                onClick={() => setIdFront(null)}
-                                className="text-neutral-500 hover:text-error transition-colors p-1"
-                              >
-                                <X className="h-3.5 w-3.5" />
-                              </button>
-                            </div>
-                          )}
-                          {idBack && (
-                            <div className="bg-neutral-900/20 border border-neutral-800/60 rounded p-2 flex items-center gap-3">
-                              <div className="w-10 h-8 bg-neutral-950 rounded overflow-hidden shrink-0 flex items-center justify-center border border-neutral-800/60">
-                                <img src={idBack} alt="Thumbnail Back" className="h-full w-full object-cover" />
-                              </div>
-                              <div className="grow min-w-0">
-                                <p className="text-[11px] font-semibold text-neutral-300 truncate">id_card_back.png</p>
-                                <p className="text-[9px] font-mono text-success font-bold">READY • VERIFIABLE</p>
-                              </div>
-                              <button
-                                type="button"
-                                onClick={() => setIdBack(null)}
-                                className="text-neutral-500 hover:text-error transition-colors p-1"
-                              >
-                                <X className="h-3.5 w-3.5" />
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </motion.div>
-                )}
-
-                {step === 4 && (
-                  <motion.div
-                    key="step-4"
-                    initial={{ opacity: 0, x: 10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -10 }}
-                    className="space-y-4"
-                  >
-                    <div className="border-b border-neutral-800/30 pb-3 mb-4">
-                      <h2 className="text-xs uppercase font-mono tracking-widest text-neutral-400 font-semibold">Professional Roster</h2>
-                      <p className="text-xs text-neutral-500 font-sans mt-1">Highlight your coding profiles, skills, and size details.</p>
-                    </div>
-
-                    {/* Online Profile URL */}
-                    <div className="flex flex-col space-y-1.5">
-                      <div className="flex items-center justify-between">
-                        <label className="text-[10px] font-semibold text-neutral-400 font-mono uppercase tracking-widest select-none font-mono">Online Profile</label>
-                        <span className="text-[9px] font-mono text-neutral-500 bg-neutral-905 border border-neutral-800/40 px-2 py-0.5 rounded">OPTIONAL</span>
-                      </div>
-                      <Input
-                        type="url"
-                        placeholder="e.g. https://github.com/username or https://linkedin.com/in/username"
-                        className="h-9 border-neutral-800/80 bg-neutral-950 placeholder:text-neutral-600 font-mono text-xs focus:border-neutral-700 focus:ring-1 focus:ring-neutral-700/20"
-                        {...register("github")}
-                      />
-                      {errors.github && (
-                        <span className="text-xs text-error font-sans font-medium">{errors.github.message}</span>
-                      )}
-                    </div>
-
-                    {/* Skills — freeform text */}
-                    <div className="flex flex-col space-y-1.5">
-                      <label className="text-[10px] font-semibold text-neutral-400 font-mono uppercase tracking-widest select-none">Skills & Tech Stack</label>
-                      <textarea
-                        placeholder="Describe your tech stack naturally — e.g. I work with React, Node.js, and Python."
-                        rows={3}
-                        className="flex w-full rounded border border-neutral-800/80 bg-neutral-950 px-3 py-2 text-xs text-neutral-200 focus:border-neutral-700 focus:ring-1 focus:ring-neutral-700/20 outline-none font-sans placeholder:text-neutral-600 transition-colors resize-none leading-relaxed"
-                        {...register("skills")}
-                      />
-                      <p className="text-[10px] text-neutral-500 font-sans leading-normal">Tell us about your developer skillset in your own words.</p>
-                      {errors.skills && (
-                        <span className="text-xs text-error font-sans font-medium">{errors.skills.message}</span>
-                      )}
-                    </div>
-
-                    {/* Bio — optional */}
-                    <div className="flex flex-col space-y-1.5">
-                      <div className="flex items-center justify-between">
-                        <label className="text-[10px] font-semibold text-neutral-400 font-mono uppercase tracking-widest select-none">Short Biography</label>
-                        <span className="text-[9px] font-mono text-neutral-550 bg-neutral-905 border border-neutral-800/40 px-2 py-0.5 rounded">OPTIONAL</span>
-                      </div>
-                      <textarea
-                        placeholder="A quick intro about yourself..."
-                        rows={3}
-                        className="flex w-full rounded border border-neutral-800/80 bg-neutral-950 px-3 py-2 text-xs text-neutral-200 focus:border-neutral-700 focus:ring-1 focus:ring-neutral-700/20 outline-none font-sans placeholder:text-neutral-600 transition-colors resize-none leading-relaxed"
-                        {...register("bio")}
-                      />
-                      {errors.bio && (
-                        <span className="text-xs text-error font-sans font-medium">{errors.bio.message}</span>
-                      )}
-                    </div>
 
                     {/* T-Shirt Size — button toggle */}
-                    <div className="flex flex-col space-y-1.5">
+                    <div className="flex flex-col space-y-1.5 pt-2">
                       <label className="text-[10px] font-semibold text-neutral-400 font-mono uppercase tracking-widest select-none font-mono">Festival T-Shirt Size</label>
                       <div className="grid grid-cols-5 gap-2">
                         {(["S", "M", "L", "XL", "XXL"] as const).map((size) => {
@@ -705,7 +433,7 @@ export default function ProfileSetupWizard() {
                               key={size}
                               type="button"
                               onClick={() => setValue("tshirt_size", size, { shouldValidate: true })}
-                              className={`h-9 rounded border text-xs font-mono transition-all duration-155 tracking-wider ${
+                              className={`h-9 rounded border text-xs font-mono transition-all duration-150 tracking-wider ${
                                 isSelected
                                   ? "border-neutral-400 bg-neutral-900 text-neutral-100 font-bold"
                                   : "border-neutral-900 bg-neutral-950/40 text-neutral-500 hover:border-neutral-850 hover:text-neutral-350"
@@ -724,48 +452,56 @@ export default function ProfileSetupWizard() {
                   </motion.div>
                 )}
 
-                {step === 5 && (
+                {step === 3 && (
                   <motion.div
-                    key="step-5"
+                    key="step-3"
                     initial={{ opacity: 0, x: 10 }}
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: -10 }}
                     className="space-y-4"
                   >
                     <div className="border-b border-neutral-800/30 pb-3 mb-4">
-                      <h2 className="text-xs uppercase font-mono tracking-widest text-neutral-400 font-semibold">Confirm Profile Details</h2>
-                      <p className="text-xs text-neutral-500 font-sans mt-1">Verify details before submission. Information is locked for verification review.</p>
+                      <h2 className="text-xs uppercase font-mono tracking-widest text-neutral-400 font-semibold">Student ID Verification</h2>
+                      <p className="text-xs text-neutral-500 font-sans mt-1">Upload a clear photo of the front of your Student ID card. Limits: Max 5MB, JPG/PNG only.</p>
                     </div>
 
-                    <div className="bg-neutral-900/10 border border-neutral-800/40 rounded p-4 space-y-2.5 font-sans animate-fade-in">
-                      <div className="grid grid-cols-2 border-b border-neutral-800/20 pb-2">
-                        <span className="text-[10px] font-mono tracking-widest text-neutral-500 uppercase">FULL NAME</span>
-                        <span className="text-xs text-neutral-200 font-semibold text-right truncate">{watch("full_name")}</span>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-mono font-bold tracking-widest text-neutral-400 uppercase select-none">ID Front Side Image</label>
+                      <div
+                        onDragOver={(e) => handleDrag(e, true)}
+                        onDragLeave={(e) => handleDrag(e, false)}
+                        onDrop={(e) => handleDrop(e)}
+                        className={`relative h-48 border border-dashed rounded flex flex-col items-center justify-center bg-neutral-950 transition-all duration-150 ${
+                          dragActiveFront ? "border-neutral-500 bg-neutral-900/30" : "border-neutral-800/85 hover:border-neutral-700/60"
+                        }`}
+                      >
+                        {idFront ? (
+                          <div className="relative w-full h-full p-2 flex items-center justify-center">
+                            <img src={idFront} alt="ID Front preview" className="max-h-full rounded object-contain" />
+                            <button
+                              type="button"
+                              onClick={() => setIdFront(null)}
+                              className="absolute top-2 right-2 p-1.5 bg-neutral-900 border border-neutral-800 rounded-full text-neutral-405 hover:text-neutral-100 transition-colors"
+                            >
+                              <X className="h-4 w-4" />
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="text-center p-4 space-y-2.5 pointer-events-none">
+                            <Upload className="h-6 w-6 text-neutral-550 mx-auto" />
+                            <div className="text-[10px] text-neutral-400 font-mono uppercase tracking-widest">
+                              Drop front side, or <span className="text-neutral-200 underline font-semibold cursor-pointer">Browse</span>
+                            </div>
+                          </div>
+                        )}
+                        <input
+                          type="file"
+                          accept="image/jpeg,image/png,image/jpg"
+                          onChange={handleFileChange}
+                          className="absolute inset-0 opacity-0 cursor-pointer"
+                        />
                       </div>
-                      <div className="grid grid-cols-2 border-b border-neutral-800/20 pb-2">
-                        <span className="text-[10px] font-mono tracking-widest text-neutral-500 uppercase">CONTACT PHONE</span>
-                        <span className="text-xs text-neutral-350 font-mono text-right">{watch("phone")}</span>
-                      </div>
-                      <div className="grid grid-cols-2 border-b border-neutral-800/20 pb-2">
-                        <span className="text-[10px] font-mono tracking-widest text-neutral-500 uppercase">UNIVERSITY</span>
-                        <span className="text-xs text-neutral-200 font-semibold text-right truncate">{watch("university")}</span>
-                      </div>
-                      <div className="grid grid-cols-2 border-b border-neutral-800/20 pb-2">
-                        <span className="text-[10px] font-mono tracking-widest text-neutral-500 uppercase">DEPARTMENT</span>
-                        <span className="text-xs text-neutral-300 text-right truncate">{watch("department")}</span>
-                      </div>
-                      <div className="grid grid-cols-2 border-b border-neutral-800/20 pb-2">
-                        <span className="text-[10px] font-mono tracking-widest text-neutral-500 uppercase">SEMESTER & ID</span>
-                        <span className="text-xs text-neutral-350 font-mono text-right">{watch("semester")} Semester / ID: {watch("student_id")}</span>
-                      </div>
-                      <div className="grid grid-cols-2 border-b border-neutral-800/20 pb-2">
-                        <span className="text-[10px] font-mono tracking-widest text-neutral-500 uppercase">T-SHIRT SIZE</span>
-                        <span className="text-xs text-neutral-200 font-mono font-bold text-right">{watch("tshirt_size")}</span>
-                      </div>
-                      <div className="space-y-1 pt-1.5">
-                        <span className="text-[10px] font-mono tracking-widest text-neutral-500 uppercase block">SKILLS & TECH STACK</span>
-                        <p className="text-neutral-350 text-xs font-sans leading-relaxed mt-1">{watch("skills") || <span className="text-neutral-600 italic font-mono">Not provided</span>}</p>
-                      </div>
+                      {idFrontError && <span className="text-xs text-error font-sans font-medium">{idFrontError}</span>}
                     </div>
                   </motion.div>
                 )}
@@ -784,7 +520,7 @@ export default function ProfileSetupWizard() {
                 <span>Back</span>
               </Button>
 
-              {step < 5 ? (
+              {step < 3 ? (
                 <Button
                   type="button"
                   onClick={nextStep}
@@ -867,49 +603,13 @@ export default function ProfileSetupWizard() {
                 >
                   <h3 className="text-xs font-mono uppercase tracking-widest text-neutral-200">Verification Tips</h3>
                   <p className="text-[11px] text-neutral-500 leading-relaxed">
-                    Please upload high-resolution photos of your physical student ID card.
+                    Please upload high-resolution photos of your physical student ID card (Front side).
                   </p>
                   <ul className="text-[11px] text-neutral-500 list-disc pl-4 space-y-1 leading-relaxed">
                     <li>Avoid heavy glare or shadows on text.</li>
                     <li>Ensure registration/roll number is legible.</li>
                     <li>Expired cards will be flagged by admins.</li>
                   </ul>
-                </motion.div>
-              )}
-
-              {step === 4 && (
-                <motion.div
-                  key="info-4"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  className="space-y-3 font-sans"
-                >
-                  <h3 className="text-xs font-mono uppercase tracking-widest text-neutral-200">Build Your Roster</h3>
-                  <p className="text-[11px] text-neutral-500 leading-relaxed">
-                    Connecting GitHub and portfolio profiles enables prospective team organizers to view your coding accomplishments.
-                  </p>
-                  <p className="text-[11px] text-neutral-500 leading-relaxed">
-                    T-shirt size is final and cannot be modified once delegate packages are queued for manufacturing.
-                  </p>
-                </motion.div>
-              )}
-
-              {step === 5 && (
-                <motion.div
-                  key="info-5"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  className="space-y-3 font-sans"
-                >
-                  <h3 className="text-xs font-mono uppercase tracking-widest text-neutral-200">Final Verification</h3>
-                  <p className="text-[11px] text-neutral-500 leading-relaxed">
-                    Once submitted, details are queued for verification. Approvals generally take under 24 hours.
-                  </p>
-                  <p className="text-[11px] text-neutral-500 leading-relaxed">
-                    You can register for draft status events in the meantime, but team publications require verified profiles.
-                  </p>
                 </motion.div>
               )}
             </AnimatePresence>
@@ -931,4 +631,3 @@ export default function ProfileSetupWizard() {
     </div>
   );
 }
-

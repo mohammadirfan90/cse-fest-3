@@ -7,7 +7,26 @@ const paymentReviewSchema = z.object({
   payment_id: z.string().uuid("Invalid payment ID format"),
   status: z.enum(["approved", "rejected", "resubmission_required"]),
   notes: z.string().optional().nullable(),
+  confirm_final: z.boolean().optional().default(false),
 });
+
+interface EnrichedPayment {
+  id: string;
+  team_id: string;
+  competition_id: string;
+  amount: number;
+  transaction_id: string;
+  screenshot_url: string;
+  method: string;
+  status: "pending" | "approved" | "rejected" | "resubmission_required";
+  created_at: string;
+  reviewed_at: string | null;
+  reviewed_by: string | null;
+  teams: { id: string; name: string } | null;
+  competitions: { id: string; name: string; type: string; entry_fee: number } | null;
+  team_score: number | null;
+  team_rank: number | null;
+}
 
 // GET: Fetch all payments for admin review
 export async function GET(req: Request) {
@@ -42,6 +61,7 @@ export async function GET(req: Request) {
 
     const { searchParams } = new URL(req.url);
     const statusFilter = searchParams.get("status");
+    const competitionIdFilter = searchParams.get("competition_id");
 
     // 3. Query payments with team and competition details
     let query = supabase
@@ -52,14 +72,61 @@ export async function GET(req: Request) {
     if (statusFilter) {
       query = query.eq("status", statusFilter);
     }
+    if (competitionIdFilter) {
+      query = query.eq("competition_id", competitionIdFilter);
+    }
 
     const { data: payments, error } = await query;
 
     if (error) throw error;
 
+    // Join scores and ranks
+    const teamIds = (payments || []).map((p) => p.team_id);
+    let scores: { team_id: string; competition_id: string; score: number }[] = [];
+    let rankings: { team_id: string; rank_position: number }[] = [];
+
+    if (teamIds.length > 0) {
+      const { data: scoresData } = await supabase
+        .from("scores")
+        .select("team_id, competition_id, score")
+        .in("team_id", teamIds);
+      scores = (scoresData || []) as { team_id: string; competition_id: string; score: number }[];
+
+      const { data: rankingsData } = await supabase
+        .from("rankings")
+        .select("team_id, rank_position")
+        .in("team_id", teamIds);
+      rankings = (rankingsData || []) as { team_id: string; rank_position: number }[];
+    }
+
+    const enriched: EnrichedPayment[] = (payments || []).map((p) => {
+      const matchedScore = scores.find(
+        (s) => s.team_id === p.team_id && s.competition_id === p.competition_id
+      );
+      const matchedRank = rankings.find((r) => r.team_id === p.team_id);
+
+      return {
+        id: p.id,
+        team_id: p.team_id,
+        competition_id: p.competition_id,
+        amount: p.amount,
+        transaction_id: p.transaction_id,
+        screenshot_url: p.screenshot_url,
+        method: p.method,
+        status: p.status,
+        created_at: p.created_at,
+        reviewed_at: p.reviewed_at,
+        reviewed_by: p.reviewed_by,
+        teams: p.teams as { id: string; name: string } | null,
+        competitions: p.competitions as { id: string; name: string; type: string; entry_fee: number } | null,
+        team_score: matchedScore ? matchedScore.score : null,
+        team_rank: matchedRank ? matchedRank.rank_position : null,
+      };
+    });
+
     return NextResponse.json({
       success: true,
-      data: payments || [],
+      data: enriched,
     });
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : "Failed to load payments queue.";
@@ -115,7 +182,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const { payment_id, status, notes } = parseResult.data;
+    const { payment_id, status, notes, confirm_final } = parseResult.data;
 
     // 4. Fetch previous payment state
     const { data: prevPayment, error: fetchErr } = await supabase
@@ -169,18 +236,18 @@ export async function POST(req: Request) {
     await logAdminAction(
       supabase,
       user.id,
-      "REVIEW_PAYMENT",
+      confirm_final ? "CONFIRM_FINAL_SELECTION" : "REVIEW_PAYMENT",
       "payments",
       payment_id,
       prevPayment,
-      { status, notes, team_status: teamStatus }
+      { status, notes, team_status: teamStatus, confirm_final }
     );
-
-    // 8. In-app notification is handled automatically via database trigger (tr_payment_notification)
 
     return NextResponse.json({
       success: true,
-      message: `Payment status successfully updated to ${status}.`,
+      message: confirm_final 
+        ? "Payment confirmed and final selection marked." 
+        : `Payment status successfully updated to ${status}.`,
     });
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : "Failed to review payment.";

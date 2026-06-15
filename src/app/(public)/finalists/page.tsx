@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import * as React from "react";
 import Link from "next/link";
@@ -17,6 +17,8 @@ interface CompetitionItem {
   id: string;
   name: string;
   type: string;
+  preliminary_published: boolean;
+  final_published: boolean;
 }
 
 interface LeaderboardItem {
@@ -47,15 +49,15 @@ export default function PublicFinalistsPage() {
       try {
         setLoading(true);
         setErrorMsg(null);
-        // Load published competitions
+        // Load active and published competitions
         const { data, error } = await supabase
           .from("competitions")
-          .select("id, name, type")
+          .select("id, name, type, preliminary_published, final_published")
           .neq("status", "draft")
           .order("created_at", { ascending: false });
 
         if (error) throw error;
-        setCompetitions(data || []);
+        setCompetitions((data || []) as unknown as CompetitionItem[]);
         if (data && data.length > 0) {
           setSelectedCompId(data[0].id);
         }
@@ -75,6 +77,14 @@ export default function PublicFinalistsPage() {
     async function loadLeaderboard() {
       if (!selectedCompId) return;
 
+      const activeComp = competitions.find((c) => c.id === selectedCompId);
+      const isPublished = activeComp?.preliminary_published || activeComp?.final_published;
+
+      if (!isPublished) {
+        if (active) setLeaderboard([]);
+        return;
+      }
+
       setDataLoading(true);
       setErrorMsg(null);
       try {
@@ -88,8 +98,11 @@ export default function PublicFinalistsPage() {
         if (error) throw error;
 
         if (active) {
-          // If no rankings are returned, it means they are either not public or don't exist
-          setLeaderboard((data as unknown as LeaderboardItem[]) || []);
+          // Filter out teams that are rejected
+          const filtered = ((data || []) as unknown as LeaderboardItem[]).filter(
+            (item) => item.teams && item.teams.status !== "rejected"
+          );
+          setLeaderboard(filtered);
         }
       } catch (err) {
         if (active) {
@@ -108,7 +121,7 @@ export default function PublicFinalistsPage() {
     return () => {
       active = false;
     };
-  }, [selectedCompId, supabase]);
+  }, [selectedCompId, competitions, supabase]);
 
   if (loading) {
     return (
@@ -119,6 +132,15 @@ export default function PublicFinalistsPage() {
     );
   }
 
+  const activeComp = competitions.find((c) => c.id === selectedCompId);
+  const publishPhase = activeComp?.final_published
+    ? "final"
+    : activeComp?.preliminary_published
+    ? "preliminary"
+    : "unpublished";
+
+  // Filtered lists based on publishing stage
+  const preliminaryList = leaderboard.filter((l) => l.teams?.status === "selected");
   const finalistsList = leaderboard.filter((l) => l.is_finalist);
 
   return (
@@ -138,19 +160,39 @@ export default function PublicFinalistsPage() {
       </header>
 
       {/* Main Content Area */}
-      <main className="max-w-4xl w-full mx-auto px-4 pt-12 space-y-12">
-        {/* Title */}
+      <main className="max-w-4xl w-full mx-auto px-4 pt-12 space-y-12 animate-fade-in">
+        {/* Title Block */}
         <div className="text-center space-y-3">
           <Badge variant="accent" className="font-mono">
             Official Announcements
           </Badge>
           <h1 className="text-h2 font-heading font-bold text-neutral-50 tracking-tight">
-            Finalists & Rankings
+            {publishPhase === "final"
+              ? "Onsite Teams — Final Confirmed"
+              : publishPhase === "preliminary"
+              ? "Onsite Teams — Preliminary Selection"
+              : "Finalists & Standings"}
           </h1>
           <p className="text-sm text-neutral-400 font-sans max-w-lg mx-auto">
-            Explore final standings, criteria grades, and selected finalist teams representing their universities.
+            {publishPhase === "final"
+              ? "The verified finalist teams confirmed to compete onsite at CSE Fest 2026."
+              : publishPhase === "preliminary"
+              ? "Teams selected in the preliminary round. Please complete payment registration to confirm your spot."
+              : "Explore standings, criteria grades, and selected finalist teams representing their universities."}
           </p>
         </div>
+
+        {/* Phase Banners */}
+        {publishPhase === "preliminary" && (
+          <div className="p-3 text-center bg-warning/10 border border-warning/20 text-warning rounded-lg text-xs font-sans font-medium max-w-2xl mx-auto">
+            ⚡ Preliminary Selection Announced — Final confirmation pending payment verification.
+          </div>
+        )}
+        {publishPhase === "final" && (
+          <div className="p-4 text-center bg-success/10 border border-success/20 text-success rounded-lg text-xs font-sans font-semibold max-w-2xl mx-auto">
+            🎉 Congratulations to all confirmed finalists! See you onsite at CSE Fest 2026.
+          </div>
+        )}
 
         {/* Error Notification */}
         {errorMsg && (
@@ -185,7 +227,49 @@ export default function PublicFinalistsPage() {
                 <div className="h-20 bg-neutral-900 w-full rounded-md" />
                 <div className="h-40 bg-neutral-900 w-full rounded-md" />
               </div>
-            ) : leaderboard.length > 0 ? (
+            ) : publishPhase === "preliminary" ? (
+              // PRELIMINARY VIEW
+              <div className="space-y-6">
+                <h2 className="text-sm font-heading font-semibold text-neutral-300 uppercase tracking-wider flex items-center gap-2">
+                  <Star className="h-4 w-4 text-warning fill-warning animate-pulse" />
+                  <span>Selected Contenders</span>
+                </h2>
+                {preliminaryList.length > 0 ? (
+                  <Card variant="default">
+                    <CardContent className="p-0">
+                      <table className="w-full text-left border-collapse text-xs font-sans">
+                        <thead>
+                          <tr className="border-b border-neutral-850 bg-neutral-900/30 text-neutral-400 font-semibold tracking-wide uppercase">
+                            <th className="py-3.5 px-6">Team Name</th>
+                            <th className="py-3.5 px-6 text-right">Selection Status</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-y-neutral-850/50">
+                          {preliminaryList.map((item) => (
+                            <tr key={item.id} className="hover:bg-neutral-900/20">
+                              <td className="py-4 px-6 font-semibold text-neutral-100">
+                                {item.teams?.name}
+                              </td>
+                              <td className="py-4 px-6 text-right">
+                                <Badge variant="warning" className="capitalize">Selected</Badge>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <div className="p-10 text-center border border-neutral-900 rounded bg-neutral-950/20 text-neutral-500">
+                    No preliminary teams found.
+                  </div>
+                )}
+                <p className="text-center text-xxs text-neutral-500 font-sans mt-4">
+                  * Final selection spot confirmations are subject to entry fee verification.
+                </p>
+              </div>
+            ) : publishPhase === "final" ? (
+              // FINAL VIEW
               <div className="space-y-8">
                 {/* 1. Finalists Spotlight Card */}
                 {finalistsList.length > 0 && (
@@ -210,10 +294,8 @@ export default function PublicFinalistsPage() {
                             </h3>
                           </div>
                           <div className="flex flex-col items-end shrink-0 gap-1 text-right">
-                            <span className="text-xxs text-neutral-500 font-sans">Total Score</span>
-                            <span className="font-mono text-sm font-bold text-success">
-                              {f.total_score} pts
-                            </span>
+                            <span className="text-xxs text-neutral-500 font-sans">Verification</span>
+                            <Badge variant="success">Confirmed</Badge>
                           </div>
                         </Card>
                       ))}
@@ -225,7 +307,7 @@ export default function PublicFinalistsPage() {
                 <div className="space-y-4">
                   <h2 className="text-sm font-heading font-semibold text-neutral-300 uppercase tracking-wider flex items-center gap-2">
                     <Trophy className="h-4 w-4 text-accent" />
-                    <span>Complete Leaderboard Standings</span>
+                    <span>Complete Standings</span>
                   </h2>
                   <Card variant="default">
                     <CardContent className="p-0">
@@ -235,8 +317,7 @@ export default function PublicFinalistsPage() {
                             <tr className="border-b border-neutral-850 bg-neutral-900/30 text-neutral-400 font-semibold tracking-wide uppercase">
                               <th className="py-3.5 px-4 font-mono w-16">Rank</th>
                               <th className="py-3.5 px-4">Team Name</th>
-                              <th className="py-3.5 px-4">Finalist State</th>
-                              <th className="py-3.5 px-4 text-right">Total Score</th>
+                              <th className="py-3.5 px-4 text-right">State</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-y-neutral-850/50">
@@ -255,15 +336,12 @@ export default function PublicFinalistsPage() {
                                 <td className="py-4 px-4 font-semibold text-neutral-100">
                                   {item.teams?.name}
                                 </td>
-                                <td className="py-4 px-4">
+                                <td className="py-4 px-4 text-right">
                                   {item.is_finalist ? (
                                     <Badge variant="success">Finalist</Badge>
                                   ) : (
                                     <Badge variant="neutral">Contender</Badge>
                                   )}
-                                </td>
-                                <td className="py-4 px-4 text-right font-mono font-bold text-sm text-neutral-200">
-                                  {item.total_score} pts
                                 </td>
                               </tr>
                             ))}
@@ -280,7 +358,7 @@ export default function PublicFinalistsPage() {
                 <Clock className="h-10 w-10 text-neutral-700 animate-pulse mx-auto" />
                 <div className="space-y-1">
                   <h3 className="font-heading font-semibold text-sm text-neutral-300">
-                    Leaderboard Under Review
+                    Standings Under Review
                   </h3>
                   <p className="text-xs text-neutral-500 font-sans max-w-sm mx-auto leading-relaxed">
                     Organizers are currently evaluating submissions and calculating scores for this competition. Results will be published here shortly.
@@ -298,4 +376,3 @@ export default function PublicFinalistsPage() {
     </div>
   );
 }
-

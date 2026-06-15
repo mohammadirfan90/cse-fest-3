@@ -43,3 +43,6 @@ next-env.d.ts
 # templates
 /public/hope-ui-tailwind-2.0.1/
 
+# local submission storage
+/storage/
+

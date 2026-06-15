@@ -130,11 +130,12 @@ Required:
 Required:
 
 * Student ID Front
-* Student ID Back
+
 
 Storage:
 
-* Cloudinary
+* Cloudinary for ID
+* Server file storage for video/pdf
 
 ---
 

@@ -13,6 +13,7 @@ import {
   ShieldX,
   Clock,
   FileText,
+  Video,
   ExternalLink,
   User,
   Search,
@@ -62,7 +63,8 @@ interface TeamMember {
 interface TeamSubmission {
   id: string;
   title: string;
-  google_docs_url: string;
+  pdf_path: string;
+  video_path: string | null;
   notes: string | null;
   status: string;
   submitted_at: string;
@@ -655,15 +657,31 @@ export default function TeamReviewPage() {
                   <p className="text-[9px] font-mono text-neutral-600 uppercase tracking-widest">Submitted At</p>
                   <p className="text-neutral-300">{new Date(viewSubmission.submitted_at).toLocaleString()}</p>
                 </div>
-                <a
-                  href={viewSubmission.google_docs_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center justify-center gap-2 w-full py-2.5 rounded border border-neutral-700 text-neutral-200 hover:border-neutral-600 hover:bg-neutral-800/30 transition-all font-mono text-xs uppercase tracking-wider"
-                >
-                  <ExternalLink className="h-4 w-4" />
-                  Open Submission Document
-                </a>
+                <div className="space-y-2">
+                  <a
+                    href={`/api/submissions/file/${viewSubmission.id}?type=pdf`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-center gap-2 w-full py-2.5 rounded border border-neutral-700 text-neutral-200 hover:border-neutral-600 hover:bg-neutral-800/30 transition-all font-mono text-xs uppercase tracking-wider cursor-pointer"
+                  >
+                    <FileText className="h-4 w-4" />
+                    <span>View Proposal PDF</span>
+                    <ExternalLink className="h-3 w-3" />
+                  </a>
+
+                  {viewSubmission.video_path && (
+                    <a
+                      href={`/api/submissions/file/${viewSubmission.id}?type=video`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-center gap-2 w-full py-2.5 rounded border border-neutral-700 text-neutral-200 hover:border-neutral-600 hover:bg-neutral-800/30 transition-all font-mono text-xs uppercase tracking-wider cursor-pointer"
+                    >
+                      <Video className="h-4 w-4" />
+                      <span>Play Demo Video</span>
+                      <ExternalLink className="h-3 w-3" />
+                    </a>
+                  )}
+                </div>
               </div>
             </motion.div>
           </div>

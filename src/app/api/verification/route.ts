@@ -5,7 +5,7 @@ import { uploadImage } from "@/lib/cloudinary";
 
 const verificationSchema = z.object({
   id_front_base64: z.string().min(1, "Front image is required"),
-  id_back_base64: z.string().min(1, "Back image is required"),
+  id_back_base64: z.string().optional().nullable(),
 });
 
 export async function POST(req: Request) {
@@ -44,15 +44,16 @@ export async function POST(req: Request) {
       `csefest/verifications/${user.id}/front`
     );
 
-    const backUpload = await uploadImage(
-      parseResult.data.id_back_base64,
-      `csefest/verifications/${user.id}/back`
-    );
+    let backUploadUrl = null;
+    if (parseResult.data.id_back_base64) {
+      const backUpload = await uploadImage(
+        parseResult.data.id_back_base64,
+        `csefest/verifications/${user.id}/back`
+      );
+      backUploadUrl = backUpload.secure_url;
+    }
 
     // 4. Insert or update verification record.
-    // We do an explicit check first because the RLS policy only permits INSERT
-    // for regular users (no UPDATE policy), so .upsert() would violate the
-    // unique constraint when a record already exists.
     const { data: existing } = await supabase
       .from("student_verifications")
       .select("id")
@@ -60,15 +61,11 @@ export async function POST(req: Request) {
       .maybeSingle();
 
     if (existing) {
-      // Row exists — use admin-privileged update via service role is not
-      // available here, so we rely on the "Admins" policy not applying.
-      // Instead, re-submit means we just update via the allowed admin policy.
-      // For participant re-submissions we patch directly:
       const { error: updateError } = await supabase
         .from("student_verifications")
         .update({
           id_front_url: frontUpload.secure_url,
-          id_back_url: backUpload.secure_url,
+          id_back_url: backUploadUrl,
           status: "pending",
         })
         .eq("user_id", user.id);
@@ -83,7 +80,7 @@ export async function POST(req: Request) {
         .insert({
           user_id: user.id,
           id_front_url: frontUpload.secure_url,
-          id_back_url: backUpload.secure_url,
+          id_back_url: backUploadUrl,
           status: "pending",
         });
 

@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import * as React from "react";
 import { useForm } from "react-hook-form";
@@ -8,26 +8,15 @@ import useSWR, { mutate } from "swr";
 import {
   User,
   GraduationCap,
-  Sparkles,
-  Link as LinkIcon,
   Save,
   CheckCircle2,
   AlertCircle,
-  Clock,
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
-
-// Helper to normalize URL
-function normalizeUrl(val: string | undefined): string {
-  if (!val || val.trim() === "") return "";
-  const trimmed = val.trim();
-  if (/^https?:\/\//i.test(trimmed)) return trimmed;
-  return `https://${trimmed}`;
-}
 
 const profileSchema = z.object({
   full_name: z.string().min(2, "Full Name must be at least 2 characters"),
@@ -37,30 +26,6 @@ const profileSchema = z.object({
   department: z.string().min(2, "Department is required"),
   semester: z.string().min(1, "Semester is required"),
   student_id: z.string().min(2, "Student ID is required"),
-  github: z
-    .string()
-    .optional()
-    .or(z.literal(""))
-    .transform((val) => normalizeUrl(val))
-    .pipe(
-      z.string().refine(
-        (val) => val === "" || z.string().url().safeParse(val).success,
-        "Please enter a valid online profile URL (e.g. github.com/username)"
-      )
-    ),
-  portfolio: z
-    .string()
-    .optional()
-    .or(z.literal(""))
-    .transform((val) => normalizeUrl(val))
-    .pipe(
-      z.string().refine(
-        (val) => val === "" || z.string().url().safeParse(val).success,
-        "Please enter a valid portfolio URL (e.g. mysite.com)"
-      )
-    ),
-  skills: z.string().optional().or(z.literal("")),
-  bio: z.string().max(250, "Bio must be under 250 characters").optional().or(z.literal("")),
   tshirt_size: z.string().min(1, "T-shirt size is required"),
 });
 
@@ -74,10 +39,6 @@ interface ProfileDbRecord {
   department: string | null;
   semester: string | null;
   student_id: string | null;
-  github: string | null;
-  portfolio: string | null;
-  skills: string | null;
-  bio: string | null;
   tshirt_size: string | null;
   verification_status: string | null;
   profile_complete: boolean | null;
@@ -87,7 +48,7 @@ export default function ProfilePage() {
   const [mounted, setMounted] = React.useState(false);
   const [saveLoading, setSaveLoading] = React.useState(false);
   const [message, setMessage] = React.useState<{ type: "success" | "error"; text: string } | null>(null);
-  const [activeTab, setActiveTab] = React.useState<"personal" | "academic" | "developer" | "bio">("personal");
+  const [activeTab, setActiveTab] = React.useState<"personal" | "academic">("personal");
 
   React.useEffect(() => {
     const timer = setTimeout(() => setMounted(true), 0);
@@ -121,10 +82,6 @@ export default function ProfilePage() {
         department: profile.department || "",
         semester: profile.semester || "",
         student_id: profile.student_id || "",
-        github: profile.github || "",
-        portfolio: profile.portfolio || "",
-        skills: profile.skills || "",
-        bio: profile.bio || "",
         tshirt_size: profile.tshirt_size || "",
       });
     }
@@ -185,8 +142,6 @@ export default function ProfilePage() {
   const tabs = [
     { id: "personal", label: "Personal Info", icon: User },
     { id: "academic", label: "Academic Info", icon: GraduationCap },
-    { id: "developer", label: "Developer links", icon: Sparkles },
-    { id: "bio", label: "Bio & Skills", icon: LinkIcon },
   ] as const;
 
   return (
@@ -247,7 +202,7 @@ export default function ProfilePage() {
                   key={tab.id}
                   type="button"
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-2.5 py-2 px-3 rounded text-xs font-mono tracking-wider capitalize transition-all duration-150 outline-none cursor-pointer text-left shrink-0 w-full ${
+                  className={`flex items-center gap-2.5 py-2 px-3 rounded text-xs font-mono tracking-wider capitalize transition-all duration-155 outline-none cursor-pointer text-left shrink-0 w-full ${
                     activeTab === tab.id
                       ? "bg-neutral-900 border border-neutral-800/60 text-neutral-100 font-semibold"
                       : "text-neutral-500 hover:text-neutral-300 hover:bg-neutral-900/40 border border-transparent"
@@ -321,7 +276,7 @@ export default function ProfilePage() {
                     <div className="flex flex-col space-y-1.5 w-full">
                       <label className="text-[10px] font-semibold text-neutral-400 font-mono uppercase tracking-widest select-none">T-Shirt Size</label>
                       <select
-                        className={`flex h-9 w-full rounded border bg-neutral-950 px-3 py-2 text-xs text-neutral-200 outline-none transition-all duration-150 cursor-pointer font-sans ${
+                        className={`flex h-9 w-full rounded border bg-neutral-950 px-3 py-2 text-xs text-neutral-200 outline-none transition-all duration-155 cursor-pointer font-sans ${
                           errors.tshirt_size
                             ? "border-rose-900/50 focus:border-rose-950 focus:ring-1 focus:ring-error/20"
                             : "border-neutral-800/80 focus:border-neutral-700 focus:ring-1 focus:ring-neutral-700/20 hover:border-neutral-700/60"
@@ -401,89 +356,12 @@ export default function ProfilePage() {
               </Card>
             </div>
 
-            {/* Tab 3: Developer Links */}
-            <div className={activeTab === "developer" ? "block" : "hidden"}>
-              <Card className="border-neutral-800/40 bg-neutral-900/10 shadow-none rounded-lg p-5">
-                <CardHeader className="border-b border-neutral-800/40 pb-3 mb-5">
-                  <CardTitle className="text-xs uppercase font-mono tracking-widest text-neutral-400 flex items-center gap-2">
-                    <Sparkles className="h-3.5 w-3.5 text-neutral-500" />
-                    <span>Developer Profile</span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-0 space-y-4">
-                  <div className="flex flex-col space-y-1.5 w-full">
-                    <label className="text-[10px] font-semibold text-neutral-400 font-mono uppercase tracking-widest select-none font-mono">GitHub Profile Link</label>
-                    <Input
-                      type="url"
-                      placeholder="e.g. github.com/username"
-                      className="bg-neutral-950 border-neutral-800/80 focus:border-neutral-700 focus:ring-1 focus:ring-neutral-700/20 hover:border-neutral-700/60 transition-all duration-150 text-xs h-9 font-mono text-xs"
-                      error={errors.github?.message}
-                      {...register("github")}
-                    />
-                  </div>
-
-                  <div className="flex flex-col space-y-1.5 w-full">
-                    <label className="text-[10px] font-semibold text-neutral-400 font-mono uppercase tracking-widest select-none font-mono">Portfolio URL</label>
-                    <Input
-                      type="url"
-                      placeholder="e.g. mysite.com"
-                      className="bg-neutral-950 border-neutral-800/80 focus:border-neutral-700 focus:ring-1 focus:ring-neutral-700/20 hover:border-neutral-700/60 transition-all duration-150 text-xs h-9 font-mono text-xs"
-                      error={errors.portfolio?.message}
-                      {...register("portfolio")}
-                    />
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Tab 4: Bio & Skills */}
-            <div className={activeTab === "bio" ? "block" : "hidden"}>
-              <Card className="border-neutral-800/40 bg-neutral-900/10 shadow-none rounded-lg p-5">
-                <CardHeader className="border-b border-neutral-800/40 pb-3 mb-5">
-                  <CardTitle className="text-xs uppercase font-mono tracking-widest text-neutral-400 flex items-center gap-2">
-                    <LinkIcon className="h-3.5 w-3.5 text-neutral-500" />
-                    <span>Bio & Skills</span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-0 space-y-4">
-                  <div className="flex flex-col space-y-1.5 w-full">
-                    <label className="text-[10px] font-semibold text-neutral-400 font-mono uppercase tracking-widest select-none">Skills / Tech Stack</label>
-                    <textarea
-                      placeholder="e.g. React, Node.js, Python, Tailwind"
-                      rows={3}
-                      className="flex w-full rounded border border-neutral-800/80 bg-neutral-950 px-3.5 py-2.5 text-xs text-neutral-200 outline-none focus:border-neutral-700 focus:ring-1 focus:ring-neutral-700/20 hover:border-neutral-700/60 transition-all duration-150 font-sans placeholder:text-neutral-600 resize-none"
-                      {...register("skills")}
-                    />
-                  </div>
-
-                  <div className="flex flex-col space-y-1.5 w-full">
-                    <label className="text-[10px] font-semibold text-neutral-400 font-mono uppercase tracking-widest select-none">Short Biography</label>
-                    <textarea
-                      placeholder="Tell us about yourself, your achievements, and interest areas..."
-                      rows={4}
-                      className={`flex w-full rounded border px-3.5 py-2.5 text-xs text-neutral-200 outline-none transition-all duration-150 font-sans placeholder:text-neutral-600 resize-none ${
-                        errors.bio
-                          ? "border-rose-900/50 focus:border-rose-950 focus:ring-1 focus:ring-error/20"
-                          : "border-neutral-800/80 focus:border-neutral-700 focus:ring-1 focus:ring-neutral-700/20 hover:border-neutral-700/60"
-                      }`}
-                      {...register("bio")}
-                    />
-                    {errors.bio && (
-                      <span className="text-xs text-error font-sans font-medium tracking-tight">
-                        {errors.bio.message}
-                      </span>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
             {/* Save Buttons */}
             <div className="pt-2">
               <Button
                 type="submit"
                 isLoading={saveLoading}
-                className="w-full py-2.5 rounded border border-neutral-800/85 hover:border-neutral-700 bg-neutral-900 hover:bg-neutral-900/80 text-neutral-250 hover:text-neutral-100 font-mono text-xs uppercase tracking-wider transition-all duration-150 flex items-center justify-center gap-2 active:scale-99"
+                className="w-full py-2.5 rounded border border-neutral-800/85 hover:border-neutral-700 bg-neutral-900 hover:bg-neutral-900/80 text-neutral-250 hover:text-neutral-100 font-mono text-xs uppercase tracking-wider transition-all duration-155 flex items-center justify-center gap-2 active:scale-99"
               >
                 {!saveLoading && <Save className="h-3.5 w-3.5" />}
                 <span>Save Profile Details</span>
@@ -495,4 +373,3 @@ export default function ProfilePage() {
     </div>
   );
 }
-

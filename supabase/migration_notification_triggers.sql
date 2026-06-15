@@ -133,7 +133,7 @@ BEGIN
   SELECT t.name INTO v_team_name FROM public.teams t WHERE t.id = NEW.team_id;
 
   FOR v_member_id IN 
-    SELECT user_id FROM public.team_members WHERE team_id = NEW.team_id AND invitation_status = 'accepted'
+    SELECT user_id FROM public.team_members WHERE team_id = NEW.team_id AND invitation_status = 'accepted' AND user_id IS NOT NULL
   LOOP
     INSERT INTO public.notifications (user_id, title, message, type, action_url)
     VALUES (
@@ -166,7 +166,7 @@ BEGIN
     SELECT t.name INTO v_team_name FROM public.teams t WHERE t.id = NEW.team_id;
 
     FOR v_member_id IN 
-      SELECT user_id FROM public.team_members WHERE team_id = NEW.team_id AND invitation_status = 'accepted'
+      SELECT user_id FROM public.team_members WHERE team_id = NEW.team_id AND invitation_status = 'accepted' AND user_id IS NOT NULL
     LOOP
       IF NEW.status = 'selected' THEN
         INSERT INTO public.notifications (user_id, title, message, type, action_url)
@@ -219,7 +219,7 @@ BEGIN
   SELECT t.name INTO v_team_name FROM public.teams t WHERE t.id = NEW.team_id;
 
   FOR v_member_id IN 
-    SELECT user_id FROM public.team_members WHERE team_id = NEW.team_id AND invitation_status = 'accepted'
+    SELECT user_id FROM public.team_members WHERE team_id = NEW.team_id AND invitation_status = 'accepted' AND user_id IS NOT NULL
   LOOP
     INSERT INTO public.notifications (user_id, title, message, type, action_url)
     VALUES (
@@ -252,7 +252,7 @@ BEGIN
     SELECT t.name INTO v_team_name FROM public.teams t WHERE t.id = NEW.team_id;
 
     FOR v_member_id IN 
-      SELECT user_id FROM public.team_members WHERE team_id = NEW.team_id AND invitation_status = 'accepted'
+      SELECT user_id FROM public.team_members WHERE team_id = NEW.team_id AND invitation_status = 'accepted' AND user_id IS NOT NULL
     LOOP
       IF NEW.status = 'approved' THEN
         INSERT INTO public.notifications (user_id, title, message, type, action_url)
@@ -306,7 +306,7 @@ BEGIN
     SELECT name INTO v_competition_name FROM public.competitions WHERE id = NEW.competition_id;
 
     FOR v_member_id IN 
-      SELECT user_id FROM public.team_members WHERE team_id = NEW.id AND invitation_status = 'accepted'
+      SELECT user_id FROM public.team_members WHERE team_id = NEW.id AND invitation_status = 'accepted' AND user_id IS NOT NULL
     LOOP
       INSERT INTO public.notifications (user_id, title, message, type, action_url)
       VALUES (

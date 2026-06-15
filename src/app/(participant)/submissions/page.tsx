@@ -2,20 +2,12 @@
 
 import * as React from "react";
 import Link from "next/link";
-import {
-  Send,
-  AlertCircle,
-  Check,
-  ExternalLink,
-  Users,
-  Clock,
-  Crown,
-} from "lucide-react";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { AlertCircle, Check, Users, Clock, Crown } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
 import { createClient } from "@/lib/supabase/client";
+import { SubmissionFormCard } from "./SubmissionFormCard";
+import { SubmissionDetailsCard } from "./SubmissionDetailsCard";
 
 interface UserTeam {
   id: string;
@@ -33,7 +25,8 @@ interface UserTeam {
 interface Submission {
   id: string;
   title: string;
-  google_docs_url: string;
+  pdf_path: string;
+  video_path: string | null;
   notes: string | null;
   status: string;
   submitted_at: string;
@@ -45,12 +38,8 @@ export default function SubmissionsPage() {
   const [selectedTeamId, setSelectedTeamId] = React.useState<string>("");
   const [submission, setSubmission] = React.useState<Submission | null>(null);
   const [subLoading, setSubLoading] = React.useState(false);
-
-  // Form states
-  const [title, setTitle] = React.useState("");
-  const [googleDocsUrl, setGoogleDocsUrl] = React.useState("");
-  const [notes, setNotes] = React.useState("");
   const [formLoading, setFormLoading] = React.useState(false);
+  const [uploadProgress, setUploadProgress] = React.useState(0);
 
   // Notifications
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
@@ -122,14 +111,8 @@ export default function SubmissionsPage() {
         if (active) {
           if (data.success && data.data) {
             setSubmission(data.data);
-            setTitle(data.data.title);
-            setGoogleDocsUrl(data.data.google_docs_url);
-            setNotes(data.data.notes || "");
           } else {
             setSubmission(null);
-            setTitle("");
-            setGoogleDocsUrl("");
-            setNotes("");
           }
         }
       } catch (err) {
@@ -151,32 +134,62 @@ export default function SubmissionsPage() {
     };
   }, [selectedTeamId]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (formData: FormData) => {
     if (!selectedTeamId) return;
 
     setFormLoading(true);
+    setUploadProgress(0);
     setErrorMsg(null);
     setSuccessMsg(null);
 
-    try {
-      const res = await fetch("/api/submissions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          team_id: selectedTeamId,
-          title,
-          google_docs_url: googleDocsUrl,
-          notes,
-        }),
-      });
+    formData.append("team_id", selectedTeamId);
 
-      const data = await res.json();
-      if (!data.success) {
-        throw new Error(data.message || "Failed to submit proposal.");
+    try {
+      // Use XMLHttpRequest for upload progress tracking on large files
+      const result = await new Promise<{ success: boolean; message?: string; data?: Submission }>(
+        (resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+
+          xhr.upload.addEventListener("progress", (event) => {
+            if (event.lengthComputable) {
+              const percent = Math.round((event.loaded / event.total) * 100);
+              setUploadProgress(percent);
+            }
+          });
+
+          xhr.addEventListener("load", () => {
+            try {
+              const data = JSON.parse(xhr.responseText);
+              if (xhr.status >= 200 && xhr.status < 300) {
+                resolve(data);
+              } else {
+                reject(new Error(data.message || `Upload failed with status ${xhr.status}`));
+              }
+            } catch {
+              reject(new Error("Failed to parse server response."));
+            }
+          });
+
+          xhr.addEventListener("error", () => {
+            reject(new Error("Network error during upload. Please check your connection."));
+          });
+
+          xhr.addEventListener("abort", () => {
+            reject(new Error("Upload was cancelled."));
+          });
+
+          xhr.open("POST", "/api/submissions");
+          xhr.send(formData);
+        }
+      );
+
+      if (!result.success) {
+        throw new Error(result.message || "Failed to submit proposal.");
       }
 
-      setSuccessMsg(data.message);
+      setSuccessMsg(result.message || "Submission successful.");
+      setUploadProgress(100);
+
       // Reload submission
       const subRes = await fetch(`/api/submissions?team_id=${selectedTeamId}`);
       const subData = await subRes.json();
@@ -188,6 +201,7 @@ export default function SubmissionsPage() {
       setErrorMsg(errorMessage);
     } finally {
       setFormLoading(false);
+      setUploadProgress(0);
     }
   };
 
@@ -212,12 +226,12 @@ export default function SubmissionsPage() {
   const isExpired = subEnd && now > subEnd;
 
   return (
-    <div className="space-y-8 animate-fade-in">
+    <div className="space-y-8 animate-fade-in font-sans">
       {/* Header */}
       <div>
         <h1 className="text-h3 font-heading font-bold text-neutral-50 tracking-tight">Project Submissions</h1>
         <p className="text-sm text-neutral-400 font-sans mt-1">
-          Submit project proposals and Google Docs description links for evaluation.
+          Submit project report PDFs and optional demo videos for evaluation.
         </p>
       </div>
 
@@ -290,163 +304,24 @@ export default function SubmissionsPage() {
                 </CardContent>
               </Card>
             ) : submission ? (
-              /* Submission details */
-              <Card
-                variant="glass"
-                className={
-                  submission.status === "selected"
-                    ? "border-success/20 bg-success/5"
-                    : submission.status === "rejected"
-                    ? "border-error/20 bg-error/5"
-                    : submission.status === "under_review" || submission.status === "submitted"
-                    ? "border-warning/20 bg-warning/5"
-                    : "border-neutral-800/60 bg-neutral-900/10"
-                }
-              >
-                <CardHeader className="flex flex-row justify-between items-start">
-                  <CardTitle className="text-md font-heading font-semibold text-neutral-100">Roster Proposal Info</CardTitle>
-                  <Badge
-                    variant={
-                      submission.status === "selected"
-                        ? "success"
-                        : submission.status === "rejected"
-                        ? "error"
-                        : submission.status === "under_review" || submission.status === "submitted"
-                        ? "warning"
-                        : "neutral"
-                    }
-                    className="capitalize font-mono"
-                  >
-                    {submission.status}
-                  </Badge>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="space-y-4 font-sans">
-                    <div>
-                      <div className="text-[10px] text-neutral-500 font-bold uppercase tracking-wider">
-                        Proposal Title
-                      </div>
-                      <div className="text-sm text-neutral-100 font-semibold mt-1 bg-neutral-950/60 py-2 px-3 rounded-lg border border-neutral-850">
-                        {submission.title}
-                      </div>
-                    </div>
-                    <div>
-                      <div className="text-[10px] text-neutral-500 font-bold uppercase tracking-wider">
-                        Google Docs Rulebook/Proposal Link
-                      </div>
-                      <div className="mt-2.5">
-                        <a
-                          href={submission.google_docs_url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="inline-flex items-center gap-2 px-3.5 py-2 rounded border border-neutral-800 bg-neutral-950 text-xs text-neutral-200 hover:border-neutral-700 hover:bg-neutral-900 transition-all duration-155 font-mono uppercase tracking-wider font-semibold"
-                        >
-                          <span>Open Google Docs URL</span>
-                          <ExternalLink className="h-3.5 w-3.5 text-neutral-400" />
-                        </a>
-                      </div>
-                    </div>
-                    {submission.notes && (
-                      <div>
-                        <div className="text-[10px] text-neutral-500 font-bold uppercase tracking-wider">
-                          Roster Notes
-                        </div>
-                        <div className="text-xs text-neutral-300 mt-1.5 leading-relaxed whitespace-pre-wrap bg-neutral-950/40 p-3 rounded-lg border border-neutral-850/60">
-                          {submission.notes}
-                        </div>
-                      </div>
-                    )}
-                    <div className="text-xxs text-neutral-500 pt-3 border-t border-neutral-800 font-mono">
-                      Submitted on: {new Date(submission.submitted_at).toLocaleString()}
-                    </div>
-                  </div>
+              /* Submission details + optional edit form */
+              <div className="space-y-6">
+                <SubmissionDetailsCard submission={submission} />
 
-                  {/* Edit submission if window open */}
-                  {isWindowOpen && (
-                    <div className="border-t border-neutral-800 pt-6 space-y-4">
-                      <h3 className="font-heading font-semibold text-sm text-neutral-300">
-                        Update Submission Configuration
-                      </h3>
-                      <form onSubmit={handleSubmit} className="space-y-4">
-                        <Input
-                          label="Proposal Title"
-                          placeholder="Update title..."
-                          value={title}
-                          onChange={(e) => setTitle(e.target.value)}
-                          disabled={formLoading}
-                          required
-                        />
-                        <Input
-                          label="Google Docs Link"
-                          placeholder="https://docs.google.com/..."
-                          value={googleDocsUrl}
-                          onChange={(e) => setGoogleDocsUrl(e.target.value)}
-                          disabled={formLoading}
-                          required
-                        />
-                        <div className="flex flex-col space-y-1.5">
-                          <label className="text-sm font-medium text-neutral-300 font-sans">Notes</label>
-                          <textarea
-                            rows={3}
-                            placeholder="Update technical overview details..."
-                            value={notes}
-                            onChange={(e) => setNotes(e.target.value)}
-                            disabled={formLoading}
-                            className="flex w-full rounded border border-neutral-850 bg-neutral-950 px-3 py-2 text-sm text-neutral-200 focus:border-neutral-700 focus:ring-1 focus:ring-neutral-700/20 hover:border-neutral-700 transition-all duration-200 outline-none font-sans resize-none leading-relaxed"
-                          />
-                        </div>
-                        <Button variant="primary" type="submit" isLoading={formLoading} className="w-full justify-center">
-                          Update Submission
-                        </Button>
-                      </form>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+                {isWindowOpen && (
+                  <SubmissionFormCard
+                    initialTitle={submission.title}
+                    initialNotes={submission.notes || ""}
+                    onSubmit={handleSubmit}
+                    formLoading={formLoading}
+                    uploadProgress={uploadProgress}
+                    isUpdate
+                  />
+                )}
+              </div>
             ) : isWindowOpen ? (
               /* Proposal submission form */
-              <Card variant="glass" className="bg-glass border-glass">
-                <CardHeader>
-                  <CardTitle className="text-md font-heading">Submit Project Proposal</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <form onSubmit={handleSubmit} className="space-y-4">
-                    <Input
-                      label="Project Title"
-                      placeholder="e.g. Smart IoT Agriculture Tracker"
-                      value={title}
-                      onChange={(e) => setTitle(e.target.value)}
-                      disabled={formLoading}
-                      required
-                    />
-                    <Input
-                      label="Google Docs Link"
-                      placeholder="https://docs.google.com/document/d/..."
-                      value={googleDocsUrl}
-                      onChange={(e) => setGoogleDocsUrl(e.target.value)}
-                      disabled={formLoading}
-                      required
-                    />
-                    <div className="flex flex-col space-y-1.5">
-                      <label className="text-sm font-medium text-neutral-300 font-sans">
-                        Additional Notes (Optional)
-                      </label>
-                      <textarea
-                        rows={4}
-                        placeholder="Provide details about system constraints, hardware, or tech stack..."
-                        value={notes}
-                        onChange={(e) => setNotes(e.target.value)}
-                        disabled={formLoading}
-                        className="flex w-full rounded border border-neutral-855 bg-neutral-950 px-3 py-2.5 text-sm text-neutral-200 focus:border-neutral-700 focus:ring-1 focus:ring-neutral-700/20 hover:border-neutral-700 transition-all duration-200 outline-none font-sans resize-none leading-relaxed"
-                      />
-                    </div>
-                    <Button variant="primary" type="submit" isLoading={formLoading} className="gap-2 w-full justify-center active:scale-[0.99] shadow-level-2 py-3">
-                      <Send className="h-4.5 w-4.5" />
-                      <span>Submit Proposal</span>
-                    </Button>
-                  </form>
-                </CardContent>
-              </Card>
+              <SubmissionFormCard onSubmit={handleSubmit} formLoading={formLoading} uploadProgress={uploadProgress} />
             ) : (
               /* Window not open status card */
               <Card variant="glass" className="text-center p-8 bg-glass border-glass">
@@ -469,15 +344,10 @@ export default function SubmissionsPage() {
 
           {/* Right Side: Timeline parameters card */}
           <div className="space-y-6">
-            <h2 className="text-lg font-heading font-semibold text-neutral-200">Timeline Parameters</h2>
+            <h2 className="text-lg font-heading font-semibold text-neutral-200 font-sans">Timeline Parameters</h2>
             {comp ? (
               <Card variant="glass" className="bg-glass border-glass">
-                <CardHeader>
-                  <CardTitle className="text-sm font-heading font-semibold text-neutral-300">
-                    {comp.name} Timeline
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-6 pt-2 font-sans text-xs">
+                <CardContent className="p-6 space-y-6 font-sans text-xs">
                   <div className="relative pl-6 pb-6 border-l border-dashed border-neutral-800">
                     <div className="absolute -left-[5px] top-1.5 h-2.5 w-2.5 rounded-full bg-neutral-400" />
                     <div className="space-y-1">
@@ -525,4 +395,3 @@ export default function SubmissionsPage() {
     </div>
   );
 }
-

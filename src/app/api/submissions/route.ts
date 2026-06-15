@@ -1,13 +1,6 @@
 import { NextResponse } from "next/server";
-import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
-
-const submissionValidationSchema = z.object({
-  team_id: z.string().uuid("Invalid team ID format"),
-  title: z.string().min(5, "Title must be at least 5 characters"),
-  google_docs_url: z.string().url("Please provide a valid Google Docs URL"),
-  notes: z.string().optional().nullable(),
-});
+import { submitOrUpdateProposal } from "@/lib/server/submissionSubmissionService";
 
 // GET: Fetch team submission
 export async function GET(req: Request) {
@@ -76,7 +69,7 @@ export async function GET(req: Request) {
   }
 }
 
-// POST: Submit project proposal
+// POST: Submit project proposal via multipart/form-data
 export async function POST(req: Request) {
   try {
     const supabase = await createClient();
@@ -93,106 +86,22 @@ export async function POST(req: Request) {
       );
     }
 
-    // 2. Validate payload
-    const body = await req.json();
-    const parseResult = submissionValidationSchema.safeParse(body);
+    // 2. Parse Multipart form data
+    const formData = await req.formData();
 
-    if (!parseResult.success) {
+    // 3. Delegate to submission service
+    const result = await submitOrUpdateProposal(supabase, user.id, formData);
+
+    if (!result.success) {
       return NextResponse.json(
-        {
-          success: false,
-          message: parseResult.error.issues[0]?.message || "Validation failed.",
-        },
-        { status: 400 }
+        { success: false, message: result.message },
+        { status: result.status }
       );
     }
-
-    const { team_id, title, google_docs_url, notes } = parseResult.data;
-
-    // 3. Authorize (Must be accepted member of this team)
-    const { data: teamRecord, error: teamQueryErr } = await supabase
-      .from("teams")
-      .select("*, competitions(*)")
-      .eq("id", team_id)
-      .single();
-
-    if (teamQueryErr || !teamRecord) {
-      return NextResponse.json(
-        { success: false, message: "Team not found." },
-        { status: 404 }
-      );
-    }
-
-    const { data: memberRecord } = await supabase
-      .from("team_members")
-      .select("role")
-      .eq("team_id", team_id)
-      .eq("user_id", user.id)
-      .eq("invitation_status", "accepted")
-      .single();
-
-    if (!memberRecord) {
-      return NextResponse.json(
-        { success: false, message: "Forbidden. You are not a member of this team." },
-        { status: 403 }
-      );
-    }
-
-    // 4. Validate Submission Timeline Window
-    const comp = teamRecord.competitions;
-    const now = new Date();
-    const subStart = new Date(comp.submission_start);
-    const subEnd = new Date(comp.submission_end);
-
-    if (now < subStart) {
-      return NextResponse.json(
-        { success: false, message: `Submission phase has not started yet. Opens: ${subStart.toLocaleString()}` },
-        { status: 400 }
-      );
-    }
-
-    if (now > subEnd) {
-      return NextResponse.json(
-        { success: false, message: `Submission period is locked. Closed on: ${subEnd.toLocaleString()}` },
-        { status: 400 }
-      );
-    }
-
-    // 5. Upsert Submission record
-    const { error: upsertErr } = await supabase
-      .from("submissions")
-      .upsert({
-        team_id,
-        competition_id: comp.id,
-        title,
-        google_docs_url,
-        notes,
-        status: "submitted",
-        submitted_at: new Date().toISOString(),
-      });
-
-    if (upsertErr) {
-      throw new Error(`Failed to save submission: ${upsertErr.message}`);
-    }
-
-    // 6. Update Team Status to 'submitted'
-    const { error: teamUpdateErr } = await supabase
-      .from("teams")
-      .update({
-        status: "submitted",
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", team_id);
-
-    if (teamUpdateErr) {
-      throw new Error(`Failed to update team state: ${teamUpdateErr.message}`);
-    }
-
-    // 7. In-app notification is handled automatically via database trigger (tr_submission_inserted_notification)
 
     return NextResponse.json({
       success: true,
-      message: "Proposal successfully submitted.",
+      message: result.message,
     });
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : "Failed to post submission.";

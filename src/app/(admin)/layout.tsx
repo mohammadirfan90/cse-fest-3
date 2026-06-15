@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import * as React from "react";
 import Link from "next/link";
@@ -22,6 +22,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Search,
+  FileArchive,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
@@ -132,6 +133,7 @@ export default function AdminLayout({
     { label: "Judging", href: "/admin/judging", icon: Sliders },
     { label: "CMS Content", href: "/admin/cms", icon: Globe },
     { label: "Analytics", href: "/admin/analytics", icon: BarChart3 },
+    { label: "Exports", href: "/admin/exports", icon: FileArchive },
   ];
 
   if (isAdmin === null) {

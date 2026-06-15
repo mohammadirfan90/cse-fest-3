@@ -62,7 +62,7 @@ export function Timeline() {
       {
         date: formatDate(earliestRegEnd),
         title: "Proposal Deadline",
-        description: "Initial proposal submission (Google Docs format) closes for external events.",
+        description: "Initial proposal submission (PDF/Video format) closes for external events.",
       },
       {
         date: formatDate(earliestSubStart),

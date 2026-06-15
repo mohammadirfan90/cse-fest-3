@@ -1,0 +1,21 @@
+Implement skills mkdir -p ~/.agent/skills/ui-ux-pro-max && curl -L -o skill.zip "https://mcp.directory/api/skills/download/191" && unzip -o skill.zip -d ~/.agent/skills/ui-ux-pro-max && rm skill.zip, 
+
+mkdir -p ~/.agent/skills/pdf-to-markdown && curl -L -o skill.zip "https://mcp.directory/api/skills/download/319" && unzip -o skill.zip -d ~/.agent/skills/pdf-to-markdown && rm skill.zip
+
+mkdir -p ~/.agent/skills/software-architecture && curl -L -o skill.zip "https://mcp.directory/api/skills/download/658" && unzip -o skill.zip -d ~/.agent/skills/software-architecture && rm skill.zip
+
+mkdir -p ~/.agent/skills/frontend-design && curl -L -o skill.zip "https://mcp.directory/api/skills/download/1" && unzip -o skill.zip -d ~/.agent/skills/frontend-design && rm skill.zip
+
+mkdir -p ~/.agent/skills/nextjs-developer && curl -L -o skill.zip "https://mcp.directory/api/skills/download/341" && unzip -o skill.zip -d ~/.agent/skills/nextjs-developer && rm skill.zip
+
+mkdir -p ~/.agent/skills/find-skills && curl -L -o skill.zip "https://mcp.directory/api/skills/download/827" && unzip -o skill.zip -d ~/.agent/skills/find-skills && rm skill.zip
+
+mkdir -p ~/.agent/skills/sequential-thinking && curl -L -o skill.zip "https://mcp.directory/api/skills/download/3" && unzip -o skill.zip -d ~/.agent/skills/sequential-thinking && rm skill.zip
+
+mkdir -p ~/.agent/skills/markitdown && curl -L -o skill.zip "https://mcp.directory/api/skills/download/17" && unzip -o skill.zip -d ~/.agent/skills/markitdown && rm skill.zip
+
+mkdir -p ~/.agent/skills/shadcn-ui && curl -L -o skill.zip "https://mcp.directory/api/skills/download/278" && unzip -o skill.zip -d ~/.agent/skills/shadcn-ui && rm skill.zip
+
+mkdir -p ~/.agent/skills/architect-review && curl -L -o skill.zip "https://mcp.directory/api/skills/download/1491" && unzip -o skill.zip -d ~/.agent/skills/architect-review && rm skill.zip
+
+mkdir -p ~/.agent/skills/resolve-conflicts && curl -L -o skill.zip "https://mcp.directory/api/skills/download/2048" && unzip -o skill.zip -d ~/.agent/skills/resolve-conflicts && rm skill.zip

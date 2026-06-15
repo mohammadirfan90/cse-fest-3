@@ -1,10 +1,11 @@
-﻿"use client";
+"use client";
 
 import * as React from "react";
 import {
   Trophy,
   Plus,
   Edit,
+  Trash2,
   AlertCircle,
   Check,
   Calendar,
@@ -12,6 +13,8 @@ import {
   Users,
   Eye,
   Info,
+  AlertTriangle,
+  X,
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -88,6 +91,10 @@ export default function AdminCompetitionsPage() {
   const [showForm, setShowForm] = React.useState(false);
   const [formData, setFormData] = React.useState<Competition>(defaultCompState);
   const [refreshTrigger, setRefreshTrigger] = React.useState(0);
+
+  // Delete confirmation state
+  const [deleteConfirm, setDeleteConfirm] = React.useState<Competition | null>(null);
+  const [deleting, setDeleting] = React.useState(false);
 
   React.useEffect(() => {
     let active = true;
@@ -202,6 +209,33 @@ export default function AdminCompetitionsPage() {
       setErrorMsg(errorMessage);
     } finally {
       setFormLoading(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!deleteConfirm?.id) return;
+    setDeleting(true);
+    setErrorMsg(null);
+    setSuccessMsg(null);
+
+    try {
+      const res = await fetch("/api/admin/competitions", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ competition_id: deleteConfirm.id }),
+      });
+
+      const data = await res.json();
+      if (!data.success) throw new Error(data.message);
+
+      setSuccessMsg(data.message);
+      setDeleteConfirm(null);
+      setRefreshTrigger((prev) => prev + 1);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "Failed to delete competition.";
+      setErrorMsg(errorMessage);
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -683,6 +717,14 @@ export default function AdminCompetitionsPage() {
                         </Button>
                       </a>
                     )}
+                    <Button
+                      variant="ghost"
+                      onClick={() => setDeleteConfirm(comp)}
+                      className="p-2.5 h-9 w-9 rounded-lg border border-neutral-800 hover:bg-error/10 hover:border-error/30 flex items-center justify-center transition-colors shrink-0"
+                      aria-label="Delete competition"
+                    >
+                      <Trash2 className="h-4 w-4 text-neutral-500 hover:text-error transition-colors" />
+                    </Button>
                   </div>
                 </Card>
               ))}
@@ -700,6 +742,67 @@ export default function AdminCompetitionsPage() {
             </div>
           )}
         </>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in">
+          <div className="bg-neutral-925 border border-neutral-800 rounded-xl shadow-level-4 max-w-md w-full mx-4 p-0 overflow-hidden">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-850">
+              <div className="flex items-center gap-3">
+                <div className="h-9 w-9 rounded-lg bg-error/10 border border-error/20 flex items-center justify-center">
+                  <AlertTriangle className="h-4.5 w-4.5 text-error" />
+                </div>
+                <h3 className="text-sm font-heading font-bold text-neutral-100">Delete Competition</h3>
+              </div>
+              <button
+                onClick={() => setDeleteConfirm(null)}
+                className="p-1.5 rounded-lg hover:bg-neutral-800 transition-colors cursor-pointer"
+              >
+                <X className="h-4 w-4 text-neutral-500" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="px-6 py-5 space-y-4">
+              <p className="text-xs text-neutral-300 font-sans leading-relaxed">
+                You are about to permanently delete <span className="font-bold text-neutral-100">{deleteConfirm.name}</span>.
+              </p>
+              <div className="p-3 bg-error/5 border border-error/15 rounded-lg space-y-1.5">
+                <p className="text-[11px] text-error font-semibold font-sans flex items-center gap-1.5">
+                  <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                  This action is irreversible
+                </p>
+                <p className="text-[11px] text-error/80 font-sans leading-relaxed">
+                  All associated teams, submissions, scores, rankings, and payment records will be permanently removed.
+                </p>
+              </div>
+            </div>
+
+            {/* Modal Actions */}
+            <div className="flex gap-3 px-6 py-4 border-t border-neutral-850 bg-neutral-950/40">
+              <Button
+                variant="secondary"
+                onClick={() => setDeleteConfirm(null)}
+                disabled={deleting}
+                className="flex-1 justify-center text-xs py-2.5"
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleDelete}
+                isLoading={deleting}
+                disabled={deleting}
+                className="flex-1 justify-center text-xs py-2.5 gap-2"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                <span>Delete Permanently</span>
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

@@ -7,14 +7,11 @@ import {
   AlertCircle,
   Check,
   CreditCard,
-  Upload,
   Clock,
   CheckCircle,
   XCircle,
-  RefreshCw,
   Users,
   Copy,
-  Trophy,
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -34,6 +31,7 @@ interface UserTeam {
     eligibility: string;
     payment_instructions: string | null;
     rounds_count: number;
+    preliminary_published: boolean;
   } | null;
 }
 
@@ -69,8 +67,6 @@ export default function PaymentsPage() {
   const [activeMethods, setActiveMethods] = React.useState<PaymentMethod[]>([]);
   const [methodsLoading, setMethodsLoading] = React.useState(true);
   const [transactionId, setTransactionId] = React.useState("");
-  const [screenshotBase64, setScreenshotBase64] = React.useState<string | null>(null);
-  const [screenshotError, setScreenshotError] = React.useState<string | null>(null);
   const [formLoading, setFormLoading] = React.useState(false);
 
   // Messages
@@ -104,7 +100,7 @@ export default function PaymentsPage() {
             }
           }
         }
-      } catch (err) {
+      } catch {
         // Ignore or fallback
       } finally {
         if (active) {
@@ -142,7 +138,7 @@ export default function PaymentsPage() {
           const ids = memberships.map((m) => m.team_id);
           const { data: teamData, error } = await supabase
             .from("teams")
-            .select("id, name, status, competitions(id, name, type, entry_fee, eligibility, payment_instructions, rounds_count)")
+            .select("id, name, status, competitions(id, name, type, entry_fee, eligibility, payment_instructions, rounds_count, preliminary_published)")
             .in("id", ids);
 
           if (error) throw error;
@@ -205,31 +201,7 @@ export default function PaymentsPage() {
     };
   }, [selectedTeamId]);
 
-  // Handle file picker selection and base64 conversion
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
 
-    // Validate size limit (5MB max)
-    if (file.size > 5 * 1024 * 1024) {
-      setScreenshotError("File exceeds the 5MB size limit. Please upload a smaller image.");
-      return;
-    }
-
-    // Validate file type (jpg, jpeg, png)
-    if (!["image/jpeg", "image/png", "image/jpg"].includes(file.type)) {
-      setScreenshotError("Only JPG, JPEG, and PNG images are supported.");
-      return;
-    }
-
-    setScreenshotError(null);
-
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setScreenshotBase64(reader.result as string);
-    };
-    reader.readAsDataURL(file);
-  };
 
   const handlePaymentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -238,10 +210,7 @@ export default function PaymentsPage() {
     const activeTeam = teams.find((t) => t.id === selectedTeamId);
     if (!activeTeam || !activeTeam.competitions) return;
 
-    if (!screenshotBase64) {
-      setScreenshotError("Transaction screenshot is required.");
-      return;
-    }
+
 
     setFormLoading(true);
     setErrorMsg(null);
@@ -256,7 +225,7 @@ export default function PaymentsPage() {
           amount: activeTeam.competitions.entry_fee,
           transaction_id: transactionId.trim(),
           method,
-          screenshot_base64: screenshotBase64,
+
         }),
       });
 
@@ -267,7 +236,7 @@ export default function PaymentsPage() {
 
       setSuccessMsg(data.message);
       setTransactionId("");
-      setScreenshotBase64(null);
+
 
       // Reload payments list
       const pRes = await fetch(`/api/payments?team_id=${selectedTeamId}`);
@@ -328,6 +297,7 @@ export default function PaymentsPage() {
   // If it's a 1-round competition, they can pay directly.
   const isTwoRound = comp?.rounds_count === 2;
   const clearedFirstRound = activeTeam?.status === "selected" || activeTeam?.status === "registered" || activeTeam?.status === "finalist";
+  const isPreliminaryPublished = comp?.preliminary_published ?? false;
   
   const paymentApproved = latestPayment?.status === "approved";
   const paymentPending = latestPayment?.status === "pending";
@@ -337,7 +307,7 @@ export default function PaymentsPage() {
     (!latestPayment ||
       latestPayment.status === "rejected" ||
       latestPayment.status === "resubmission_required") &&
-    (!isTwoRound || clearedFirstRound);
+    (!isTwoRound || (isPreliminaryPublished && clearedFirstRound));
 
   const selectedMethodObj = activeMethods.find((m) => m.name === method);
 
@@ -421,64 +391,48 @@ export default function PaymentsPage() {
                 </Badge>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 font-sans">
-                  <div className="space-y-4">
-                    <div>
-                      <div className="text-[10px] text-neutral-500 font-bold uppercase tracking-wider">
-                        Transaction ID
-                      </div>
-                      <div className="text-sm text-neutral-200 font-mono font-bold mt-1 bg-neutral-950/60 py-1.5 px-2.5 rounded-lg border border-neutral-850 w-fit">
-                        {latestPayment.transaction_id}
-                      </div>
+                <div className="max-w-md space-y-4 font-sans">
+                  <div>
+                    <div className="text-[10px] text-neutral-500 font-bold uppercase tracking-wider">
+                      Transaction ID
                     </div>
-                    <div>
-                      <div className="text-[10px] text-neutral-500 font-bold uppercase tracking-wider">
-                        Method & Amount
-                      </div>
-                      <div className="text-sm text-neutral-200 font-semibold mt-1 uppercase">
-                        {latestPayment.method} {"\u2014"} {latestPayment.amount} BDT
-                      </div>
-                    </div>
-                    <div>
-                      <div className="text-[10px] text-neutral-500 font-bold uppercase tracking-wider">
-                        Submitted Date
-                      </div>
-                      <div className="text-xs text-neutral-400 mt-1">
-                        {new Date(latestPayment.created_at).toLocaleString()}
-                      </div>
-                    </div>
-                    <div className="pt-3 border-t border-neutral-800">
-                      {latestPayment.status === "approved" ? (
-                        <div className="flex items-center gap-2.5 text-xs text-success font-semibold">
-                          <CheckCircle className="h-4.5 w-4.5 shrink-0" />
-                          <span>Your registration fee has been verified. Welcome to CSE Fest 2026!</span>
-                        </div>
-                      ) : latestPayment.status === "pending" ? (
-                        <div className="flex items-center gap-2.5 text-xs text-warning font-semibold">
-                          <Clock className="h-4.5 w-4.5 shrink-0 animate-pulse" />
-                          <span>Manual verification in progress. Usually takes up to 24 hours.</span>
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-2.5 text-xs text-error font-semibold">
-                          <XCircle className="h-4.5 w-4.5 shrink-0" />
-                          <span>Verification failed. Please review instructions and resubmit below.</span>
-                        </div>
-                      )}
+                    <div className="text-sm text-neutral-200 font-mono font-bold mt-1 bg-neutral-950/60 py-1.5 px-2.5 rounded-lg border border-neutral-850 w-fit">
+                      {latestPayment.transaction_id}
                     </div>
                   </div>
-
-                  {/* Screenshot Preview */}
-                  <div className="space-y-2">
+                  <div>
                     <div className="text-[10px] text-neutral-500 font-bold uppercase tracking-wider">
-                      Screenshot Proof
+                      Method & Amount
                     </div>
-                    <div className="relative aspect-video max-w-sm rounded-lg border border-neutral-800 overflow-hidden bg-neutral-950 flex items-center justify-center p-1.5 shadow-level-2">
-                      <img
-                        src={latestPayment.screenshot_url}
-                        alt="Payment screenshot proof"
-                        className="object-contain w-full h-full rounded-md"
-                      />
+                    <div className="text-sm text-neutral-200 font-semibold mt-1 uppercase">
+                      {latestPayment.method} {"\u2014"} {latestPayment.amount} BDT
                     </div>
+                  </div>
+                  <div>
+                    <div className="text-[10px] text-neutral-500 font-bold uppercase tracking-wider">
+                      Submitted Date
+                    </div>
+                    <div className="text-xs text-neutral-400 mt-1">
+                      {new Date(latestPayment.created_at).toLocaleString()}
+                    </div>
+                  </div>
+                  <div className="pt-3 border-t border-neutral-800">
+                    {latestPayment.status === "approved" ? (
+                      <div className="flex items-center gap-2.5 text-xs text-success font-semibold">
+                        <CheckCircle className="h-4.5 w-4.5 shrink-0" />
+                        <span>Your registration fee has been verified. Welcome to CSE Fest 2026!</span>
+                      </div>
+                    ) : latestPayment.status === "pending" ? (
+                      <div className="flex items-center gap-2.5 text-xs text-warning font-semibold">
+                        <Clock className="h-4.5 w-4.5 shrink-0 animate-pulse" />
+                        <span>Manual verification in progress. Usually takes up to 24 hours.</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2.5 text-xs text-error font-semibold">
+                        <XCircle className="h-4.5 w-4.5 shrink-0" />
+                        <span>Verification failed. Please review instructions and resubmit below.</span>
+                      </div>
+                    )}
                   </div>
                 </div>
               </CardContent>
@@ -572,57 +526,7 @@ export default function PaymentsPage() {
                     />
                   </div>
 
-                  {/* Drag and Drop Screenshot */}
-                  <div className="space-y-2 font-sans">
-                    <label className="text-sm font-medium text-neutral-300">
-                      Upload Screenshot Proof
-                    </label>
-                    <div className="relative border border-dashed border-neutral-800 rounded p-8 flex flex-col items-center justify-center bg-neutral-950/60 backdrop-blur-sm hover:border-neutral-600 hover:bg-neutral-900/15 transition-all duration-150 group cursor-pointer min-h-[160px]">
-                      {screenshotBase64 ? (
-                        <div className="relative max-h-48 w-full overflow-hidden flex flex-col items-center justify-center">
-                          <img
-                            src={screenshotBase64}
-                            alt="Screenshot preview"
-                            className="max-h-36 rounded object-contain border border-neutral-850 shadow-none"
-                          />
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setScreenshotBase64(null);
-                            }}
-                            className="absolute top-2 right-2 bg-neutral-900/90 hover:bg-error hover:text-white text-neutral-300 p-1.5 rounded border border-neutral-700 hover:border-error transition-all duration-150 shadow-none"
-                          >
-                            <RefreshCw className="h-4 w-4" />
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="text-center space-y-3 pointer-events-none">
-                          <div className="w-12 h-12 rounded bg-neutral-900 border border-neutral-850 flex items-center justify-center mx-auto group-hover:border-neutral-700 transition-all duration-150">
-                            <Upload className="h-5 w-5 text-neutral-500 group-hover:text-neutral-350 transition-colors" />
-                          </div>
-                          <div className="space-y-1">
-                            <div className="text-xs text-neutral-300 font-medium font-sans">
-                              Drag and drop or click to upload screenshot
-                            </div>
-                            <div className="text-[10px] text-neutral-500 font-sans">
-                              Supports JPG, JPEG, and PNG up to 5MB
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleFileChange}
-                        disabled={formLoading}
-                        className="absolute inset-0 opacity-0 cursor-pointer"
-                      />
-                    </div>
-                    {screenshotError && (
-                      <span className="text-xs text-error font-medium">{screenshotError}</span>
-                    )}
-                  </div>
+
 
                   <Button variant="primary" type="submit" isLoading={formLoading} className="w-full gap-2 justify-center shadow-level-2 py-3 active:scale-[0.99]">
                     <Send className="h-4.5 w-4.5" />
@@ -645,8 +549,10 @@ export default function PaymentsPage() {
                       ? "Your payment is verified and registration is fully complete."
                       : paymentPending
                       ? "A payment submission is currently under review by organisers. You will be notified if a resubmission is required."
+                      : isTwoRound && !isPreliminaryPublished
+                      ? "Payment will be enabled once organizers announce and publish the preliminary selection results. You will be notified when your team is selected."
                       : isTwoRound && !clearedFirstRound
-                      ? "For this 2-round competition, you must wait for your team's Round 1 project proposal to be approved/selected by organisers before the payment window unlocks."
+                      ? "For this 2-round competition, your team must be selected in the preliminary results before the payment window opens."
                       : "Payment options are currently locked or inactive for this team configuration."}
                   </p>
                 </div>

@@ -25,6 +25,9 @@ import {
   Mail,
   UserCheck,
   Shirt,
+  Upload,
+  ArrowRight,
+  ArrowLeft,
 } from "lucide-react";
 import useSWR from "swr";
 import { motion, AnimatePresence } from "framer-motion";
@@ -88,12 +91,7 @@ interface TeamMember {
     semester?: string;
     student_id?: string;
     tshirt_size?: string;
-    github?: string;
-    portfolio?: string;
-    skills?: string;
-    bio?: string;
     id_front_url?: string;
-    id_back_url?: string;
   } | null;
 }
 
@@ -108,7 +106,6 @@ interface Team {
   members: TeamMember[];
 }
 
-// ─── Toast notification component ────────────────────────────────────────────
 function Toast({
   message,
   type,
@@ -151,7 +148,6 @@ function Toast({
   );
 }
 
-// ─── Verification status badge ────────────────────────────────────────────────
 function VerifBadge({ status }: { status: string }) {
   const map: Record<string, string> = {
     approved: "border-success/30 bg-success/10 text-success",
@@ -169,7 +165,6 @@ function VerifBadge({ status }: { status: string }) {
   );
 }
 
-// ─── Confirm Modal wrapper ────────────────────────────────────────────────────
 function ConfirmModal({
   onClose,
   children,
@@ -199,7 +194,6 @@ function ConfirmModal({
   );
 }
 
-// ─── Member Card ──────────────────────────────────────────────────────────────
 function MemberCard({
   member,
   isLeader,
@@ -222,7 +216,6 @@ function MemberCard({
       {/* Header row */}
       <div className="flex items-center justify-between gap-3 px-4 py-3">
         <div className="flex items-center gap-3 min-w-0">
-          {/* Avatar initial */}
           <div
             className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
               isMemberLeader
@@ -250,7 +243,6 @@ function MemberCard({
         <div className="flex items-center gap-2 shrink-0">
           <VerifBadge status={member.verification_status} />
 
-          {/* Expand toggle */}
           <button
             onClick={() => setExpanded((v) => !v)}
             className="p-1 rounded text-neutral-500 hover:text-neutral-300 hover:bg-neutral-800 transition-all cursor-pointer border-0 bg-transparent"
@@ -259,7 +251,6 @@ function MemberCard({
             <UserCheck className="h-3.5 w-3.5" />
           </button>
 
-          {/* Leader actions (not on leader member row, before deadline) */}
           {isLeader && !isMemberLeader && !isDeadlinePassed && (
             <div className="flex items-center gap-1">
               {member.invitation_status === "accepted" && (
@@ -299,11 +290,11 @@ function MemberCard({
             transition={{ duration: 0.2 }}
             className="overflow-hidden border-t border-neutral-800/70"
           >
-            <div className="px-4 py-3 grid grid-cols-2 gap-x-4 gap-y-2 text-[10px] font-sans">
+            <div className="px-4 py-3 grid grid-cols-2 gap-x-4 gap-y-2 text-[10px] font-sans text-neutral-400">
               {p.university && (
                 <div className="flex items-start gap-1.5 col-span-2">
                   <GraduationCap className="h-3 w-3 text-neutral-500 mt-0.5 shrink-0" />
-                  <span className="text-neutral-400">
+                  <span>
                     {p.university}
                     {p.department && ` — ${p.department}`}
                     {p.semester && `, Sem ${p.semester}`}
@@ -313,36 +304,24 @@ function MemberCard({
               {p.student_id && (
                 <div className="flex items-center gap-1.5">
                   <span className="text-neutral-600 font-mono uppercase tracking-wide">ID</span>
-                  <span className="text-neutral-400 font-mono">{p.student_id}</span>
+                  <span className="font-mono">{p.student_id}</span>
                 </div>
               )}
               {p.phone && (
                 <div className="flex items-center gap-1.5">
                   <Phone className="h-3 w-3 text-neutral-600 shrink-0" />
-                  <span className="text-neutral-400">{p.phone}</span>
+                  <span>{p.phone}</span>
                 </div>
               )}
               {p.tshirt_size && (
                 <div className="flex items-center gap-1.5">
                   <Shirt className="h-3 w-3 text-neutral-600 shrink-0" />
-                  <span className="text-neutral-400">Size {p.tshirt_size}</span>
+                  <span>Size {p.tshirt_size}</span>
                 </div>
               )}
               {p.gender && (
                 <div className="flex items-center gap-1.5">
-                  <span className="text-neutral-600 capitalize">{p.gender}</span>
-                </div>
-              )}
-              {p.skills && (
-                <div className="col-span-2 flex flex-wrap gap-1 pt-1">
-                  {p.skills.split(",").map((s) => s.trim()).filter(Boolean).map((skill) => (
-                    <span
-                      key={skill}
-                      className="px-1.5 py-0.5 rounded border border-neutral-800 bg-neutral-900 text-neutral-400 font-mono text-[9px]"
-                    >
-                      {skill}
-                    </span>
-                  ))}
+                  <span className="text-neutral-600 capitalize">Gender: {p.gender}</span>
                 </div>
               )}
             </div>
@@ -353,7 +332,6 @@ function MemberCard({
   );
 }
 
-// ─── Main Page ────────────────────────────────────────────────────────────────
 export default function TeamsPage() {
   const [toast, setToast] = React.useState<{ message: string; type: "success" | "error" } | null>(null);
   const [mutationError, setMutationError] = React.useState<string | null>(null);
@@ -398,10 +376,12 @@ export default function TeamsPage() {
   } | null>(null);
   const [setLeaderLoading, setSetLeaderLoading] = React.useState<Record<string, boolean>>({});
 
-  // Register member modal
-  const [showRegisterMemberModal, setShowRegisterMemberModal] = React.useState<string | null>(null);
-  const [registerMemberLoading, setRegisterMemberLoading] = React.useState(false);
-  const [registerMemberForm, setRegisterMemberForm] = React.useState({
+  // ─── Roster Wizard States ──────────────────────────────────────────────────
+  const [rosterWizardTeamId, setRosterWizardTeamId] = React.useState<string | null>(null);
+  const [rosterWizardMemberIndex, setRosterWizardMemberIndex] = React.useState(2); // Start at Member 2
+  const [rosterWizardLoading, setRosterWizardLoading] = React.useState(false);
+  
+  const [rosterForm, setRosterForm] = React.useState({
     full_name: "",
     email: "",
     phone: "",
@@ -411,24 +391,10 @@ export default function TeamsPage() {
     semester: "",
     student_id: "",
     tshirt_size: "",
-    github: "",
-    portfolio: "",
-    skills: "",
-    bio: "",
     id_front_base64: "",
-    id_back_base64: "",
   });
-  const [idFrontName, setIdFrontName] = React.useState("");
-  const [idBackName, setIdBackName] = React.useState("");
-
-  useBodyScrollLock(
-    confirmSetLeader !== null ||
-      confirmDisbandId !== null ||
-      confirmLeaveId !== null ||
-      confirmKickMember !== null ||
-      selectedCompInfo !== null ||
-      showRegisterMemberModal !== null
-  );
+  
+  const [idFrontFileName, setIdFrontFileName] = React.useState("");
 
   const {
     data: teamsRes,
@@ -448,11 +414,22 @@ export default function TeamsPage() {
     [compsRes]
   );
 
+  const activeWizardTeam = React.useMemo(() => {
+    return teams.find(t => t.id === rosterWizardTeamId) || null;
+  }, [teams, rosterWizardTeamId]);
+
+  useBodyScrollLock(
+    confirmSetLeader !== null ||
+      confirmDisbandId !== null ||
+      confirmLeaveId !== null ||
+      confirmKickMember !== null ||
+      selectedCompInfo !== null ||
+      rosterWizardTeamId !== null
+  );
+
   const showToast = React.useCallback((message: string, type: "success" | "error") => {
     setToast({ message, type });
   }, []);
-
-  // ── Handlers ──────────────────────────────────────────────────────────────
 
   const handleCreateTeam = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -467,11 +444,17 @@ export default function TeamsPage() {
       });
       const data = await res.json();
       if (!data.success) throw new Error(data.message || "Failed to create team.");
+      
       setNewTeamName("");
       setNewTeamCompId("");
       setShowCreateForm(false);
       await mutateTeams();
       showToast("Team created successfully!", "success");
+      
+      // Auto-trigger Roster Wizard
+      setRosterWizardTeamId(data.data.id);
+      setRosterWizardMemberIndex(2);
+      resetWizardForm();
     } catch (err: unknown) {
       const errMsg = err instanceof Error ? err.message : "Failed to create team.";
       setMutationError(errMsg);
@@ -588,74 +571,87 @@ export default function TeamsPage() {
     }
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, side: "front" | "back") => {
+  // ─── Teammate Roster Wizard Handlers ───────────────────────────────────────
+  const handleWizardFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.size > 5 * 1024 * 1024) {
-      setMutationError("Student ID images must be under 5MB.");
+      setMutationError("Student ID front image must be under 5MB.");
       return;
     }
     const reader = new FileReader();
     reader.onload = () => {
       const base64 = reader.result as string;
-      if (side === "front") {
-        setRegisterMemberForm((prev) => ({ ...prev, id_front_base64: base64 }));
-        setIdFrontName(file.name);
-      } else {
-        setRegisterMemberForm((prev) => ({ ...prev, id_back_base64: base64 }));
-        setIdBackName(file.name);
-      }
+      setRosterForm((prev) => ({ ...prev, id_front_base64: base64 }));
+      setIdFrontFileName(file.name);
     };
     reader.readAsDataURL(file);
   };
 
-  const handleRegisterMember = async (e: React.FormEvent, teamId: string) => {
+  const handleRegisterWizardTeammate = async (e: React.FormEvent) => {
     e.preventDefault();
-    setRegisterMemberLoading(true);
+    if (!rosterWizardTeamId || !activeWizardTeam) return;
+
+    setRosterWizardLoading(true);
     setMutationError(null);
+
     try {
-      if (!registerMemberForm.id_front_base64 || !registerMemberForm.id_back_base64) {
-        throw new Error("Both front and back images of the Student ID card are required.");
+      if (!rosterForm.id_front_base64) {
+        throw new Error("Student ID front card image is required.");
       }
+
       const res = await fetch("/api/teams?action=add_member", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ team_id: teamId, ...registerMemberForm }),
+        body: JSON.stringify({ team_id: rosterWizardTeamId, ...rosterForm }),
       });
+
       const data = await res.json();
       if (!data.success) throw new Error(data.message || "Failed to register teammate.");
-      setRegisterMemberForm({
-        full_name: "", email: "", phone: "", gender: "", university: "",
-        department: "", semester: "", student_id: "", tshirt_size: "",
-        github: "", portfolio: "", skills: "", bio: "",
-        id_front_base64: "", id_back_base64: "",
-      });
-      setIdFrontName("");
-      setIdBackName("");
-      setShowRegisterMemberModal(null);
+
+      showToast(`Member ${rosterWizardMemberIndex} registered successfully!`, "success");
       await mutateTeams();
-      showToast("Teammate registered successfully!", "success");
+
+      const nextMemberIndex = rosterWizardMemberIndex + 1;
+      const maxMembers = activeWizardTeam.competitions?.max_members ?? 3;
+
+      if (nextMemberIndex <= maxMembers) {
+        // Go to next member in the wizard
+        setRosterWizardMemberIndex(nextMemberIndex);
+        resetWizardForm();
+      } else {
+        // Roster is complete
+        setRosterWizardTeamId(null);
+        showToast("Team roster setup completed!", "success");
+      }
     } catch (err: unknown) {
       setMutationError(err instanceof Error ? err.message : "Failed to register teammate.");
     } finally {
-      setRegisterMemberLoading(false);
+      setRosterWizardLoading(false);
     }
   };
 
-  const resetRegisterForm = () => {
-    setShowRegisterMemberModal(null);
-    setMutationError(null);
-    setRegisterMemberForm({
-      full_name: "", email: "", phone: "", gender: "", university: "",
-      department: "", semester: "", student_id: "", tshirt_size: "",
-      github: "", portfolio: "", skills: "", bio: "",
-      id_front_base64: "", id_back_base64: "",
+  const resetWizardForm = () => {
+    setRosterForm({
+      full_name: "",
+      email: "",
+      phone: "",
+      gender: "",
+      university: "",
+      department: "",
+      semester: "",
+      student_id: "",
+      tshirt_size: "",
+      id_front_base64: "",
     });
-    setIdFrontName("");
-    setIdBackName("");
+    setIdFrontFileName("");
+    setMutationError(null);
   };
 
-  // ── Render ─────────────────────────────────────────────────────────────────
+  const closeRosterWizard = () => {
+    setRosterWizardTeamId(null);
+    resetWizardForm();
+  };
 
   return (
     <div className="space-y-6 relative animate-fade-in max-w-4xl">
@@ -695,7 +691,7 @@ export default function TeamsPage() {
 
       {/* Global Error Banner */}
       <AnimatePresence>
-        {(mutationError || teamsError) && (
+        {(!rosterWizardTeamId && (mutationError || teamsError)) && (
           <motion.div
             initial={{ opacity: 0, y: -8 }}
             animate={{ opacity: 1, y: 0 }}
@@ -934,7 +930,6 @@ export default function TeamsPage() {
                       </p>
 
                       <div className="flex items-center gap-2 flex-wrap">
-                        {/* Role badge */}
                         <span className={`px-2 py-0.5 border rounded text-[9px] uppercase font-mono tracking-widest ${
                           isLeader
                             ? "border-neutral-500 bg-neutral-900 text-neutral-200 font-semibold"
@@ -943,7 +938,6 @@ export default function TeamsPage() {
                           {isLeader ? "Leader" : "Member"}
                         </span>
 
-                        {/* Status badge */}
                         <span className={`px-2 py-0.5 border rounded text-[9px] uppercase font-mono tracking-widest ${
                           team.status === "finalist" || team.status === "selected"
                             ? "border-success/30 bg-success/10 text-success"
@@ -956,12 +950,10 @@ export default function TeamsPage() {
                           {team.status}
                         </span>
 
-                        {/* Roster count */}
                         <span className="px-2 py-0.5 border border-neutral-800 rounded text-[9px] font-mono text-neutral-500 bg-neutral-950/40">
                           {acceptedCount} / {maxMembers} members
                         </span>
 
-                        {/* Rules button */}
                         {team.competitions && (
                           <button
                             onClick={() => setSelectedCompInfo(team.competitions)}
@@ -974,7 +966,6 @@ export default function TeamsPage() {
                       </div>
                     </div>
 
-                    {/* Destructive actions */}
                     <div className="flex items-center gap-2">
                       {isLeader ? (
                         !isDeadlinePassed && (
@@ -1028,15 +1019,19 @@ export default function TeamsPage() {
                   </div>
 
                   {/* Add Teammate Button */}
-                  {isLeader && !isDeadlinePassed && (
+                  {isLeader && !isDeadlinePassed && acceptedCount < Number(maxMembers) && (
                     <div className="pt-3 border-t border-neutral-800/40">
                       <Button
                         variant="primary"
-                        onClick={() => { setShowRegisterMemberModal(team.id); setMutationError(null); }}
+                        onClick={() => {
+                          setRosterWizardTeamId(team.id);
+                          setRosterWizardMemberIndex(acceptedCount + 1);
+                          resetWizardForm();
+                        }}
                         className="gap-2 bg-neutral-100 hover:bg-neutral-200 text-neutral-900 border border-transparent font-mono text-xs uppercase tracking-wider py-2 rounded transition-all active:scale-98"
                       >
                         <UserPlus className="h-4 w-4" />
-                        <span>Register Teammate</span>
+                        <span>Open Roster Wizard</span>
                       </Button>
                     </div>
                   )}
@@ -1319,14 +1314,14 @@ export default function TeamsPage() {
           </div>
         )}
 
-        {/* Register Teammate Modal */}
-        {showRegisterMemberModal && (
+        {/* ─── Team Roster Wizard Modal ────────────────────────────────────── */}
+        {rosterWizardTeamId && activeWizardTeam && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={resetRegisterForm}
+              onClick={closeRosterWizard}
               className="fixed inset-0 bg-neutral-950/80 backdrop-blur-sm"
             />
             <motion.div
@@ -1339,18 +1334,44 @@ export default function TeamsPage() {
               <div className="flex justify-between items-start border-b border-neutral-800 pb-3">
                 <div>
                   <h3 className="text-base font-bold font-heading text-neutral-100 uppercase tracking-tight">
-                    Register Teammate
+                    Roster Wizard: Register Member {rosterWizardMemberIndex}
                   </h3>
-                  <p className="text-[10px] text-neutral-500 mt-0.5">
-                    Teammates do not need a portal account — register them directly.
+                  <p className="text-[10px] text-neutral-550 mt-0.5">
+                    Team: {activeWizardTeam.name} | Roster size required: {activeWizardTeam.competitions?.min_members ?? 1} to {activeWizardTeam.competitions?.max_members ?? 3} members
                   </p>
                 </div>
                 <button
-                  onClick={resetRegisterForm}
+                  onClick={closeRosterWizard}
                   className="p-1 rounded-lg text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800 transition-colors cursor-pointer border-0 bg-transparent"
                 >
                   <X className="h-4 w-4" />
                 </button>
+              </div>
+
+              {/* Progress Steps Indicator */}
+              <div className="flex items-center gap-2 py-2 border-b border-neutral-850">
+                {[...Array((activeWizardTeam.competitions?.max_members ?? 3) - 1)].map((_, i) => {
+                  const mIndex = i + 2;
+                  const isCurrent = rosterWizardMemberIndex === mIndex;
+                  const isDone = rosterWizardMemberIndex > mIndex;
+                  return (
+                    <div key={mIndex} className="flex items-center gap-1.5 grow">
+                      <div className={`flex items-center gap-1.5 text-[10px] font-mono ${
+                        isCurrent ? "text-neutral-100" : isDone ? "text-success" : "text-neutral-600"
+                      }`}>
+                        <div className={`w-5 h-5 rounded-full flex items-center justify-center border text-[9px] ${
+                          isCurrent ? "border-neutral-200 bg-neutral-850" : isDone ? "border-success bg-success/10" : "border-neutral-800"
+                        }`}>
+                          {isDone ? <Check className="h-2.5 w-2.5" /> : mIndex}
+                        </div>
+                        <span className="hidden sm:inline">Member {mIndex}</span>
+                      </div>
+                      {i < (activeWizardTeam.competitions?.max_members ?? 3) - 2 && (
+                        <div className={`h-px grow ${isDone ? "bg-success/50" : "bg-neutral-850"}`} />
+                      )}
+                    </div>
+                  );
+                })}
               </div>
 
               {mutationError && (
@@ -1360,7 +1381,7 @@ export default function TeamsPage() {
                 </div>
               )}
 
-              <form onSubmit={(e) => handleRegisterMember(e, showRegisterMemberModal)} className="space-y-4">
+              <form onSubmit={handleRegisterWizardTeammate} className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {[
                     { label: "Full Name", key: "full_name", placeholder: "e.g. John Doe", required: true },
@@ -1370,9 +1391,6 @@ export default function TeamsPage() {
                     { label: "Department", key: "department", placeholder: "e.g. CSE", required: true },
                     { label: "Semester", key: "semester", placeholder: "e.g. 8th", required: true },
                     { label: "Student ID", key: "student_id", placeholder: "e.g. 201071024", required: true },
-                    { label: "GitHub URL (Optional)", key: "github", placeholder: "https://github.com/username", required: false },
-                    { label: "Portfolio (Optional)", key: "portfolio", placeholder: "https://myportfolio.com", required: false },
-                    { label: "Skills (Comma-separated)", key: "skills", placeholder: "React, Node, Python", required: false },
                   ].map(({ label, key, placeholder, required, type }) => (
                     <div key={key} className="flex flex-col space-y-1.5">
                       <label className="text-[9px] font-semibold text-neutral-400 font-mono uppercase tracking-widest">
@@ -1381,8 +1399,8 @@ export default function TeamsPage() {
                       <Input
                         type={type ?? "text"}
                         placeholder={placeholder}
-                        value={registerMemberForm[key as keyof typeof registerMemberForm]}
-                        onChange={(e) => setRegisterMemberForm((prev) => ({ ...prev, [key]: e.target.value }))}
+                        value={rosterForm[key as keyof typeof rosterForm]}
+                        onChange={(e) => setRosterForm((prev) => ({ ...prev, [key]: e.target.value }))}
                         className="bg-neutral-950 border-neutral-800/80 focus:border-neutral-700 text-xs h-9"
                         required={required}
                       />
@@ -1393,8 +1411,8 @@ export default function TeamsPage() {
                   <div className="flex flex-col space-y-1.5">
                     <label className="text-[9px] font-semibold text-neutral-400 font-mono uppercase tracking-widest">Gender</label>
                     <select
-                      value={registerMemberForm.gender}
-                      onChange={(e) => setRegisterMemberForm((prev) => ({ ...prev, gender: e.target.value }))}
+                      value={rosterForm.gender}
+                      onChange={(e) => setRosterForm((prev) => ({ ...prev, gender: e.target.value }))}
                       required
                       className="flex h-9 w-full rounded border border-neutral-800/80 bg-neutral-950 px-3 py-2 text-xs text-neutral-200 focus:border-neutral-700 outline-none cursor-pointer"
                     >
@@ -1409,8 +1427,8 @@ export default function TeamsPage() {
                   <div className="flex flex-col space-y-1.5">
                     <label className="text-[9px] font-semibold text-neutral-400 font-mono uppercase tracking-widest">T-Shirt Size</label>
                     <select
-                      value={registerMemberForm.tshirt_size}
-                      onChange={(e) => setRegisterMemberForm((prev) => ({ ...prev, tshirt_size: e.target.value }))}
+                      value={rosterForm.tshirt_size}
+                      onChange={(e) => setRosterForm((prev) => ({ ...prev, tshirt_size: e.target.value }))}
                       required
                       className="flex h-9 w-full rounded border border-neutral-800/80 bg-neutral-950 px-3 py-2 text-xs text-neutral-200 focus:border-neutral-700 outline-none cursor-pointer"
                     >
@@ -1422,67 +1440,59 @@ export default function TeamsPage() {
                   </div>
                 </div>
 
-                {/* Bio */}
-                <div className="flex flex-col space-y-1.5">
-                  <label className="text-[9px] font-semibold text-neutral-400 font-mono uppercase tracking-widest">Short Bio (Optional)</label>
-                  <textarea
-                    placeholder="Tell us about the teammate..."
-                    value={registerMemberForm.bio}
-                    onChange={(e) => setRegisterMemberForm((prev) => ({ ...prev, bio: e.target.value }))}
-                    maxLength={250}
-                    rows={2}
-                    className="flex w-full rounded border border-neutral-800/80 bg-neutral-950 px-3 py-2 text-xs text-neutral-200 focus:border-neutral-700 outline-none font-sans"
-                  />
-                </div>
-
-                {/* ID Card Upload */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
-                  {(["front", "back"] as const).map((side) => (
-                    <div key={side} className="flex flex-col space-y-2">
-                      <label className="text-[9px] font-semibold text-neutral-400 font-mono uppercase tracking-widest">
-                        Student ID {side === "front" ? "Front" : "Back"} Image
-                      </label>
-                      <div className={`relative border border-dashed rounded-lg p-4 bg-neutral-950/40 text-center transition-all cursor-pointer ${
-                        (side === "front" ? idFrontName : idBackName)
-                          ? "border-success/40 bg-success/5"
-                          : "border-neutral-800 hover:border-neutral-700"
-                      }`}>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={(e) => handleFileChange(e, side)}
-                          required={!(side === "front" ? registerMemberForm.id_front_base64 : registerMemberForm.id_back_base64)}
-                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                        />
-                        <div className="flex items-center justify-center gap-1.5">
-                          {(side === "front" ? idFrontName : idBackName) ? (
-                            <CheckCircle2 className="h-3.5 w-3.5 text-success shrink-0" />
-                          ) : (
-                            <Mail className="h-3.5 w-3.5 text-neutral-600 shrink-0" />
-                          )}
-                          <span className="text-[10px] text-neutral-400 font-mono truncate">
-                            {(side === "front" ? idFrontName : idBackName) || `Select ${side} image`}
+                {/* ID Card Front Upload */}
+                <div className="flex flex-col space-y-2 pt-2">
+                  <label className="text-[9px] font-semibold text-neutral-400 font-mono uppercase tracking-widest">
+                    Student ID Card (Front Side) Image
+                  </label>
+                  <div className={`relative border border-dashed rounded-lg p-5 bg-neutral-950/40 text-center transition-all cursor-pointer ${
+                    idFrontFileName ? "border-success/40 bg-success/5" : "border-neutral-800 hover:border-neutral-700"
+                  }`}>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleWizardFileChange}
+                      required={!rosterForm.id_front_base64}
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                    />
+                    <div className="flex flex-col items-center justify-center gap-1.5">
+                      {idFrontFileName ? (
+                        <>
+                          <CheckCircle2 className="h-5 w-5 text-success shrink-0" />
+                          <span className="text-[11px] text-neutral-300 font-semibold">{idFrontFileName}</span>
+                          <span className="text-[9px] text-success/60 font-mono">Front Side Attached</span>
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="h-5 w-5 text-neutral-550 shrink-0" />
+                          <span className="text-[10px] text-neutral-400 font-mono">
+                            Select image or drag here
                           </span>
-                        </div>
-                      </div>
+                        </>
+                      )}
                     </div>
-                  ))}
+                  </div>
                 </div>
 
                 <div className="flex gap-3 pt-4 border-t border-neutral-800/40">
                   <Button
                     variant="primary"
                     type="submit"
-                    isLoading={registerMemberLoading}
-                    className="flex-1 py-2 rounded bg-neutral-100 hover:bg-neutral-200 text-neutral-900 font-mono text-xs uppercase tracking-wider transition-all active:scale-98"
+                    isLoading={rosterWizardLoading}
+                    className="flex-1 py-2 rounded bg-neutral-100 hover:bg-neutral-200 text-neutral-900 font-mono text-xs uppercase tracking-wider transition-all active:scale-98 flex items-center justify-center gap-1.5"
                   >
-                    Register Teammate
+                    <span>
+                      {rosterWizardMemberIndex === (activeWizardTeam.competitions?.max_members ?? 3)
+                        ? "Complete Roster"
+                        : "Save & Continue"}
+                    </span>
+                    <ArrowRight className="h-3.5 w-3.5" />
                   </Button>
                   <Button
                     variant="secondary"
                     type="button"
-                    onClick={resetRegisterForm}
-                    disabled={registerMemberLoading}
+                    onClick={closeRosterWizard}
+                    disabled={rosterWizardLoading}
                     className="flex-1 py-2 rounded border border-neutral-800 bg-neutral-950 text-neutral-400 font-mono text-xs uppercase tracking-wider transition-all"
                   >
                     Cancel

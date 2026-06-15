@@ -47,6 +47,7 @@ const securityHeaders = [
       "img-src 'self' data: blob: https://res.cloudinary.com https://*.supabase.co https://lh3.googleusercontent.com https://images.unsplash.com",
       // Supabase REST & Auth endpoints
       `connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.cloudinary.com`,
+      "media-src 'self'",
       "frame-src 'self' https://www.google.com",
       "frame-ancestors 'none'",
     ].join("; "),

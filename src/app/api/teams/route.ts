@@ -20,12 +20,8 @@ const addMemberSchema = z.object({
   semester: z.string().min(1, "Semester is required"),
   student_id: z.string().min(2, "Student ID is required"),
   tshirt_size: z.string().min(1, "T-shirt size is required"),
-  github: z.string().url("Please enter a valid GitHub profile URL").or(z.literal("")).optional().nullable(),
-  portfolio: z.string().url("Please enter a valid portfolio URL").or(z.literal("")).optional().nullable(),
-  skills: z.string().optional().nullable(),
-  bio: z.string().max(250, "Bio must be under 250 characters").optional().nullable(),
   id_front_base64: z.string().min(1, "Front image is required"),
-  id_back_base64: z.string().min(1, "Back image is required"),
+  id_back_base64: z.string().optional().nullable(),
 });
 
 const respondInviteSchema = z.object({
@@ -348,10 +344,6 @@ export async function POST(req: Request) {
         semester,
         student_id,
         tshirt_size,
-        github,
-        portfolio,
-        skills,
-        bio,
         id_front_base64,
         id_back_base64,
       } = parseResult.data;
@@ -428,10 +420,14 @@ export async function POST(req: Request) {
         `csefest/verifications/${team.id}/${email.replace(/[^a-zA-Z0-9]/g, "_")}/front`
       );
 
-      const backUpload = await uploadImage(
-        id_back_base64,
-        `csefest/verifications/${team.id}/${email.replace(/[^a-zA-Z0-9]/g, "_")}/back`
-      );
+      let backUploadUrl = null;
+      if (id_back_base64) {
+        const backUpload = await uploadImage(
+          id_back_base64,
+          `csefest/verifications/${team.id}/${email.replace(/[^a-zA-Z0-9]/g, "_")}/back`
+        );
+        backUploadUrl = backUpload.secure_url;
+      }
 
       // Create accepted member record directly
       const { error: insertError } = await supabase.from("team_members").insert({
@@ -450,12 +446,8 @@ export async function POST(req: Request) {
         semester,
         student_id,
         tshirt_size,
-        github: github || null,
-        portfolio: portfolio || null,
-        skills: skills || null,
-        bio: bio || null,
         id_front_url: frontUpload.secure_url,
-        id_back_url: backUpload.secure_url,
+        id_back_url: backUploadUrl,
       });
 
       if (insertError) {

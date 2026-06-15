@@ -3,13 +3,12 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { logAdminAction } from "@/lib/utils/logger";
 
-const publishLeaderboardSchema = z.object({
+const publishSchema = z.object({
   competition_id: z.string().uuid("Invalid competition ID format"),
-  is_public: z.boolean(),
-  finalist_team_ids: z.array(z.string().uuid("Invalid team ID format")),
+  publish_type: z.enum(["preliminary", "final"]),
+  finalist_team_ids: z.array(z.string().uuid()).optional().default([]),
 });
 
-// POST: Publish/unpublish leaderboard and assign finalist statuses
 export async function POST(req: Request) {
   try {
     const supabase = await createClient();
@@ -18,7 +17,6 @@ export async function POST(req: Request) {
     const {
       data: { user },
     } = await supabase.auth.getUser();
-
     if (!user) {
       return NextResponse.json(
         { success: false, message: "Unauthorized. Please login." },
@@ -26,13 +24,12 @@ export async function POST(req: Request) {
       );
     }
 
-    // 2. Authorize admin
+    // 2. Authorize admin role
     const { data: userRecord } = await supabase
       .from("users")
       .select("role")
       .eq("id", user.id)
       .single();
-
     if (!userRecord || userRecord.role !== "admin") {
       return NextResponse.json(
         { success: false, message: "Forbidden. Admin only." },
@@ -40,29 +37,26 @@ export async function POST(req: Request) {
       );
     }
 
-    // 3. Validate request payload
+    // 3. Validate body payload
     const body = await req.json();
-    const parseResult = publishLeaderboardSchema.safeParse(body);
-
-    if (!parseResult.success) {
+    const parsed = publishSchema.safeParse(body);
+    if (!parsed.success) {
       return NextResponse.json(
         {
           success: false,
-          message: parseResult.error.issues[0]?.message || "Validation failed.",
+          message: parsed.error.issues[0]?.message ?? "Validation failed.",
         },
         { status: 400 }
       );
     }
+    const { competition_id, publish_type, finalist_team_ids } = parsed.data;
 
-    const { competition_id, is_public, finalist_team_ids } = parseResult.data;
-
-    // 4. Fetch competition info
+    // 4. Load competition details
     const { data: compRecord } = await supabase
       .from("competitions")
-      .select("name")
+      .select("id, name, preliminary_published, final_published")
       .eq("id", competition_id)
       .single();
-
     if (!compRecord) {
       return NextResponse.json(
         { success: false, message: "Competition not found." },
@@ -70,115 +64,227 @@ export async function POST(req: Request) {
       );
     }
 
-    // 5. Fetch previous rankings state for audit logs
+    // 6. Snapshot current states for audit logging
     const { data: prevRankings } = await supabase
       .from("rankings")
       .select("*")
       .eq("competition_id", competition_id);
+    const prevCompetition = {
+      preliminary_published: compRecord.preliminary_published,
+      final_published: compRecord.final_published,
+    };
 
-    // 6. Update all rankings visibility (is_public) for this competition
-    const { error: publicUpdateErr } = await supabase
-      .from("rankings")
-      .update({
-        is_public,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("competition_id", competition_id);
+    if (publish_type === "preliminary") {
+      // PRELIMINARY PUBLISH:
+      // A. Update competition publishing flags
+      const { error: compErr } = await supabase
+        .from("competitions")
+        .update({
+          preliminary_published: true,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", competition_id);
+      if (compErr) {
+        throw new Error(`Failed to update preliminary_published: ${compErr.message}`);
+      }
 
-    if (publicUpdateErr) {
-      throw new Error(`Failed to update public visibility: ${publicUpdateErr.message}`);
-    }
+      // B. Process selected teams
+      for (const teamId of finalist_team_ids) {
+        // Upsert rankings entry
+        const { error: rankErr } = await supabase
+          .from("rankings")
+          .upsert(
+            {
+              team_id: teamId,
+              competition_id: competition_id,
+              is_public: true,
+              is_finalist: false,
+              updated_at: new Date().toISOString(),
+            },
+            { onConflict: "team_id" }
+          );
+        if (rankErr) {
+          throw new Error(`Failed to upsert rankings for team ${teamId}: ${rankErr.message}`);
+        }
 
-    // 7. Process finalist changes
-    // Get list of all rankings in this competition to check which teams should be demoted/promoted
-    const { data: allCompRankings } = await supabase
-      .from("rankings")
-      .select("team_id, is_finalist")
-      .eq("competition_id", competition_id);
-
-    if (allCompRankings) {
-      for (const rank of allCompRankings) {
-        const shouldBeFinalist = finalist_team_ids.includes(rank.team_id);
-
-        if (shouldBeFinalist) {
-          // Promote to finalist
-          // Update rankings table
-          await supabase
-            .from("rankings")
-            .update({ is_finalist: true, updated_at: new Date().toISOString() })
-            .eq("team_id", rank.team_id);
-
-          // Update teams status to 'finalist'
-          await supabase
-            .from("teams")
-            .update({ status: "finalist", updated_at: new Date().toISOString() })
-            .eq("id", rank.team_id);
-
-          // In-app notification for finalist selection is handled automatically via database trigger (tr_team_finalist_notification)
-        } else {
-          // Demote from finalist (set back to registered)
-          // Update rankings table
-          await supabase
-            .from("rankings")
-            .update({ is_finalist: false, updated_at: new Date().toISOString() })
-            .eq("team_id", rank.team_id);
-
-          // Update teams status back to 'judging_ready' if they were 'finalist'
-          await supabase
-            .from("teams")
-            .update({ status: "judging_ready", updated_at: new Date().toISOString() })
-            .eq("id", rank.team_id)
-            .eq("status", "finalist");
+        // Update team status to selected
+        const { error: teamErr } = await supabase
+          .from("teams")
+          .update({
+            status: "selected",
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", teamId);
+        if (teamErr) {
+          throw new Error(`Failed to update team ${teamId} status: ${teamErr.message}`);
         }
       }
-    }
 
-    // 8. General notification to everyone in the competition if leaderboard became public
-    if (is_public && (!prevRankings || prevRankings.some((r) => !r.is_public))) {
-      // Find all team members of this competition
-      const { data: compTeams } = await supabase
+      // C. Revert teams that were NOT selected but had status "selected"
+      const { data: deselectedTeams } = await supabase
         .from("teams")
         .select("id")
-        .eq("competition_id", competition_id);
+        .eq("competition_id", competition_id)
+        .eq("status", "selected")
+        .not("id", "in", `(${finalist_team_ids.join(",") || "00000000-0000-0000-0000-000000000000"})`);
 
-      if (compTeams && compTeams.length > 0) {
-        const teamIds = compTeams.map((t) => t.id);
-        const { data: allMembers } = await supabase
+      if (deselectedTeams && deselectedTeams.length > 0) {
+        const deselectedIds = deselectedTeams.map((t) => t.id);
+        await supabase
+          .from("teams")
+          .update({
+            status: "judging_ready",
+            updated_at: new Date().toISOString(),
+          })
+          .in("id", deselectedIds);
+
+        await supabase
+          .from("rankings")
+          .update({
+            is_public: false,
+            updated_at: new Date().toISOString(),
+          })
+          .in("team_id", deselectedIds);
+      }
+
+      // D. Send notification to all accepted members of selected teams
+      if (finalist_team_ids.length > 0) {
+        const { data: members } = await supabase
           .from("team_members")
           .select("user_id")
-          .in("team_id", teamIds)
+          .in("team_id", finalist_team_ids)
           .eq("invitation_status", "accepted");
 
-        if (allMembers && allMembers.length > 0) {
-          // Send un-duplicated notifications
-          const userIds = Array.from(new Set(allMembers.map((m) => m.user_id)));
-          const publicNotifications = userIds.map((uid) => ({
+        if (members && members.length > 0) {
+          const userIds = Array.from(new Set(members.map((m) => m.user_id)));
+          const notifications = userIds.map((uid) => ({
             user_id: uid,
-            title: "Leaderboard Published",
-            message: `The official leaderboard and finalist list for "${compRecord.name}" have been published!`,
-            type: "info",
-            action_url: "/competitions",
+            title: "Preliminary Selection Announced",
+            message: `Your team has been selected for ${compRecord.name}! Please complete payment to confirm your spot.`,
+            type: "success",
+            action_url: "/payments",
           }));
-          await supabase.from("notifications").insert(publicNotifications);
+          await supabase.from("notifications").insert(notifications);
         }
       }
+
+      // E. Audit log
+      await logAdminAction(
+        supabase,
+        user.id,
+        "PUBLISH_PRELIMINARY",
+        "competitions",
+        competition_id,
+        { rankings: prevRankings ?? [], competition: prevCompetition },
+        { finalist_team_ids }
+      );
+
+      return NextResponse.json({
+        success: true,
+        message: `Preliminary results published. ${finalist_team_ids.length} teams selected.`,
+      });
+    } else {
+      // FINAL PUBLISH:
+      // A. Verify preliminary has already been published
+      if (!compRecord.preliminary_published) {
+        return NextResponse.json(
+          {
+            success: false,
+            message: "Preliminary results must be published before publishing final results.",
+          },
+          { status: 400 }
+        );
+      }
+
+      // B. Count unverified payments for final selections
+      let unverifiedCount = 0;
+      if (finalist_team_ids.length > 0) {
+        const { data: approvedPayments } = await supabase
+          .from("payments")
+          .select("team_id")
+          .eq("status", "approved")
+          .in("team_id", finalist_team_ids);
+        unverifiedCount = finalist_team_ids.length - (approvedPayments?.length ?? 0);
+      }
+
+      // C. Update competition publish flags
+      const { error: compErr } = await supabase
+        .from("competitions")
+        .update({
+          final_published: true,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", competition_id);
+      if (compErr) {
+        throw new Error(`Failed to update final_published: ${compErr.message}`);
+      }
+
+      // D. Promote selected teams to finalists
+      for (const teamId of finalist_team_ids) {
+        // Update rankings
+        const { error: rankErr } = await supabase
+          .from("rankings")
+          .update({
+            is_finalist: true,
+            is_public: true,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("team_id", teamId);
+        if (rankErr) {
+          throw new Error(`Failed to update ranking for finalist team ${teamId}: ${rankErr.message}`);
+        }
+
+        // Update team status
+        const { error: teamErr } = await supabase
+          .from("teams")
+          .update({
+            status: "finalist",
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", teamId);
+        if (teamErr) {
+          throw new Error(`Failed to update team ${teamId} status: ${teamErr.message}`);
+        }
+      }
+
+      // E. Send notifications to finalist members
+      if (finalist_team_ids.length > 0) {
+        const { data: members } = await supabase
+          .from("team_members")
+          .select("user_id")
+          .in("team_id", finalist_team_ids)
+          .eq("invitation_status", "accepted");
+
+        if (members && members.length > 0) {
+          const userIds = Array.from(new Set(members.map((m) => m.user_id)));
+          const notifications = userIds.map((uid) => ({
+            user_id: uid,
+            title: "Finalist Confirmed!",
+            message: `Congratulations! Your team has been confirmed as a finalist for ${compRecord.name}.`,
+            type: "success",
+            action_url: "/dashboard",
+          }));
+          await supabase.from("notifications").insert(notifications);
+        }
+      }
+
+      // F. Audit log
+      await logAdminAction(
+        supabase,
+        user.id,
+        "PUBLISH_FINAL",
+        "competitions",
+        competition_id,
+        { rankings: prevRankings ?? [], competition: prevCompetition },
+        { finalist_team_ids }
+      );
+
+      const warningText = unverifiedCount > 0 ? ` Note: ${unverifiedCount} team payments are unverified.` : "";
+      return NextResponse.json({
+        success: true,
+        message: `Final results published. ${finalist_team_ids.length} finalists confirmed.${warningText}`,
+      });
     }
-
-    // 9. Write audit log
-    await logAdminAction(
-      supabase,
-      user.id,
-      "PUBLISH_LEADERBOARD",
-      "rankings",
-      competition_id,
-      prevRankings || [],
-      { is_public, finalist_team_ids }
-    );
-
-    return NextResponse.json({
-      success: true,
-      message: `Leaderboard successfully ${is_public ? "published" : "hidden"} with ${finalist_team_ids.length} finalists.`,
-    });
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : "Failed to publish rankings.";
     return NextResponse.json(

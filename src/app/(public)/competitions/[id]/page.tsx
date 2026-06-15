@@ -251,7 +251,7 @@ export default function CompetitionDetailPage() {
                         <li>Projects must be original software or hardware systems.</li>
                         <li>Plagiarism or using pre-compiled templates will result in instant disqualification.</li>
                         <li>One user can register in only one team for this competition.</li>
-                        <li>Submissions must be uploaded as a Google Docs proposal link before the deadline.</li>
+                        <li>Submissions must be uploaded as a PDF report with an optional demo video before the deadline.</li>
                         <li>All team members must complete student profile verification prior to registration.</li>
                       </ul>
                     </div>
@@ -272,7 +272,7 @@ export default function CompetitionDetailPage() {
                       <div>
                         <span className="font-mono text-xs text-primary font-bold uppercase">Phase 01</span>
                         <h4 className="font-heading text-lg font-bold text-neutral-200 mt-0.5">Registration & Roster</h4>
-                        <p className="text-neutral-500 text-xs sm:text-sm mt-1">Submit your team and project abstract via Google Docs link.</p>
+                        <p className="text-neutral-500 text-xs sm:text-sm mt-1">Submit your team project report PDF and optional demo video.</p>
                       </div>
                     </div>
 

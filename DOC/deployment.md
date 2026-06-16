@@ -45,46 +45,114 @@ Your submissions system writes files directly to the server's disk using `node:f
 
 ### 4. Web Server Setup (Nginx Reverse Proxy with Rate Limiting)
 By default, the Next.js server runs on port `3000`. Install **Nginx** to forward public traffic (ports 80 and 443) to Next.js.
-* **Nginx Configuration**: Create a file `/etc/nginx/sites-available/csefest` and configure reverse proxying, enabling larger uploads (maximum **200MB** payload size + headers) and strict rate limits for protection:
-  ```nginx
-  # Rate limiting zones: 10MB memory can track ~160,000 IPs
-  limit_req_zone $binary_remote_addr zone=general_limit:10m rate=15r/s;
-  limit_req_zone $binary_remote_addr zone=auth_limit:10m rate=5r/s;
 
-  server {
-      listen 80;
-      server_name csefest.smuct.edu.bd; # Replace with your university subdomain
+> [!IMPORTANT]
+> In Nginx, rate-limiting zones (`limit_req_zone`) **must** be defined within the `http` block of `/etc/nginx/nginx.conf`. They cannot be defined inside individual site configurations (`sites-available`).
+> Attempting to place rate-limiting zones directly in the site configuration will fail Nginx syntax checks (`nginx -t`).
 
-      # Set max upload size to support 200MB video showcases + request headers
-      client_max_body_size 220M;
+#### Step 4a: Configure Rate Limiting Zones in `/etc/nginx/nginx.conf`
+Open the global Nginx configuration file:
+```bash
+sudo nano /etc/nginx/nginx.conf
+```
+Add the following lines inside the `http { ... }` block:
+```nginx
+# Rate limiting zones: 10MB memory can track ~160,000 IPs
+limit_req_zone $binary_remote_addr zone=global_limit:10m rate=15r/s;
+limit_req_zone $binary_remote_addr zone=auth_limit:10m rate=5r/m;
+limit_req_zone $binary_remote_addr zone=upload_limit:10m rate=10r/m;
+```
 
-      # Apply general rate limiting across the site
-      limit_req zone=general_limit burst=20 nodelay;
+#### Step 4b: Configure the Site Server Blocks
+Create a file `/etc/nginx/sites-available/csefest`:
+```bash
+sudo nano /etc/nginx/sites-available/csefest
+```
+Add the following configuration, which redirects all standard HTTP traffic to HTTPS, binds to IPv4 and IPv6, handles Let's Encrypt challenges, sets the `250M` upload limit for videos/PDFs, applies security headers, and proxies requests to Next.js:
+```nginx
+# HTTP Server Block (Redirect to HTTPS)
+server {
+    listen 80;
+    listen [::]:80;
+    server_name csefest.smuct.edu.bd; # Replace with your university subdomain
 
-      # Apply stricter rate limits on sensitive auth & registration endpoints
-      location /api/auth/ {
-          limit_req zone=auth_limit burst=5;
-          proxy_pass http://localhost:3000;
-          proxy_http_version 1.1;
-          proxy_set_header Upgrade $http_upgrade;
-          proxy_set_header Connection 'upgrade';
-          proxy_set_header Host $host;
-          proxy_set_header X-Real-IP $remote_addr;
-          proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-      }
+    # Certbot webroot challenges path
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
 
-      location / {
-          proxy_pass http://localhost:3000;
-          proxy_http_version 1.1;
-          proxy_set_header Upgrade $http_upgrade;
-          proxy_set_header Connection 'upgrade';
-          proxy_set_header Host $host;
-          proxy_cache_bypass $http_upgrade;
-          proxy_set_header X-Real-IP $remote_addr;
-          proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-      }
-  }
-  ```
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+# HTTPS Server Block
+server {
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name csefest.smuct.edu.bd; # Replace with your university subdomain
+
+    # SSL Certificates (managed by Certbot)
+    ssl_certificate /etc/letsencrypt/live/csefest.smuct.edu.bd/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/csefest.smuct.edu.bd/privkey.pem;
+    
+    # Modern SSL configuration
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_prefer_server_ciphers on;
+    ssl_ciphers 'ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384';
+    ssl_session_timeout 1d;
+    ssl_session_cache shared:SSL:10m;
+    ssl_session_tickets off;
+    ssl_stapling on;
+    ssl_stapling_verify on;
+
+    # Enforce University VM File Upload Limits (hard limit 250MB)
+    client_max_body_size 250M;
+
+    # Security Headers
+    add_header X-Frame-Options "DENY" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    add_header Strict-Transport-Security "max-age=63072000; includeSubDomains; preload" always;
+    add_header Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()" always;
+
+    # Reverse Proxy for Next.js Application
+    location / {
+        proxy_pass http://localhost:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # Global API/Route rate limiting fallback
+        limit_req zone=global_limit burst=30 nodelay;
+    }
+
+    # Custom rate-limiting locations for highly sensitive endpoints
+    location /api/auth/ {
+        limit_req zone=auth_limit burst=5;
+        proxy_pass http://localhost:3000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location /api/submissions/upload {
+        limit_req zone=upload_limit burst=3;
+        proxy_pass http://localhost:3000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
 * **Activate Nginx block**:
   ```bash
   sudo ln -s /etc/nginx/sites-available/csefest /etc/nginx/sites-enabled/
@@ -97,15 +165,22 @@ By default, the Next.js server runs on port `3000`. Install **Nginx** to forward
 ### 5. Environment Variables (`.env`)
 Create a secure `.env` file in your root folder on the server. Do not commit this to Git:
 ```ini
-# Supabase settings
+# Supabase Configuration
 NEXT_PUBLIC_SUPABASE_URL=https://your-project-id.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
-SUPABASE_SERVICE_ROLE_KEY=your-secret-service-role-key
+SUPABASE_SERVICE_ROLE_KEY=your-secret-service-role-key # Keep strictly secret on the server!
 
-# Storage settings (writes to root directory of server application)
+# Cloudinary Credentials (ID Cards and Payments Screen Uploads)
+NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME=your-cloudinary-cloud-name
+CLOUDINARY_API_KEY=your-cloudinary-api-key
+CLOUDINARY_API_SECRET=your-cloudinary-api-secret
+
+# Local File Storage Configuration
+# The application uses UPLOAD_DIR first, then SUBMISSIONS_DIR, and falls back to "storage/submissions"
+UPLOAD_DIR=storage/submissions
 SUBMISSIONS_DIR=storage/submissions
 
-# Auth redirect root domain
+# Auth Redirect Domain
 NEXT_PUBLIC_SITE_URL=https://csefest.smuct.edu.bd
 ```
 
@@ -119,6 +194,12 @@ Google OAuth requires HTTPS endpoints to function.
   sudo certbot --nginx -d csefest.smuct.edu.bd
   ```
   Certbot will automatically obtain certificates and modify Nginx to handle HTTPS (port 443) seamlessly.
+* **Test SSL Certificate Auto-Renewal**:
+  Verify that the auto-renewal configuration works by running:
+  ```bash
+  sudo certbot renew --dry-run
+  ```
+  This command performs a renewal test without writing actual certificates, verifying the scheduled system task is configured correctly.
 
 ---
 
@@ -129,25 +210,29 @@ Google OAuth requires HTTPS endpoints to function.
   * Enter your **Google Client ID** and **Client Secret** (created in the Google Cloud Console).
   * Copy the Supabase Redirect URI and paste it back into your Google Cloud console authorized redirect list (usually `https://your-project-id.supabase.co/auth/v1/callback`).
 * Navigate to **Authentication > URL Configuration** (Critical for OAuth redirects):
-  * **Site URL**: Update this to your deployed domain (e.g. `https://cse-fest-3.vercel.app`).
-  * **Redirect URLs**: Add your production callback URL (e.g. `https://cse-fest-3.vercel.app/auth/callback` or a wildcard like `https://*.vercel.app/auth/callback`) to ensure Supabase allows redirecting authentication codes back to your deployment. If not configured, Supabase will fall back to `http://localhost:3000`.
+  * **Site URL**: Update this to your deployed domain: `https://csefest.smuct.edu.bd`
+  * **Redirect URLs**: Add your production callback URL: `https://csefest.smuct.edu.bd/auth/callback` to ensure Supabase allows redirecting authentication codes back to your deployment. If not configured, Supabase will fall back to `http://localhost:3000`.
 
 ---
 
 ### 8. Firewall & Network Whitelisting
 To prevent firewall blocks on API calls and database connections, coordinate with the University IT department to configure the server network rules:
 * **Inbound Traffic (Open to public)**:
-  * Port `80` (HTTP)
-  * Port `443` (HTTPS)
-  * Port `22` (SSH)
+  * Port `80` (HTTP) — Required for Certbot validation & HTTP-to-HTTPS redirect.
+  * Port `443` (HTTPS) — User and API traffic.
+  * Port `22` (SSH) — Administrative access (should be restricted to coordinator/developer IPs).
 * **Outbound Traffic (Must be whitelisted)**:
-  * HTTPS (`port 443`) to your Supabase domain: `https://*.supabase.co`
-  * HTTPS (`port 443`) to Google OAuth endpoints: `accounts.google.com` and `www.googleapis.com`
+  * HTTPS (`port 443` TCP and UDP/WebSockets if using realtime) to:
+    * `*.supabase.co` — Database connection endpoints, Realtime service, and Auth API.
+    * `accounts.google.com` & `www.googleapis.com` — For Google OAuth integration.
+    * `api.cloudinary.com` — Media delivery network for file uploads.
+  * HTTPS (`port 443`) to Package Registries (for deployment steps only):
+    * `registry.npmjs.org` & `registry.yarnpkg.com`
 
 ---
 
 ### 9. Error Logging & Disk Space Monitoring (50GB Storage Limit)
-Keep active logs to debug issues during registrations and the hackathon:
+Keep active logs and monitor disk space to protect the system under the strict 50GB storage restriction:
 * **PM2 Log Rotation**: Configure PM2 to auto-rotate logs so they do not consume disk space:
   ```bash
   pm2 install pm2-logrotate
@@ -162,4 +247,30 @@ Keep active logs to debug issues during registrations and the hackathon:
   ```bash
   tail -f /var/log/nginx/error.log
   ```
-* **Disk Space Warning Alert**: Set up an hourly cron job checking root partition usage and notifying administrators if free space falls below 85% to protect files uploads and system stability.
+* **Disk Space Warning Alert**:
+  1. Create a script file `/usr/local/bin/disk-alert.sh`:
+     ```bash
+     sudo nano /usr/local/bin/disk-alert.sh
+     ```
+  2. Paste the following script contents (replace the webhook URL with your admin Discord or Slack notification channel):
+     ```bash
+     #!/bin/bash
+     CURRENT_USAGE=$(df -h / | grep / | head -n 1 | awk '{ print $5 }' | cut -d'%' -f1)
+     if [ "$CURRENT_USAGE" -gt 85 ]; then
+       curl -X POST -H "Content-Type: application/json" \
+         -d '{"content": "🚨 WARNING: Disk Space on CSE Fest VM exceeds 85%! Current usage: '"$CURRENT_USAGE"'%"}' \
+         https://discord.com/api/webhooks/your-alert-webhook
+     fi
+     ```
+  3. Make the script executable:
+     ```bash
+     sudo chmod +x /usr/local/bin/disk-alert.sh
+     ```
+  4. Schedule the script to run hourly via cron:
+     ```bash
+     sudo crontab -e
+     ```
+     Add the following line to the end of the crontab:
+     ```text
+     0 * * * * /usr/local/bin/disk-alert.sh
+     ```

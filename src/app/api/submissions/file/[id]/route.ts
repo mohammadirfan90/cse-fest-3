@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { streamSubmissionFile } from "@/lib/server/submissionStorage";
+import { checkRateLimit } from "@/lib/utils/rate-limit";
 
 interface RouteContext {
   params: Promise<{
@@ -11,6 +13,16 @@ interface RouteContext {
 export async function GET(req: NextRequest, context: RouteContext) {
   try {
     const { id } = await context.params;
+
+    // Validate ID is a valid UUID
+    const idValidation = z.string().uuid().safeParse(id);
+    if (!idValidation.success) {
+      return NextResponse.json(
+        { success: false, message: "Invalid identifier format. Must be a valid UUID." },
+        { status: 400 }
+      );
+    }
+
     const { searchParams } = new URL(req.url);
     const fileType = searchParams.get("type");
 
@@ -32,6 +44,18 @@ export async function GET(req: NextRequest, context: RouteContext) {
       return NextResponse.json(
         { success: false, message: "Unauthorized. Please login." },
         { status: 401 }
+      );
+    }
+
+    // 1b. Rate limit: 30 requests per minute per user
+    const { success: withinLimit } = checkRateLimit(`submissions:file:get:${user.id}`, {
+      limit: 30,
+      windowMs: 60_000,
+    });
+    if (!withinLimit) {
+      return NextResponse.json(
+        { success: false, message: "Too many file requests. Please wait a moment before downloading files." },
+        { status: 429 }
       );
     }
 

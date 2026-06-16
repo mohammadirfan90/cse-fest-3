@@ -96,7 +96,7 @@ function CompetitionsListContent() {
       <main className="grow pt-10 pb-20 px-4 md:px-16 max-w-[1280px] mx-auto w-full">
         {/* Header Section */}
         <header className="mb-12 relative">
-          <div className="absolute top-0 right-0 w-[20vw] h-[20vw] bg-primary/5 rounded-full blur-[80px] pointer-events-none" />
+          <div className="absolute top-0 right-0 w-[20vw] h-[20vw] bg-primary/8 rounded-full blur-[80px] pointer-events-none" />
           <div className="mb-6">
             <Link
               href="/"

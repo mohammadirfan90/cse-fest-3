@@ -1,10 +1,9 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
-import { logAdminAction } from "@/lib/utils/logger";
 
-const memberActionSchema = z.object({
-  member_id: z.string().uuid("Invalid member ID"),
+const teamActionSchema = z.object({
+  team_id: z.string().uuid("Invalid team ID"),
   action: z.enum(["approve", "reject"]),
 });
 
@@ -29,7 +28,7 @@ export async function GET() {
       return NextResponse.json({ success: false, message: "Forbidden. Admin privileges required." }, { status: 403 });
     }
 
-    // 3. Fetch all teams that have submitted (include forming/registered for completeness)
+    // 3. Fetch all teams
     const { data: teams, error: teamsError } = await supabase
       .from("teams")
       .select("id, name, status, leader_id, leader_confirmed, competition_id, competitions(id, name, submission_end)")
@@ -46,7 +45,7 @@ export async function GET() {
     // 4. Fetch team members with profile data from the coalescing view
     const { data: members, error: membersError } = await supabase
       .from("v_team_members")
-      .select("member_id, team_id, user_id, role, invitation_status, verification_status, joined_at, full_name, email, phone, gender, university, department, semester, student_id, github, portfolio, skills, bio, tshirt_size, id_front_url, id_back_url")
+      .select("member_id, team_id, user_id, role, invitation_status, joined_at, full_name, email, phone, gender, university, department, semester, student_id, github, portfolio, skills, bio, tshirt_size")
       .in("team_id", teamIds);
 
     if (membersError) throw new Error(membersError.message);
@@ -69,7 +68,6 @@ export async function GET() {
             user_id: m.user_id,
             role: m.role,
             invitation_status: m.invitation_status,
-            verification_status: m.verification_status,
             joined_at: m.joined_at,
             profile: {
               full_name: m.full_name || "",
@@ -86,13 +84,7 @@ export async function GET() {
               tshirt_size: m.tshirt_size || "",
               profile_complete: true,
             },
-            id_card: m.id_front_url && m.id_back_url
-              ? {
-                  front_url: m.id_front_url,
-                  back_url: m.id_back_url,
-                  status: m.verification_status,
-                }
-              : null,
+            id_card: null,
           };
         });
 
@@ -117,6 +109,7 @@ export async function GET() {
   }
 }
 
+// POST: Admin reviews team as a whole (approve/reject team status)
 export async function POST(req: Request) {
   try {
     const supabase = await createClient();
@@ -140,7 +133,7 @@ export async function POST(req: Request) {
 
     // 3. Validate body
     const body = await req.json();
-    const parseResult = memberActionSchema.safeParse(body);
+    const parseResult = teamActionSchema.safeParse(body);
     if (!parseResult.success) {
       return NextResponse.json(
         { success: false, message: parseResult.error.issues[0]?.message },
@@ -148,91 +141,27 @@ export async function POST(req: Request) {
       );
     }
 
-    const { member_id, action } = parseResult.data;
-    const newVerifStatus = action === "approve" ? "approved" : "rejected";
+    const { team_id, action } = parseResult.data;
+    const newStatus = action === "approve" ? "judging_ready" : "rejected";
 
-    // 4. Fetch current member record to get team_id
-    const { data: memberRecord, error: memberErr } = await supabase
-      .from("team_members")
-      .select("id, team_id, user_id, verification_status")
-      .eq("id", member_id)
-      .single();
+    // 4. Update team status
+    const { error: updateErr } = await supabase
+      .from("teams")
+      .update({ status: newStatus })
+      .eq("id", team_id);
 
-    if (memberErr || !memberRecord) {
-      return NextResponse.json({ success: false, message: "Team member not found." }, { status: 404 });
-    }
-
-    // 5. Update member verification_status
-    const { data: updateData, error: updateErr } = await supabase
-      .from("team_members")
-      .update({
-        verification_status: newVerifStatus,
-      })
-      .eq("id", member_id)
-      .select("id");
-
-    if (updateErr || !updateData || updateData.length === 0) {
-      throw new Error(updateErr?.message || "Update was blocked by RLS. Check admin policies.");
-    }
-
-    // 6. Check if all accepted members of this team are now approved
-    const { data: allMembers, error: allMembersErr } = await supabase
-      .from("team_members")
-      .select("id, verification_status, invitation_status")
-      .eq("team_id", memberRecord.team_id)
-      .eq("invitation_status", "accepted");
-
-    if (allMembersErr) throw new Error(allMembersErr.message);
-
-    const acceptedMembers = allMembers || [];
-    const allApproved = acceptedMembers.length > 0 && acceptedMembers.every((m) => m.verification_status === "approved");
-    const anyRejected = acceptedMembers.some((m) => m.verification_status === "rejected");
-
-    // 7. Auto-update team status based on member verdicts
-    if (allApproved) {
-      const { error: teamStatusErr } = await supabase
-        .from("teams")
-        .update({ status: "judging_ready" })
-        .eq("id", memberRecord.team_id);
-
-      if (teamStatusErr) throw new Error(teamStatusErr.message);
-    } else if (anyRejected && action === "reject") {
-      const { error: teamStatusErr } = await supabase
-        .from("teams")
-        .update({ status: "rejected" })
-        .eq("id", memberRecord.team_id);
-
-      if (teamStatusErr) throw new Error(teamStatusErr.message);
-    }
-
-    // 8. Audit log
-    await logAdminAction(
-      supabase,
-      adminUser.id,
-      `${action.toUpperCase()}_TEAM_MEMBER`,
-      "team_members",
-      member_id,
-      { verification_status: memberRecord.verification_status },
-      { verification_status: newVerifStatus, team_id: memberRecord.team_id }
-    );
-
-    const teamStatusMessage = allApproved
-      ? " Team is now marked as judging_ready."
-      : anyRejected && action === "reject"
-      ? " Team is now marked as rejected."
-      : "";
+    if (updateErr) throw new Error(updateErr.message);
 
     return NextResponse.json({
       success: true,
-      message: `Member ${action === "approve" ? "approved" : "rejected"} successfully.${teamStatusMessage}`,
+      message: `Team status updated to ${newStatus} successfully.`,
       data: {
-        team_id: memberRecord.team_id,
-        team_status: allApproved ? "judging_ready" : anyRejected && action === "reject" ? "rejected" : null,
+        team_id,
+        team_status: newStatus,
       },
     });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Internal server error";
-    console.error("[/api/admin/team-review] Error:", message);
     return NextResponse.json({ success: false, message }, { status: 500 });
   }
 }

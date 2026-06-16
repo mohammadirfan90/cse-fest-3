@@ -34,12 +34,7 @@ export default function ProfileSetupWizard() {
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
   const [userEmail, setUserEmail] = React.useState<string>("");
 
-  // File Upload State (Base64 data for API processing)
-  const [idFront, setIdFront] = React.useState<string | null>(null);
-  const [idFrontError, setIdFrontError] = React.useState<string | null>(null);
 
-  // Drag and drop hover states
-  const [dragActiveFront, setDragActiveFront] = React.useState(false);
 
   // Retrieve user email from Supabase session and guard re-entry
   React.useEffect(() => {
@@ -76,49 +71,7 @@ export default function ProfileSetupWizard() {
     mode: "all",
   });
 
-  // Convert uploaded file to Base64
-  const processFile = (file: File) => {
-    // Validate size limit (5MB max)
-    if (file.size > 5 * 1024 * 1024) {
-      setIdFrontError("File exceeds the 5MB size limit. Please upload a smaller image.");
-      return;
-    }
 
-    // Validate type limit (jpg/png)
-    if (!["image/jpeg", "image/png", "image/jpg"].includes(file.type)) {
-      setIdFrontError("Only JPG, JPEG, and PNG images are supported.");
-      return;
-    }
-
-    setIdFrontError(null);
-
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setIdFront(reader.result as string);
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) processFile(file);
-  };
-
-  // Drag handlers
-  const handleDrag = (e: React.DragEvent, status: boolean) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragActiveFront(status);
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragActiveFront(false);
-
-    const file = e.dataTransfer.files?.[0];
-    if (file) processFile(file);
-  };
 
   const nextStep = async () => {
     let isValid = false;
@@ -130,7 +83,7 @@ export default function ProfileSetupWizard() {
 
     if (isValid) {
       setErrorMsg(null);
-      setStep((prev) => Math.min(prev + 1, 3));
+      setStep((prev) => Math.min(prev + 1, 2));
     }
   };
 
@@ -154,21 +107,7 @@ export default function ProfileSetupWizard() {
         throw new Error(profileData.message || "Failed to update profile information.");
       }
 
-      // 2. Upload Verification Files (only if provided, optional now)
-      if (idFront) {
-        const verifyRes = await fetch("/api/verification", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            id_front_base64: idFront,
-            id_back_base64: null,
-          }),
-        });
-        const verifyData = await verifyRes.json();
-        if (!verifyData.success) {
-          throw new Error(verifyData.message || "Failed to upload Student ID documents.");
-        }
-      }
+
 
       router.push("/dashboard");
       router.refresh();
@@ -183,7 +122,6 @@ export default function ProfileSetupWizard() {
   const stepsConfig = [
     { id: 1, label: "Identity", icon: Fingerprint },
     { id: 2, label: "Academic", icon: GraduationCap },
-    { id: 3, label: "Verification", icon: ShieldCheck },
   ];
 
   return (
@@ -201,7 +139,7 @@ export default function ProfileSetupWizard() {
         </div>
         <div className="shrink-0">
           <span className="font-mono text-sm uppercase tracking-widest text-neutral-400 bg-neutral-900/50 border border-neutral-800/60 px-3 py-1.5 rounded">
-            STEP {step} OF 3
+            STEP {step} OF 2
           </span>
         </div>
       </div>
@@ -450,59 +388,7 @@ export default function ProfileSetupWizard() {
                   </motion.div>
                 )}
 
-                {step === 3 && (
-                  <motion.div
-                    key="step-3"
-                    initial={{ opacity: 0, x: 10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -10 }}
-                    className="space-y-4"
-                  >
-                    <div className="border-b border-neutral-800/30 pb-3 mb-4">
-                      <h2 className="text-xs uppercase font-mono tracking-widest text-neutral-400 font-semibold">Student ID Verification</h2>
-                      <p className="text-xs text-neutral-500 font-sans mt-1">Optional. Upload a clear photo of the front of your Student ID card. Limits: Max 5MB, JPG/PNG only. You can skip this step and submit directly.</p>
-                    </div>
 
-                    <div className="space-y-2">
-                      <label className="text-sm font-mono font-bold tracking-widest text-neutral-400 uppercase select-none">ID Front Side Image (Optional)</label>
-                      <div
-                        onDragOver={(e) => handleDrag(e, true)}
-                        onDragLeave={(e) => handleDrag(e, false)}
-                        onDrop={(e) => handleDrop(e)}
-                        className={`relative h-48 border border-dashed rounded flex flex-col items-center justify-center bg-neutral-950 transition-all duration-150 ${
-                          dragActiveFront ? "border-neutral-500 bg-neutral-900/30" : "border-neutral-800/85 hover:border-neutral-700/60"
-                        }`}
-                      >
-                        {idFront ? (
-                          <div className="relative w-full h-full p-2 flex items-center justify-center">
-                            <img src={idFront} alt="ID Front preview" className="max-h-full rounded object-contain" />
-                            <button
-                              type="button"
-                              onClick={() => setIdFront(null)}
-                              className="absolute top-2 right-2 p-1.5 bg-neutral-900 border border-neutral-800 rounded-full text-neutral-405 hover:text-neutral-100 transition-colors"
-                            >
-                              <X className="h-4 w-4" />
-                            </button>
-                          </div>
-                        ) : (
-                          <div className="text-center p-4 space-y-2.5 pointer-events-none">
-                            <Upload className="h-6 w-6 text-neutral-550 mx-auto" />
-                            <div className="text-sm text-neutral-400 font-mono uppercase tracking-widest">
-                              Drop front side, or <span className="text-neutral-200 underline font-semibold cursor-pointer">Browse</span>
-                            </div>
-                          </div>
-                        )}
-                        <input
-                          type="file"
-                          accept="image/jpeg,image/png,image/jpg"
-                          onChange={handleFileChange}
-                          className="absolute inset-0 opacity-0 cursor-pointer"
-                        />
-                      </div>
-                      {idFrontError && <span className="text-xs text-error font-sans font-medium">{idFrontError}</span>}
-                    </div>
-                  </motion.div>
-                )}
               </AnimatePresence>
             </div>
 
@@ -518,7 +404,7 @@ export default function ProfileSetupWizard() {
                 <span>Back</span>
               </Button>
 
-              {step < 3 ? (
+              {step < 2 ? (
                 <Button
                   type="button"
                   onClick={nextStep}
@@ -591,25 +477,7 @@ export default function ProfileSetupWizard() {
                 </motion.div>
               )}
 
-              {step === 3 && (
-                <motion.div
-                  key="info-3"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  className="space-y-3 font-sans"
-                >
-                  <h3 className="text-xs font-mono uppercase tracking-widest text-neutral-200">Verification Tips</h3>
-                  <p className="text-sm text-neutral-500 leading-relaxed">
-                    Please upload high-resolution photos of your physical student ID card (Front side).
-                  </p>
-                  <ul className="text-sm text-neutral-500 list-disc pl-4 space-y-1 leading-relaxed">
-                    <li>Avoid heavy glare or shadows on text.</li>
-                    <li>Ensure registration/roll number is legible.</li>
-                    <li>Expired cards will be flagged by admins.</li>
-                  </ul>
-                </motion.div>
-              )}
+
             </AnimatePresence>
           </div>
 

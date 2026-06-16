@@ -136,15 +136,18 @@ export default function AdminDashboardPage() {
 
         const { data: profiles, error: profileErr } = await supabase
           .from("profiles")
-          .select("verification_status");
+          .select("id, profile_complete");
         if (profileErr) throw profileErr;
 
         let total = 0, verified = 0, pending = 0;
         if (profiles) {
           total = profiles.length;
           profiles.forEach((p) => {
-            if (p.verification_status === "verified") verified++;
-            if (p.verification_status === "pending") pending++;
+            if (p.profile_complete) {
+              verified++;
+            } else {
+              pending++;
+            }
           });
         }
 
@@ -274,39 +277,7 @@ export default function AdminDashboardPage() {
           selectedSubmissions: selectedSubs,
         });
 
-        const { data: verifs, error: verifErr } = await supabase
-          .from("student_verifications")
-          .select("*")
-          .eq("status", "pending")
-          .order("created_at", { ascending: false })
-          .limit(3);
-        if (verifErr) throw verifErr;
-
-        if (verifs && verifs.length > 0) {
-          const userIds = verifs.map((v) => v.user_id);
-          const { data: profilesData, error: profilesErr } = await supabase
-            .from("profiles")
-            .select("id, full_name, university, student_id")
-            .in("id", userIds);
-          if (profilesErr) throw profilesErr;
-
-          const mergedVerifs = verifs.map((v) => {
-            const profile = profilesData?.find((p) => p.id === v.user_id) || null;
-            return {
-              ...v,
-              profiles: profile
-                ? {
-                    full_name: profile.full_name || "",
-                    university: profile.university || "",
-                    student_id: profile.student_id || "",
-                  }
-                : null,
-            };
-          });
-          setPendingVerifications(mergedVerifs as unknown as VerificationItem[]);
-        } else {
-          setPendingVerifications([]);
-        }
+        setPendingVerifications([]);
 
         const logsRes = await fetch("/api/admin/audit-logs");
         const logsJson = await logsRes.json();
@@ -451,7 +422,6 @@ export default function AdminDashboardPage() {
       {/* Tabs Menu Bar (matching Sales CRM tab list style) */}
       <div className="inline-flex h-10 items-center p-1 bg-muted rounded-md text-muted-foreground">
         <button role="tab" aria-selected="true" className="px-3 py-1.5 text-sm font-medium rounded-sm bg-background text-foreground shadow-sm cursor-default">Overview</button>
-        <Link href="/admin/verifications" className="px-3 py-1.5 text-sm font-medium rounded-sm hover:text-foreground">Verifications</Link>
         <Link href="/admin/payments" className="px-3 py-1.5 text-sm font-medium rounded-sm hover:text-foreground">Payments</Link>
         <Link href="/admin/submissions" className="px-3 py-1.5 text-sm font-medium rounded-sm hover:text-foreground">Submissions</Link>
       </div>
@@ -486,80 +456,7 @@ export default function AdminDashboardPage() {
         {/* Left Column: Verification Queue + Activity Log (Span 4) */}
         <div className="lg:col-span-4 space-y-6">
 
-          {/* Pending Verifications Card */}
-          <div className="rounded-lg border border-border bg-card shadow-sm">
-            <div className="p-6 border-b border-border flex justify-between items-center">
-              <div className="flex items-center gap-2">
-                <ShieldCheck className="h-5 w-5 text-muted-foreground" />
-                <h3 className="text-lg font-semibold tracking-tight text-foreground">
-                  Pending Verifications
-                </h3>
-                {pendingVerifications.length > 0 && (
-                  <span className="text-xs font-semibold px-2.5 py-0.5 bg-warning/10 text-warning border border-warning/20 rounded-full">
-                    {pendingVerifications.length}
-                  </span>
-                )}
-              </div>
-              <Link href="/admin/verifications" className="text-xs font-medium text-primary hover:underline flex items-center gap-1">
-                <span>View All</span>
-                <ArrowRight className="h-3.5 w-3.5" />
-              </Link>
-            </div>
-            
-            <div className="p-6 space-y-4">
-              {pendingVerifications.length > 0 ? (
-                <div className="space-y-3">
-                  {pendingVerifications.map((v, idx) => (
-                    <motion.div
-                      key={v.id}
-                      initial={{ opacity: 0, y: 8 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: idx * 0.05 }}
-                    >
-                      <div className="p-4 border border-border bg-muted/20 hover:bg-muted/40 transition-all duration-150 rounded-lg flex flex-col sm:flex-row justify-between sm:items-center gap-3 w-full shadow-sm">
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <h4 className="font-semibold text-sm text-foreground">
-                              {v.profiles?.full_name || "Applicant"}
-                            </h4>
-                            <span className="text-sm font-medium tracking-wide uppercase px-1.5 py-0.5 rounded-sm bg-warning/10 text-warning border border-warning/20 font-mono">
-                              Pending
-                            </span>
-                          </div>
-                          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                            <span className="font-mono">{v.profiles?.student_id || "N/A"}</span>
-                            <span className="w-1 h-1 rounded-full bg-border" />
-                            <span className="truncate max-w-[150px]">{v.profiles?.university || "\u2014"}</span>
-                            <span className="w-1 h-1 rounded-full bg-border" />
-                            <span className="text-sm font-mono">
-                              {new Date(v.created_at).toLocaleDateString()}
-                            </span>
-                          </div>
-                        </div>
-                        <Link href="/admin/verifications" className="shrink-0">
-                          <Button variant="secondary" className="text-xs py-1.5 h-8 px-3 rounded border border-border bg-card text-foreground hover:bg-muted shadow-sm">
-                            Review ID
-                          </Button>
-                        </Link>
-                      </div>
-                    </motion.div>
-                  ))}
-                </div>
-              ) : (
-                <div className="py-12 border border-dashed border-border rounded-lg text-center bg-muted/10 space-y-3">
-                  <div className="p-3 bg-muted border border-border rounded-full w-fit mx-auto text-muted-foreground">
-                    <ShieldCheck className="h-6 w-6" />
-                  </div>
-                  <div className="space-y-1">
-                    <h4 className="font-semibold text-foreground text-sm">Queue Clear</h4>
-                    <p className="text-xs text-muted-foreground max-w-sm mx-auto leading-relaxed">
-                      All student ID verifications are complete. No pending reviews at this time.
-                    </p>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
+
 
           {/* Audit Log Timeline Card */}
           <div className="rounded-lg border border-border bg-card shadow-sm">
@@ -646,53 +543,7 @@ export default function AdminDashboardPage() {
         {/* Right Column: System Insights (Span 3) */}
         <div className="lg:col-span-3 space-y-6">
 
-          {/* Verification Progress Card */}
-          <div className="rounded-lg border border-border bg-card shadow-sm p-6 space-y-4">
-            <div className="flex items-center gap-2 pb-3 border-b border-border">
-              <TrendingUp className="h-4.5 w-4.5 text-muted-foreground" />
-              <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider">
-                Verification Progress
-              </h3>
-            </div>
-            <div className="space-y-2 font-sans text-xs">
-              <div className="flex justify-between items-baseline">
-                <span className="text-muted-foreground">Completion rate</span>
-                <span className="font-mono text-lg font-bold text-foreground">
-                  {verificationPercent}%
-                </span>
-              </div>
-              {/* Progress bar */}
-              <div className="h-2 w-full bg-muted rounded-full overflow-hidden border border-border">
-                <motion.div
-                  className="h-full bg-primary rounded-full"
-                  initial={{ width: 0 }}
-                  animate={{ width: `${verificationPercent}%` }}
-                  transition={{ duration: 0.8, ease: "easeOut", delay: 0.3 }}
-                />
-              </div>
-              <div className="flex justify-between text-sm text-muted-foreground font-mono">
-                <span>0</span>
-                <span>{stats.totalUsers} total</span>
-              </div>
-            </div>
 
-            <div className="grid grid-cols-2 gap-3 pt-3 border-t border-border">
-              <div className="space-y-1 p-3 rounded-lg bg-muted/40 border border-border text-center">
-                <span className="text-muted-foreground text-sm uppercase tracking-widest block font-bold">Verified</span>
-                <div className="flex items-center justify-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-success shrink-0" />
-                  <span className="font-bold text-foreground font-mono text-sm">{stats.verifiedUsers}</span>
-                </div>
-              </div>
-              <div className="space-y-1 p-3 rounded-lg bg-muted/40 border border-border text-center">
-                <span className="text-muted-foreground text-sm uppercase tracking-widest block font-bold">Pending</span>
-                <div className="flex items-center justify-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-warning shrink-0" />
-                  <span className="font-bold text-foreground font-mono text-sm">{stats.pendingUsers}</span>
-                </div>
-              </div>
-            </div>
-          </div>
 
           {/* Roster Summary Card */}
           <div className="rounded-lg border border-border bg-card shadow-sm p-6 space-y-4">
@@ -706,8 +557,8 @@ export default function AdminDashboardPage() {
               {[
                 { label: "Total Participants", value: stats.totalUsers, icon: Users },
                 { label: "Teams Formed", value: stats.totalTeams, icon: Trophy },
-                { label: "Verified Accounts", value: stats.verifiedUsers, icon: UserCheck },
-                { label: "Pending Review", value: stats.pendingUsers, icon: Clock },
+                { label: "Completed Profiles", value: stats.verifiedUsers, icon: UserCheck },
+                { label: "Incomplete Profiles", value: stats.pendingUsers, icon: Clock },
               ].map(({ label, value, icon: Icon }) => (
                 <div
                   key={label}
@@ -733,7 +584,6 @@ export default function AdminDashboardPage() {
             </div>
             <div className="space-y-2">
               {[
-                { label: "Review Verifications", href: "/admin/verifications" },
                 { label: "Manage Payments", href: "/admin/payments" },
                 { label: "Review Submissions", href: "/admin/submissions" },
                 { label: "Manage Competitions", href: "/admin/competitions" },

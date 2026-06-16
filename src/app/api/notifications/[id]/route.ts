@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
+import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { checkRateLimit } from "@/lib/utils/rate-limit";
 
 // PATCH /api/notifications/[id]
 // Marks a single notification as read. User can only modify their own.
@@ -8,6 +10,17 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
+
+    // Validate ID is a valid UUID
+    const idValidation = z.string().uuid().safeParse(id);
+    if (!idValidation.success) {
+      return NextResponse.json(
+        { success: false, message: "Invalid identifier format. Must be a valid UUID." },
+        { status: 400 }
+      );
+    }
+
     const supabase = await createClient();
 
     const {
@@ -21,12 +34,15 @@ export async function PATCH(
       );
     }
 
-    const { id } = await params;
-
-    if (!id) {
+    // Rate limit: 30 requests per minute per user
+    const { success: withinLimit } = checkRateLimit(`notifications:patch-single:${user.id}`, {
+      limit: 30,
+      windowMs: 60_000,
+    });
+    if (!withinLimit) {
       return NextResponse.json(
-        { success: false, message: "Notification ID is required." },
-        { status: 400 }
+        { success: false, message: "Too many requests. Please wait a moment." },
+        { status: 429 }
       );
     }
 

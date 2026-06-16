@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
+import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { checkRateLimit } from "@/lib/utils/rate-limit";
 
 export const revalidate = 60; // Cache for 60 seconds
 
@@ -98,12 +100,36 @@ function mapCompetition(c: CompetitionDb) {
 
 export async function GET(req: Request) {
   try {
+    const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || 
+               req.headers.get("x-real-ip") || 
+               "anonymous";
+
+    // Rate limit: 60 requests per minute per IP
+    const { success: withinLimit } = checkRateLimit(`public:competitions:get:${ip}`, {
+      limit: 60,
+      windowMs: 60_000,
+    });
+    if (!withinLimit) {
+      return NextResponse.json(
+        { success: false, message: "Too many requests. Please wait a moment." },
+        { status: 429 }
+      );
+    }
+
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
 
     const supabase = await createClient();
 
     if (id) {
+      const idValidation = z.string().uuid().safeParse(id);
+      if (!idValidation.success) {
+        return NextResponse.json(
+          { success: false, message: "Invalid identifier format. Must be a valid UUID." },
+          { status: 400 }
+        );
+      }
+
       // Fetch single competition details
       const { data, error } = await supabase
         .from("competitions")

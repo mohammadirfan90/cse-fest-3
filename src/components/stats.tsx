@@ -44,7 +44,7 @@ export function DashboardStats({
 			hint: "vs prior week",
 		},
 		{
-			label: "Account Verification Rate",
+			label: "Profile Completion Rate",
 			value: `${stats.verificationRate}%`,
 			delta: stats.verificationRate > 0 ? 5.2 : 0,
 			hint: "completion rate",

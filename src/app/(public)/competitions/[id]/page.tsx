@@ -129,31 +129,31 @@ export default function CompetitionDetailPage() {
       <motion.div
         className="pointer-events-none fixed inset-0 z-30 hidden sm:block"
         style={{
-          background: useMotionTemplate`radial-gradient(350px circle at ${spotlightX}px ${spotlightY}px, rgba(139, 92, 246, 0.12) 0%, rgba(139, 92, 246, 0.04) 50%, transparent 100%)`,
+          background: useMotionTemplate`radial-gradient(350px circle at ${spotlightX}px ${spotlightY}px, rgba(139, 92, 246, 0.18) 0%, rgba(139, 92, 246, 0.06) 50%, transparent 100%)`,
         }}
       />
 
       {/* Dynamic Grid Pattern */}
-      <div className="absolute inset-0 bg-grid-pattern opacity-[0.06] dark:opacity-[0.12] pointer-events-none z-0 animate-subtle-grid-pulse" />
+      <div className="absolute inset-0 bg-grid-pattern opacity-[0.09] dark:opacity-[0.18] pointer-events-none z-0 animate-subtle-grid-pulse" />
 
       {/* Subtle animated gradient movement in background */}
       <div 
-        className="absolute inset-0 bg-gradient-to-tr from-[#8B5CF6]/5 via-transparent to-[#22D3EE]/5 dark:from-[#8B5CF6]/10 dark:to-[#22D3EE]/5 opacity-40 animate-gradient-shift pointer-events-none z-0"
+        className="absolute inset-0 bg-gradient-to-tr from-[#8B5CF6]/8 via-transparent to-[#22D3EE]/8 dark:from-[#8B5CF6]/15 dark:to-[#22D3EE]/8 opacity-55 animate-gradient-shift pointer-events-none z-0"
         style={{ animationDuration: "15s" }}
       />
 
       {/* Ambient lighting / Radial Glow effects */}
-      <div className="absolute top-[6%] left-[10%] w-[800px] h-[800px] bg-[#8B5CF6]/12 dark:bg-[#8B5CF6]/8 rounded-full blur-[160px] pointer-events-none z-0 animate-blob-slow-1" />
-      <div className="absolute top-[38%] right-[5%] w-[700px] h-[700px] bg-[#22D3EE]/8 dark:bg-[#22D3EE]/5 rounded-full blur-[140px] pointer-events-none z-0 animate-blob-slow-2" />
-      <div className="absolute bottom-[18%] left-[12%] w-[750px] h-[750px] bg-[#F4B400]/6 dark:bg-[#F4B400]/4 rounded-full blur-[150px] pointer-events-none z-0 animate-blob-slow-3" />
+      <div className="absolute top-[6%] left-[10%] w-[800px] h-[800px] bg-[#8B5CF6]/16 dark:bg-[#8B5CF6]/12 rounded-full blur-[160px] pointer-events-none z-0 animate-blob-slow-1" />
+      <div className="absolute top-[38%] right-[5%] w-[700px] h-[700px] bg-[#22D3EE]/12 dark:bg-[#22D3EE]/8 rounded-full blur-[140px] pointer-events-none z-0 animate-blob-slow-2" />
+      <div className="absolute bottom-[18%] left-[12%] w-[750px] h-[750px] bg-[#F4B400]/10 dark:bg-[#F4B400]/6 rounded-full blur-[150px] pointer-events-none z-0 animate-blob-slow-3" />
 
       {/* Light floating background particles */}
-      <div className="absolute top-[12%] left-[10%] w-2.5 h-2.5 bg-[#8B5CF6]/30 rounded-full blur-[0.5px] animate-drift-slow-1 pointer-events-none" />
-      <div className="absolute top-[35%] right-[15%] w-3 h-3 bg-[#22D3EE]/30 rounded-full blur-[0.5px] animate-drift-slow-2 pointer-events-none" />
-      <div className="absolute bottom-[40%] left-[22%] w-2 h-2 bg-[#F4B400]/35 rounded-full blur-[0.5px] animate-drift-slow-3 pointer-events-none" />
-      <div className="absolute top-[60%] left-[8%] w-3 h-3 bg-[#8B5CF6]/25 rounded-full blur-[0.5px] animate-drift-slow-2 pointer-events-none" />
-      <div className="absolute bottom-[25%] right-[20%] w-2.5 h-2.5 bg-[#22D3EE]/30 rounded-full blur-[0.5px] animate-drift-slow-1 pointer-events-none" />
-      <div className="absolute top-[25%] right-[30%] w-2 h-2 bg-[#F4B400]/30 rounded-full blur-[0.5px] animate-drift-slow-3 pointer-events-none" />
+      <div className="absolute top-[12%] left-[10%] w-2.5 h-2.5 bg-[#8B5CF6]/45 rounded-full blur-[0.5px] animate-drift-slow-1 pointer-events-none" />
+      <div className="absolute top-[35%] right-[15%] w-3 h-3 bg-[#22D3EE]/45 rounded-full blur-[0.5px] animate-drift-slow-2 pointer-events-none" />
+      <div className="absolute bottom-[40%] left-[22%] w-2 h-2 bg-[#F4B400]/50 rounded-full blur-[0.5px] animate-drift-slow-3 pointer-events-none" />
+      <div className="absolute top-[60%] left-[8%] w-3 h-3 bg-[#8B5CF6]/35 rounded-full blur-[0.5px] animate-drift-slow-2 pointer-events-none" />
+      <div className="absolute bottom-[25%] right-[20%] w-2.5 h-2.5 bg-[#22D3EE]/45 rounded-full blur-[0.5px] animate-drift-slow-1 pointer-events-none" />
+      <div className="absolute top-[25%] right-[30%] w-2 h-2 bg-[#F4B400]/40 rounded-full blur-[0.5px] animate-drift-slow-3 pointer-events-none" />
 
       <Navbar />
 
@@ -166,7 +166,7 @@ export default function CompetitionDetailPage() {
         >
           <Link
             href="/competitions"
-            className="inline-flex items-center gap-2 text-sm text-[#4B5563] hover:text-[#8B5CF6] dark:text-neutral-400 dark:hover:text-neutral-50 transition-colors font-mono font-bold uppercase tracking-wider group"
+            className="inline-flex items-center gap-2 text-sm text-[#4B5563] hover:text-[#8B5CF6] dark:text-neutral-400 dark:hover:text-neutral-55 transition-colors font-mono font-bold uppercase tracking-wider group"
           >
             <ArrowLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" />
             <span>Back to Competitions</span>
@@ -181,8 +181,8 @@ export default function CompetitionDetailPage() {
           className="relative rounded-3xl border border-neutral-200/80 dark:border-primary/15 bg-white/80 dark:bg-[#0f1117]/60 backdrop-blur-xl p-8 md:p-12 overflow-hidden shadow-[0_10px_30px_rgba(139,92,246,0.06),0_2px_8px_rgba(0,0,0,0.05)] hover:shadow-[0_20px_50px_rgba(139,92,246,0.12)] group transition-all duration-500 hover:border-[#8B5CF6]/35"
         >
           {/* Backlighting inside hero */}
-          <div className="absolute -top-20 -left-20 w-80 h-80 bg-[#8B5CF6]/10 rounded-full blur-[80px] pointer-events-none" />
-          <div className="absolute -bottom-20 right-10 w-80 h-80 bg-[#22D3EE]/8 rounded-full blur-[80px] pointer-events-none" />
+          <div className="absolute -top-20 -left-20 w-80 h-80 bg-[#8B5CF6]/15 rounded-full blur-[80px] pointer-events-none" />
+          <div className="absolute -bottom-20 right-10 w-80 h-80 bg-[#22D3EE]/12 rounded-full blur-[80px] pointer-events-none" />
           
           {/* Floating hero particles */}
           <div className="absolute top-10 right-16 w-8 h-8 rounded-full border border-[#8B5CF6]/20 dark:border-primary/45 animate-float pointer-events-none opacity-40" />
@@ -358,7 +358,7 @@ export default function CompetitionDetailPage() {
           {/* Sidebar Widgets (Right Column - 30% Sticky) */}
           <aside className="w-full lg:w-80 shrink-0 space-y-6 relative z-10">
             {/* Ambient sidebar glow */}
-            <div className="absolute -top-10 -right-10 w-48 h-48 bg-[#8B5CF6]/5 rounded-full blur-[60px] pointer-events-none" />
+            <div className="absolute -top-10 -right-10 w-48 h-48 bg-[#8B5CF6]/8 rounded-full blur-[60px] pointer-events-none" />
 
             <motion.div
               initial={{ opacity: 0, x: 20 }}

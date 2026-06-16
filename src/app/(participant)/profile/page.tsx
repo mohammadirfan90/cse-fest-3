@@ -40,7 +40,6 @@ interface ProfileDbRecord {
   semester: string | null;
   student_id: string | null;
   tshirt_size: string | null;
-  verification_status: string | null;
   profile_complete: boolean | null;
 }
 

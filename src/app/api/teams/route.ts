@@ -2,8 +2,11 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { SupabaseClient } from "@supabase/supabase-js";
-import { uploadImage } from "@/lib/cloudinary";
 import { ensureUserAndProfileExists } from "@/lib/server/userSelfHeal";
+import { promises as fs } from "node:fs";
+import path from "node:path";
+import { slugify, SUBMISSIONS_ROOT } from "@/lib/server/submissionStorage";
+import { checkRateLimit } from "@/lib/utils/rate-limit";
 
 const createTeamSchema = z.object({
   name: z.string().min(3, "Team Name must be at least 3 characters"),
@@ -21,8 +24,6 @@ const addMemberSchema = z.object({
   semester: z.string().min(1, "Semester is required"),
   student_id: z.string().min(2, "Student ID is required"),
   tshirt_size: z.string().min(1, "T-shirt size is required"),
-  id_front_base64: z.string().optional().nullable(),
-  id_back_base64: z.string().optional().nullable(),
 });
 
 const respondInviteSchema = z.object({
@@ -140,6 +141,18 @@ export async function GET(req: Request) {
       return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 });
     }
 
+    // Rate limit: 60 requests per minute per user
+    const { success: withinLimit } = checkRateLimit(`teams:get:${user.id}`, {
+      limit: 60,
+      windowMs: 60_000,
+    });
+    if (!withinLimit) {
+      return NextResponse.json(
+        { success: false, message: "Too many requests. Please wait a moment before loading teams." },
+        { status: 429 }
+      );
+    }
+
     // Self-healing: Ensure user exists in public tables before querying teams
     await ensureUserAndProfileExists(supabase, user);
 
@@ -183,7 +196,7 @@ export async function GET(req: Request) {
       teams.map(async (team) => {
         const { data: members } = await supabase
           .from("v_team_members")
-          .select("member_id, role, invitation_status, verification_status, user_id, full_name, email, phone, gender, university, department, semester, student_id, github, portfolio, skills, bio, tshirt_size, id_front_url, id_back_url")
+          .select("member_id, role, invitation_status, user_id, full_name, email, phone, gender, university, department, semester, student_id, github, portfolio, skills, bio, tshirt_size")
           .eq("team_id", team.id);
 
         const rawMembers = members || [];
@@ -192,7 +205,6 @@ export async function GET(req: Request) {
             id: m.member_id,
             role: m.role,
             invitation_status: m.invitation_status,
-            verification_status: m.verification_status,
             user_id: m.user_id,
             profiles: {
               full_name: m.full_name,
@@ -208,8 +220,6 @@ export async function GET(req: Request) {
               skills: m.skills || "",
               bio: m.bio || "",
               tshirt_size: m.tshirt_size || "",
-              id_front_url: m.id_front_url || "",
-              id_back_url: m.id_back_url || "",
             },
           };
         });
@@ -239,6 +249,18 @@ export async function POST(req: Request) {
 
     if (!user) {
       return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 });
+    }
+
+    // Rate limit: 20 actions per minute per user
+    const { success: withinLimit } = checkRateLimit(`teams:post:${user.id}`, {
+      limit: 20,
+      windowMs: 60_000,
+    });
+    if (!withinLimit) {
+      return NextResponse.json(
+        { success: false, message: "Too many actions. Please wait a moment." },
+        { status: 429 }
+      );
     }
 
     // Self-healing: Ensure user exists in public tables before mutating teams/members
@@ -339,8 +361,6 @@ export async function POST(req: Request) {
         semester,
         student_id,
         tshirt_size,
-        id_front_base64,
-        id_back_base64,
       } = parseResult.data;
 
       // Check if user has permission to add (must be team leader)
@@ -409,25 +429,6 @@ export async function POST(req: Request) {
         }
       }
 
-      // Upload Student ID card front/back to Cloudinary (only if provided)
-      let frontUploadUrl = null;
-      if (id_front_base64) {
-        const frontUpload = await uploadImage(
-          id_front_base64,
-          `csefest/verifications/${team.id}/${email.replace(/[^a-zA-Z0-9]/g, "_")}/front`
-        );
-        frontUploadUrl = frontUpload.secure_url;
-      }
-
-      let backUploadUrl = null;
-      if (id_back_base64) {
-        const backUpload = await uploadImage(
-          id_back_base64,
-          `csefest/verifications/${team.id}/${email.replace(/[^a-zA-Z0-9]/g, "_")}/back`
-        );
-        backUploadUrl = backUpload.secure_url;
-      }
-
       // Create accepted member record directly
       const { error: insertError } = await supabase.from("team_members").insert({
         team_id: team.id,
@@ -435,7 +436,6 @@ export async function POST(req: Request) {
         role: "member",
         invitation_status: "accepted",
         joined_at: new Date().toISOString(),
-        verification_status: "pending",
         full_name,
         email: email.trim().toLowerCase(),
         phone,
@@ -445,8 +445,6 @@ export async function POST(req: Request) {
         semester,
         student_id,
         tshirt_size,
-        id_front_url: frontUploadUrl,
-        id_back_url: backUploadUrl,
       });
 
       if (insertError) {
@@ -539,6 +537,16 @@ export async function POST(req: Request) {
         return NextResponse.json({ success: false, message: check.message }, { status: check.status });
       }
 
+      // Fetch the old team details for the slug rename
+      const { data: oldTeam } = await supabase
+        .from("teams")
+        .select("name, competitions(slug)")
+        .eq("id", parseResult.data.team_id)
+        .single();
+
+      const oldName = oldTeam?.name;
+      const compSlug = (oldTeam?.competitions as any)?.slug;
+
       const { error: updateError } = await supabase
         .from("teams")
         .update({ name: parseResult.data.name })
@@ -552,6 +560,60 @@ export async function POST(req: Request) {
           );
         }
         throw new Error(updateError.message);
+      }
+
+      // If the update succeeded and name changed, trigger directory rename and database update
+      const oldSlug = slugify(oldName || "");
+      const newSlug = slugify(parseResult.data.name);
+
+      if (oldSlug !== newSlug && compSlug) {
+        const oldDir = path.join(SUBMISSIONS_ROOT, "csefest", "competitions", compSlug, "teams", oldSlug);
+        const newDir = path.join(SUBMISSIONS_ROOT, "csefest", "competitions", compSlug, "teams", newSlug);
+
+        // Rename folder on disk if it exists
+        try {
+          const stats = await fs.stat(oldDir);
+          if (stats.isDirectory()) {
+            await fs.mkdir(path.dirname(newDir), { recursive: true });
+            await fs.rename(oldDir, newDir);
+          }
+        } catch {
+          // Ignore error if old directory does not exist yet (i.e. no files submitted)
+        }
+
+        // Fetch the existing submission for this team to update the DB paths
+        const { data: submission } = await supabase
+          .from("submissions")
+          .select("id, pdf_path, video_path")
+          .eq("team_id", parseResult.data.team_id)
+          .maybeSingle();
+
+        if (submission) {
+          let updatedPdf = submission.pdf_path;
+          let updatedVideo = submission.video_path;
+
+          if (updatedPdf && updatedPdf.startsWith(`csefest/competitions/${compSlug}/teams/${oldSlug}/`)) {
+            updatedPdf = updatedPdf.replace(
+              `csefest/competitions/${compSlug}/teams/${oldSlug}/`,
+              `csefest/competitions/${compSlug}/teams/${newSlug}/`
+            );
+          }
+
+          if (updatedVideo && updatedVideo.startsWith(`csefest/competitions/${compSlug}/teams/${oldSlug}/`)) {
+            updatedVideo = updatedVideo.replace(
+              `csefest/competitions/${compSlug}/teams/${oldSlug}/`,
+              `csefest/competitions/${compSlug}/teams/${newSlug}/`
+            );
+          }
+
+          await supabase
+            .from("submissions")
+            .update({
+              pdf_path: updatedPdf,
+              video_path: updatedVideo,
+            })
+            .eq("id", submission.id);
+        }
       }
 
       return NextResponse.json({ success: true, message: "Team name updated successfully." });

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { submitOrUpdateProposal } from "@/lib/server/submissionSubmissionService";
+import { checkRateLimit } from "@/lib/utils/rate-limit";
 
 // GET: Fetch team submission
 export async function GET(req: Request) {
@@ -16,6 +17,18 @@ export async function GET(req: Request) {
       return NextResponse.json(
         { success: false, message: "Unauthorized. Please login." },
         { status: 401 }
+      );
+    }
+
+    // 1b. Rate limit: 60 requests per minute per user
+    const { success: withinLimit } = checkRateLimit(`submissions:get:${user.id}`, {
+      limit: 60,
+      windowMs: 60_000,
+    });
+    if (!withinLimit) {
+      return NextResponse.json(
+        { success: false, message: "Too many requests. Please wait a moment before loading submissions." },
+        { status: 429 }
       );
     }
 
@@ -83,6 +96,18 @@ export async function POST(req: Request) {
       return NextResponse.json(
         { success: false, message: "Unauthorized. Please login." },
         { status: 401 }
+      );
+    }
+
+    // 1b. Rate limit: 10 submissions per minute per user
+    const { success: withinLimit } = checkRateLimit(`submissions:post:${user.id}`, {
+      limit: 10,
+      windowMs: 60_000,
+    });
+    if (!withinLimit) {
+      return NextResponse.json(
+        { success: false, message: "Too many requests. Please wait a moment before submitting." },
+        { status: 429 }
       );
     }
 

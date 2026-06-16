@@ -254,30 +254,35 @@ export default function CompetitionRegisterPage() {
     }
   }, [competition]);
 
-  // Load User, Profile, and check Existing Registrations
+  // Load User, Profile, and check Existing Registrations in parallel to resolve waterfalls
   React.useEffect(() => {
     async function initAuth() {
       try {
         setAuthLoading(true);
-        const { data: { user } } = await supabase.auth.getUser();
-        setUser(user);
+        setProfileLoading(true);
+        setCheckingRegistration(true);
 
-        if (user) {
+        const [userRes, profileRes, teamRes] = await Promise.all([
+          supabase.auth.getUser(),
+          fetch("/api/profile").then((r) => r.json()).catch(() => ({ success: false })),
+          fetch("/api/teams").then((r) => r.json()).catch(() => ({ success: false })),
+        ]);
+
+        const loggedInUser = userRes.data?.user || null;
+        setUser(loggedInUser);
+
+        if (loggedInUser) {
           setLeaderForm((prev) => ({
             ...prev,
-            email: user.email || "",
-            full_name: user.user_metadata?.full_name || user.user_metadata?.name || "",
+            email: loggedInUser.email || "",
+            full_name: loggedInUser.user_metadata?.full_name || loggedInUser.user_metadata?.name || "",
           }));
 
-          // Fetch leader profile
-          setProfileLoading(true);
-          const pRes = await fetch("/api/profile");
-          const pData = await pRes.json();
-          if (pData.success && pData.data) {
-            const profile = pData.data;
+          if (profileRes.success && profileRes.data) {
+            const profile = profileRes.data;
             setLeaderForm({
               full_name: profile.full_name || "",
-              email: user.email || "",
+              email: loggedInUser.email || "",
               phone: profile.phone || "",
               gender: profile.gender || "",
               university: profile.university || "",
@@ -287,24 +292,20 @@ export default function CompetitionRegisterPage() {
               tshirt_size: profile.tshirt_size || "",
             });
           }
-          setProfileLoading(false);
 
-          // Check if already registered
-          setCheckingRegistration(true);
-          const teamRes = await fetch("/api/teams");
-          const teamData = await teamRes.json();
-          if (teamData.success && Array.isArray(teamData.data)) {
-            const hasRegistered = teamData.data.some(
+          if (teamRes.success && Array.isArray(teamRes.data)) {
+            const hasRegistered = teamRes.data.some(
               (t: any) => t.competition_id === compId
             );
             setAlreadyRegistered(hasRegistered);
           }
-          setCheckingRegistration(false);
         }
       } catch (err) {
         console.error("Error loading user state:", err);
       } finally {
         setAuthLoading(false);
+        setProfileLoading(false);
+        setCheckingRegistration(false);
       }
     }
 

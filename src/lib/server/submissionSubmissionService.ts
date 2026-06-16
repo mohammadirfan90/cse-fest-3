@@ -1,6 +1,7 @@
 import { SupabaseClient } from "@supabase/supabase-js";
 import {
   getCompetitionSlug,
+  slugify,
   isValidPDFSignature,
   isValidVideoSignature,
   writeSubmissionFile,
@@ -122,9 +123,10 @@ export async function submitOrUpdateProposal(
       }
 
       const competitionSlug = await getCompetitionSlug(comp.id);
+      const teamSlug = slugify(teamRecord.name);
       const relativePath = await writeSubmissionFile(
         competitionSlug,
-        teamId,
+        teamSlug,
         pdfFile.name,
         pdfBuffer
       );
@@ -159,9 +161,10 @@ export async function submitOrUpdateProposal(
       }
 
       const competitionSlug = await getCompetitionSlug(comp.id);
+      const teamSlug = slugify(teamRecord.name);
       const relativePath = await writeSubmissionFile(
         competitionSlug,
-        teamId,
+        teamSlug,
         videoFile.name,
         videoBuffer
       );

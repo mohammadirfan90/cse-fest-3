@@ -13,7 +13,7 @@ interface TeamItem {
 interface ProfileItem {
   created_at: string;
   university: string | null;
-  verification_status: string | null;
+  profile_complete: boolean;
 }
 
 interface PaymentItem {
@@ -55,7 +55,7 @@ export async function GET() {
     // Fetch all profiles for registration trends and university stats
     const { data: rawProfiles, error: profileErr } = await supabase
       .from("profiles")
-      .select("created_at, university, verification_status");
+      .select("created_at, university, profile_complete");
 
     if (profileErr) throw profileErr;
 
@@ -152,8 +152,8 @@ export async function GET() {
     // E. General averages/summary metrics
     const totalRevenue = Object.values(paymentsMap).reduce((a, b) => a + b, 0);
     const averageTeamsPerComp = competitions.length > 0 ? (teams.length / competitions.length) : 0;
-    const verifiedRatio = profiles.length > 0 
-      ? Math.round((profiles.filter((p) => p.verification_status === "verified").length / profiles.length) * 100)
+    const profileCompleteRatio = profiles.length > 0 
+      ? Math.round((profiles.filter((p) => p.profile_complete).length / profiles.length) * 100)
       : 0;
 
     return NextResponse.json({
@@ -166,7 +166,7 @@ export async function GET() {
         summary: {
           totalRevenue,
           averageTeamsPerComp: Math.round(averageTeamsPerComp * 10) / 10,
-          verifiedRatio,
+          profileCompleteRatio,
         },
       },
     });

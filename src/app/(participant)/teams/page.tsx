@@ -80,7 +80,6 @@ interface TeamMember {
   user_id: string | null;
   role: "leader" | "member";
   invitation_status: "pending" | "accepted" | "rejected";
-  verification_status: "pending" | "approved" | "rejected";
   profiles: {
     full_name: string;
     email: string;
@@ -91,7 +90,6 @@ interface TeamMember {
     semester?: string;
     student_id?: string;
     tshirt_size?: string;
-    id_front_url?: string;
   } | null;
 }
 
@@ -148,22 +146,7 @@ function Toast({
   );
 }
 
-function VerifBadge({ status }: { status: string }) {
-  const map: Record<string, string> = {
-    approved: "border-success/30 bg-success/10 text-success",
-    rejected: "border-error/30 bg-error/10 text-error",
-    pending: "border-warning/30 bg-warning/10 text-warning",
-  };
-  return (
-    <span
-      className={`px-1.5 py-0.5 border rounded text-sm font-mono uppercase tracking-widest shrink-0 ${
-        map[status] ?? "border-neutral-800 bg-neutral-900 text-neutral-400"
-      }`}
-    >
-      {status}
-    </span>
-  );
-}
+
 
 function ConfirmModal({
   onClose,
@@ -241,8 +224,6 @@ function MemberCard({
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
-          <VerifBadge status={member.verification_status} />
-
           <button
             onClick={() => setExpanded((v) => !v)}
             className="p-1 rounded text-neutral-500 hover:text-neutral-300 hover:bg-neutral-800 transition-all cursor-pointer border-0 bg-transparent"
@@ -391,10 +372,7 @@ export default function TeamsPage() {
     semester: "",
     student_id: "",
     tshirt_size: "",
-    id_front_base64: "",
   });
-  
-  const [idFrontFileName, setIdFrontFileName] = React.useState("");
 
   const {
     data: teamsRes,
@@ -572,22 +550,6 @@ export default function TeamsPage() {
   };
 
   // ─── Teammate Roster Wizard Handlers ───────────────────────────────────────
-  const handleWizardFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (file.size > 5 * 1024 * 1024) {
-      setMutationError("Student ID front image must be under 5MB.");
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = () => {
-      const base64 = reader.result as string;
-      setRosterForm((prev) => ({ ...prev, id_front_base64: base64 }));
-      setIdFrontFileName(file.name);
-    };
-    reader.readAsDataURL(file);
-  };
-
   const handleRegisterWizardTeammate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!rosterWizardTeamId || !activeWizardTeam) return;
@@ -596,10 +558,6 @@ export default function TeamsPage() {
     setMutationError(null);
 
     try {
-      if (!rosterForm.id_front_base64) {
-        throw new Error("Student ID front card image is required.");
-      }
-
       const res = await fetch("/api/teams?action=add_member", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -642,9 +600,7 @@ export default function TeamsPage() {
       semester: "",
       student_id: "",
       tshirt_size: "",
-      id_front_base64: "",
     });
-    setIdFrontFileName("");
     setMutationError(null);
   };
 
@@ -1440,39 +1396,7 @@ export default function TeamsPage() {
                   </div>
                 </div>
 
-                {/* ID Card Front Upload */}
-                <div className="flex flex-col space-y-2 pt-2">
-                  <label className="text-sm font-semibold text-neutral-400 font-mono uppercase tracking-widest">
-                    Student ID Card (Front Side) Image
-                  </label>
-                  <div className={`relative border border-dashed rounded-lg p-5 bg-neutral-950/40 text-center transition-all cursor-pointer ${
-                    idFrontFileName ? "border-success/40 bg-success/5" : "border-neutral-800 hover:border-neutral-700"
-                  }`}>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleWizardFileChange}
-                      required={!rosterForm.id_front_base64}
-                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                    />
-                    <div className="flex flex-col items-center justify-center gap-1.5">
-                      {idFrontFileName ? (
-                        <>
-                          <CheckCircle2 className="h-5 w-5 text-success shrink-0" />
-                          <span className="text-sm text-neutral-300 font-semibold">{idFrontFileName}</span>
-                          <span className="text-sm text-success/60 font-mono">Front Side Attached</span>
-                        </>
-                      ) : (
-                        <>
-                          <Upload className="h-5 w-5 text-neutral-550 shrink-0" />
-                          <span className="text-sm text-neutral-400 font-mono">
-                            Select image or drag here
-                          </span>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                </div>
+
 
                 <div className="flex gap-3 pt-4 border-t border-neutral-800/40">
                   <Button

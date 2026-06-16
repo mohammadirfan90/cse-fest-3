@@ -82,7 +82,6 @@ export async function POST(req: Request) {
         student_id: parseResult.data.student_id,
         tshirt_size: parseResult.data.tshirt_size,
         profile_complete: true,
-        verification_status: "verified",
         updated_at: new Date().toISOString(),
       })
       .eq("id", user.id);

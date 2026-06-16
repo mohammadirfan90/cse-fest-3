@@ -44,7 +44,6 @@ interface Member {
   id: string;
   role: string;
   invitation_status: string;
-  verification_status: string;
   user_id: string | null;
   profiles: {
     full_name: string;

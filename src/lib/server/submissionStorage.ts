@@ -2,10 +2,10 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import { createClient } from "@/lib/supabase/server";
 
-export const SUBMISSIONS_ROOT = path.join(
-  process.cwd(),
-  process.env.SUBMISSIONS_DIR ?? "storage/submissions"
-);
+const uploadDirEnv = process.env.UPLOAD_DIR || process.env.SUBMISSIONS_DIR || "storage/submissions";
+export const SUBMISSIONS_ROOT = path.isAbsolute(uploadDirEnv)
+  ? uploadDirEnv
+  : path.join(process.cwd(), uploadDirEnv);
 
 export const MAX_PDF_BYTES = 5 * 1024 * 1024; // 5 MB
 export const MAX_VIDEO_BYTES = 200 * 1024 * 1024; // 200 MB
@@ -27,25 +27,17 @@ export async function getCompetitionSlug(compId: string): Promise<string> {
   return data.slug;
 }
 
-// Removed unused placeholder function
-
-export function getCompetitionCategory(compName: string): "software" | "iot" | "idea" {
-  const name = compName.toLowerCase();
-  if (name.includes("software")) return "software";
-  if (name.includes("iot")) return "iot";
-  if (name.includes("idea")) return "idea";
-  return "software"; // Default fallback
+export function slugify(text: string): string {
+  return text
+    .toLowerCase()
+    .trim()
+    .replace(/[^\w\s-]/g, "") // remove non-word, non-space, non-hyphen
+    .replace(/[\s_]+/g, "-")  // replace spaces and underscores with hyphens
+    .replace(/^-+|-+$/g, ""); // trim leading/trailing hyphens
 }
 
-export function submissionDirPath(categoryOrSlug: string, teamId: string): string {
-  // Determine if the argument is a slug (alphanumeric, hyphens) or a legacy category
-  const folder = isSlug(categoryOrSlug) ? categoryOrSlug : getCompetitionCategory(categoryOrSlug);
-  return path.join(SUBMISSIONS_ROOT, folder, teamId);
-}
-
-export function isSlug(value: string): boolean {
-  // Slug consists of lowercase alphanumerics and hyphens, no spaces
-  return /^[a-z0-9-]+$/.test(value);
+export function submissionDirPath(compSlug: string, teamSlug: string): string {
+  return path.join(SUBMISSIONS_ROOT, "csefest", "competitions", compSlug, "teams", teamSlug);
 }
 
 export function isValidPDFSignature(buffer: Buffer): boolean {
@@ -73,27 +65,28 @@ export function isValidVideoSignature(buffer: Buffer): boolean {
 }
 
 export async function writeSubmissionFile(
-  categoryOrSlug: string,
-  teamId: string,
+  compSlug: string,
+  teamSlug: string,
   fileName: string,
   buffer: Buffer
 ): Promise<string> {
-  const folder = isSlug(categoryOrSlug) ? categoryOrSlug : getCompetitionCategory(categoryOrSlug);
-  const safeFileName = `${crypto.randomUUID()}${path.extname(fileName)}`;
+  const fileExt = path.extname(fileName) || ".pdf";
+  const isVideo = isValidVideoSignature(buffer);
+  const standardName = isVideo ? `demo_video${fileExt}` : `proposal_v1${fileExt}`;
 
-  // Bypass physical fs writes on Vercel serverless environment
+  const relativePath = `csefest/competitions/${compSlug}/teams/${teamSlug}/${standardName}`;
+
   if (process.env.VERCEL) {
-    return `${folder}/${teamId}/${safeFileName}`;
+    return relativePath;
   }
 
-  const dir = submissionDirPath(categoryOrSlug, teamId);
+  const dir = submissionDirPath(compSlug, teamSlug);
   await fs.mkdir(dir, { recursive: true });
 
-  const absPath = path.join(dir, safeFileName);
+  const absPath = path.join(dir, standardName);
   await fs.writeFile(absPath, buffer);
 
-  // Return the relative path from root to store in DB
-  return path.relative(SUBMISSIONS_ROOT, absPath).replace(/\\/g, "/");
+  return relativePath;
 }
 
 export async function deleteSubmissionFile(relativeUrl: string): Promise<void> {
@@ -107,7 +100,7 @@ export async function deleteSubmissionFile(relativeUrl: string): Promise<void> {
     }
     await fs.unlink(absPath);
   } catch {
-    // Best effort cleanup: ignore error if file doesn't exist
+    // Best effort cleanup
   }
 }
 

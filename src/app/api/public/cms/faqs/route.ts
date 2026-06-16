@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { checkRateLimit } from "@/lib/utils/rate-limit";
 
 // Public endpoint — cache for 2 minutes at the edge, revalidate in background
 export const revalidate = 120;
@@ -12,8 +13,24 @@ interface FAQ {
   visible: boolean;
 }
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
+    const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || 
+               req.headers.get("x-real-ip") || 
+               "anonymous";
+
+    // Rate limit: 60 requests per minute per IP
+    const { success: withinLimit } = checkRateLimit(`public:faqs:get:${ip}`, {
+      limit: 60,
+      windowMs: 60_000,
+    });
+    if (!withinLimit) {
+      return NextResponse.json(
+        { success: false, message: "Too many requests. Please wait a moment." },
+        { status: 429 }
+      );
+    }
+
     const supabase = await createClient();
 
     // Query visible FAQs ordered by display_order

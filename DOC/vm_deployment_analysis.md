@@ -62,22 +62,49 @@ flowchart LR
   ```
 
 ### 2. Nginx Web Server
-* **Purpose**: Serves as the reverse proxy. It terminates public HTTP/HTTPS requests and forwards them to the Next.js server running on port `3000`.
-* **Required Configuration (Large Upload Support)**:
-  - Must include `client_max_body_size 250M;` to support large proposals and video uploads.
-  - Forward headers correctly to let Next.js read client IP addresses:
+* **Purpose**: Serves as a reverse proxy. It terminates public HTTP/HTTPS traffic (ports 80 & 443) and proxies requests to the Next.js application server on port `3000`.
+* **Configuration Structure**:
+  - **Global Zones (`/etc/nginx/nginx.conf`)**: Define the rate limiting zones inside the `http { ... }` block to monitor incoming traffic globally:
     ```nginx
-    proxy_set_header X-Real-IP $remote_addr;
-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_set_header Host $host;
+    limit_req_zone $binary_remote_addr zone=global_limit:10m rate=15r/s;
+    limit_req_zone $binary_remote_addr zone=auth_limit:10m rate=5r/m;
+    limit_req_zone $binary_remote_addr zone=upload_limit:10m rate=10r/m;
+    ```
+  - **Site Configuration (`/etc/nginx/sites-available/csefest`)**: Contains the Virtual Host bindings, SSL settings, and reverse proxy location directives:
+    ```nginx
+    server {
+        listen 443 ssl http2;
+        listen [::]:443 ssl http2;
+        server_name csefest.smuct.edu.bd;
+
+        client_max_body_size 250M; # Support large proposal and video uploads
+
+        # Forward headers for correct client IP detection inside Next.js
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Host $host;
+
+        # Reverse Proxy proxy_pass
+        location / {
+            proxy_pass http://localhost:3000;
+            limit_req zone=global_limit burst=30 nodelay;
+        }
+    }
     ```
 
 ### 3. Certbot & Let's Encrypt Nginx Plugin
-* **Purpose**: Automatically obtains SSL/TLS certificates and renews them. HTTPS is strict for Google OAuth to function.
-* **Installation & Provisioning**:
+* **Purpose**: Automatically obtains SSL/TLS certificates and renews them. Secure HTTPS links are mandatory for Google OAuth functionality.
+* **Installation, Provisioning, and Verification**:
   ```bash
+  # Install Certbot client and its Nginx plugin
   sudo apt install certbot python3-certbot-nginx
+  
+  # Provision the certificate and auto-configure Nginx
   sudo certbot --nginx -d csefest.smuct.edu.bd
+  
+  # Dry-run auto-renewal verification (testing validation cron tasks)
+  sudo certbot renew --dry-run
   ```
 
 ---
@@ -163,7 +190,9 @@ NEXT_PUBLIC_SUPABASE_URL=https://<your-project-id>.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key # Keep this strictly secret on the server!
 
-# Local Storage Directory
+# Local File Storage Configuration
+# The application checks UPLOAD_DIR first, then SUBMISSIONS_DIR, and falls back to "storage/submissions"
+UPLOAD_DIR=storage/submissions
 SUBMISSIONS_DIR=storage/submissions
 
 # Site domain for authentication redirects
@@ -186,16 +215,25 @@ To ensure high availability on July 18, 2026 under a **strict 50 GB storage limi
   pm2 set pm2-logrotate:max_size 10M
   pm2 set pm2-logrotate:retain 5
   ```
-* **Disk Alert Script**: Set up a cron job to check storage usage hourly and notify administrators (e.g., via Email or Discord Webhook) if disk space exceeds 85%:
-  ```bash
-  #!/bin/bash
-  CURRENT_USAGE=$(df -h / | grep / | awk '{ print $5 }' | cut -d'%' -f1)
-  if [ "$CURRENT_USAGE" -gt 85 ]; then
-    curl -X POST -H "Content-Type: application/json" \
-      -d '{"content": "🚨 WARNING: Disk Space on CSE Fest VM exceeds 85%! Current usage: '"$CURRENT_USAGE"'%"}' \
-      https://discord.com/api/webhooks/your-alert-webhook
-  fi
-  ```
+* **Disk Alert Script**: Set up an hourly cron job to check storage usage and notify administrators (via Discord or Slack Webhook) if disk space exceeds 85%:
+  1. Save the following script to `/usr/local/bin/disk-alert.sh`:
+     ```bash
+     #!/bin/bash
+     CURRENT_USAGE=$(df -h / | grep / | head -n 1 | awk '{ print $5 }' | cut -d'%' -f1)
+     if [ "$CURRENT_USAGE" -gt 85 ]; then
+       curl -X POST -H "Content-Type: application/json" \
+         -d '{"content": "🚨 WARNING: Disk Space on CSE Fest VM exceeds 85%! Current usage: '"$CURRENT_USAGE"'%"}' \
+         https://discord.com/api/webhooks/your-alert-webhook
+     fi
+     ```
+  2. Make the script executable:
+     ```bash
+     sudo chmod +x /usr/local/bin/disk-alert.sh
+     ```
+  3. Schedule the check in the root system crontab (`sudo crontab -e`):
+     ```text
+     0 * * * * /usr/local/bin/disk-alert.sh
+     ```
 * **Backup Management**:
   - Run backups *locally* only transiently, pushing them immediately to offsite storage.
   - Delete local backup files after successful remote transfer to avoid double storage consumption.

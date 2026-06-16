@@ -54,7 +54,6 @@ export async function ensureUserAndProfileExists(supabase: SupabaseClient, user:
           id: user.id,
           user_id: user.id,
           full_name: fullName,
-          verification_status: "incomplete",
         });
 
       if (insertProfileError) {

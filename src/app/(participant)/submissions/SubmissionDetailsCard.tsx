@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { FileText, Video, ExternalLink, Calendar, HelpCircle } from "lucide-react";
+import { FileText, Video, ExternalLink, Calendar } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
@@ -9,7 +9,7 @@ interface Submission {
   id: string;
   title: string;
   pdf_path: string;
-  video_path: string | null;
+  youtube_demo_url: string | null;
   notes: string | null;
   status: string;
   submitted_at: string;
@@ -20,7 +20,6 @@ interface SubmissionDetailsCardProps {
 }
 
 export function SubmissionDetailsCard({ submission }: SubmissionDetailsCardProps) {
-  const [playVideo, setPlayVideo] = React.useState(false);
 
   return (
     <Card
@@ -91,36 +90,24 @@ export function SubmissionDetailsCard({ submission }: SubmissionDetailsCardProps
             </div>
 
             {/* Video Row */}
-            {submission.video_path && (
+            {submission.youtube_demo_url && (
               <div>
                 <div className="text-sm text-neutral-500 font-bold uppercase tracking-wider mb-2">
-                  Demo Video
+                  Demo Video Link
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setPlayVideo(!playVideo)}
+                <a
+                  href={submission.youtube_demo_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="inline-flex items-center justify-center gap-2 w-full px-4 py-3 rounded-lg border border-neutral-800 bg-neutral-950 text-xs text-neutral-200 hover:border-neutral-700 hover:bg-neutral-900/60 transition-all duration-150 font-mono uppercase tracking-wider font-semibold active:scale-[0.98]"
                 >
-                  <Video className="h-4 w-4 text-neutral-400" />
-                  <span>{playVideo ? "Hide Video Player" : "Play Demo Video"}</span>
-                </button>
+                  <Video className="h-4 w-4 text-neutral-450" />
+                  <span>Open Video</span>
+                  <ExternalLink className="h-3 w-3 text-neutral-550" />
+                </a>
               </div>
             )}
           </div>
-
-          {/* Inline Video Player */}
-          {submission.video_path && playVideo && (
-            <div className="border border-neutral-800 rounded-lg overflow-hidden bg-neutral-950/80 p-2 animate-fade-in">
-              <video
-                src={`/api/submissions/file/${submission.id}?type=video`}
-                controls
-                className="w-full aspect-video rounded border border-neutral-900 bg-black"
-                preload="metadata"
-              >
-                Your browser does not support the video tag.
-              </video>
-            </div>
-          )}
 
           {submission.notes && (
             <div>

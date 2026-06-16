@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Terminal, Upload, AlertCircle, ArrowLeft, ArrowRight, Check, X, ShieldCheck, Fingerprint, GraduationCap, Lock, Info, HelpCircle, Shield, CheckCircle2 } from "lucide-react";
+import { Terminal, Upload, AlertCircle, ArrowLeft, ArrowRight, Check, X, Fingerprint, GraduationCap, Lock, Info, HelpCircle, Shield } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,7 +16,7 @@ const wizardSchema = z.object({
   // Step 1: Identity
   full_name: z.string().min(2, "Full Name must be at least 2 characters"),
   phone: z.string().min(10, "Phone number must be valid"),
-  gender: z.string().min(1, "Please select your gender"),
+  gender: z.string().optional().nullable(),
   // Step 2: Academic & Festival
   university: z.string().min(2, "University name is required"),
   department: z.string().min(2, "Department name is required"),
@@ -76,7 +76,7 @@ export default function ProfileSetupWizard() {
   const nextStep = async () => {
     let isValid = false;
     if (step === 1) {
-      isValid = await trigger(["full_name", "phone", "gender"]);
+      isValid = await trigger(["full_name", "phone"]);
     } else if (step === 2) {
       isValid = await trigger(["university", "department", "semester", "student_id", "tshirt_size"]);
     }
@@ -259,46 +259,14 @@ export default function ProfileSetupWizard() {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="flex flex-col space-y-1.5 w-full">
-                        <label className="text-sm font-semibold text-neutral-400 font-mono uppercase tracking-widest select-none">Phone Number</label>
-                        <Input
-                          placeholder="+880 1XXX-XXXXXX"
-                          error={errors.phone?.message}
-                          className="h-9 border-neutral-800/80 bg-neutral-950 text-xs focus:border-neutral-700 focus:ring-1 focus:ring-neutral-700/20 transition-all duration-150"
-                          {...register("phone")}
-                        />
-                      </div>
-
-                      <div className="flex flex-col space-y-1.5 w-full">
-                        <label className="text-sm font-semibold text-neutral-400 font-mono uppercase tracking-widest select-none">
-                          Gender
-                        </label>
-                        <div className="grid grid-cols-2 gap-2 h-9">
-                          {(["male", "female"] as const).map((g) => {
-                            const watched = watch("gender");
-                            const isSelected = watched === g;
-                            return (
-                              <button
-                                key={g}
-                                type="button"
-                                onClick={() => setValue("gender", g, { shouldValidate: true })}
-                                className={`h-full rounded border text-xs font-mono transition-all duration-150 capitalize tracking-wider ${
-                                  isSelected
-                                    ? "border-neutral-400 bg-neutral-900 text-neutral-100 font-semibold"
-                                    : "border-neutral-900 bg-neutral-950/40 text-neutral-500 hover:border-neutral-800 hover:text-neutral-300"
-                                }`}
-                              >
-                                {g === "male" ? "Male" : "Female"}
-                              </button>
-                            );
-                          })}
-                        </div>
-                        <input type="hidden" {...register("gender")} />
-                        {errors.gender && (
-                          <span className="text-xs text-error font-sans font-medium">{errors.gender.message}</span>
-                        )}
-                      </div>
+                    <div className="flex flex-col space-y-1.5 w-full">
+                      <label className="text-sm font-semibold text-neutral-400 font-mono uppercase tracking-widest select-none">Phone Number</label>
+                      <Input
+                        placeholder="+880 1XXX-XXXXXX"
+                        error={errors.phone?.message}
+                        className="h-9 border-neutral-800/80 bg-neutral-950 text-xs focus:border-neutral-700 focus:ring-1 focus:ring-neutral-700/20 transition-all duration-150"
+                        {...register("phone")}
+                      />
                     </div>
                   </motion.div>
                 )}
@@ -317,7 +285,7 @@ export default function ProfileSetupWizard() {
                     </div>
 
                     <div className="flex flex-col space-y-1.5 w-full">
-                      <label className="text-sm font-semibold text-neutral-400 font-mono uppercase tracking-widest select-none">University Name</label>
+                      <label className="text-sm font-semibold text-neutral-400 font-mono uppercase tracking-widest select-none">Institution</label>
                       <Input
                         placeholder="e.g. Shanto-Mariam University of Creative Technology"
                         error={errors.university?.message}

@@ -26,7 +26,7 @@ interface Submission {
   id: string;
   title: string;
   pdf_path: string;
-  video_path: string | null;
+  youtube_demo_url: string | null;
   notes: string | null;
   status: string;
   submitted_at: string;
@@ -310,8 +310,10 @@ export default function SubmissionsPage() {
 
                 {isWindowOpen && (
                   <SubmissionFormCard
+                    key={submission.id}
                     initialTitle={submission.title}
                     initialNotes={submission.notes || ""}
+                    initialYoutubeDemoUrl={submission.youtube_demo_url || ""}
                     onSubmit={handleSubmit}
                     formLoading={formLoading}
                     uploadProgress={uploadProgress}
@@ -321,7 +323,7 @@ export default function SubmissionsPage() {
               </div>
             ) : isWindowOpen ? (
               /* Proposal submission form */
-              <SubmissionFormCard onSubmit={handleSubmit} formLoading={formLoading} uploadProgress={uploadProgress} />
+              <SubmissionFormCard key={selectedTeamId} onSubmit={handleSubmit} formLoading={formLoading} uploadProgress={uploadProgress} />
             ) : (
               /* Window not open status card */
               <Card variant="glass" className="text-center p-8 bg-glass border-glass">

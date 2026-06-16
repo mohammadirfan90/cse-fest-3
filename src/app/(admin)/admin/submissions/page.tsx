@@ -25,7 +25,7 @@ interface SubmissionItem {
   competition_id: string;
   title: string;
   pdf_path: string;
-  video_path: string | null;
+  youtube_demo_url: string | null;
   notes: string | null;
   status: "draft" | "submitted" | "under_review" | "selected" | "rejected";
   submitted_at: string;
@@ -50,11 +50,8 @@ export default function AdminSubmissionsPage() {
   const [statusFilter, setStatusFilter] = React.useState<string>("all");
   const [refreshTrigger, setRefreshTrigger] = React.useState(0);
   const [mutatingState, setMutatingState] = React.useState<{ id: string; status: string } | null>(null);
-const [competitions, setCompetitions] = React.useState<{ id: string; name: string }[]>([]);
-const [selectedCompetitionId, setSelectedCompetitionId] = React.useState<string>('all');
-  
-  // Track which videos are open in inline players
-  const [activeVideoPlayer, setActiveVideoPlayer] = React.useState<string | null>(null);
+  const [competitions, setCompetitions] = React.useState<{ id: string; name: string }[]>([]);
+  const [selectedCompetitionId, setSelectedCompetitionId] = React.useState<string>('all');
 
   const countByComp = React.useMemo(() => {
     const map: Record<string, number> = {};
@@ -414,19 +411,21 @@ React.useEffect(() => {
                       </a>
                     </div>
 
-                    {s.video_path ? (
+                    {s.youtube_demo_url ? (
                       <div className="flex items-center justify-between bg-neutral-955 p-3 rounded-lg border border-neutral-850/60">
                         <div className="text-sm text-neutral-500 font-bold uppercase tracking-wider flex items-center gap-1.5 font-mono">
                           <Video className="h-3.5 w-3.5 text-neutral-455" />
                           <span>Demo Video</span>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => setActiveVideoPlayer(activeVideoPlayer === s.id ? null : s.id)}
+                        <a
+                          href={s.youtube_demo_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
                           className="text-xs text-neutral-350 hover:text-neutral-50 hover:underline flex items-center gap-1 font-semibold transition-colors font-mono cursor-pointer"
                         >
-                          <span>{activeVideoPlayer === s.id ? "Hide Player" : "Open Player"}</span>
-                        </button>
+                          <span>Open Video</span>
+                          <ExternalLink className="h-3 w-3" />
+                        </a>
                       </div>
                     ) : (
                       <div className="flex items-center justify-between bg-neutral-955 p-3 rounded-lg border border-neutral-850/20 opacity-50 select-none">
@@ -437,20 +436,6 @@ React.useEffect(() => {
                       </div>
                     )}
                   </div>
-
-                  {/* Inline Video Player */}
-                  {s.video_path && activeVideoPlayer === s.id && (
-                    <div className="border border-neutral-800 rounded-lg overflow-hidden bg-neutral-955 p-2 animate-fade-in">
-                      <video
-                        src={`/api/submissions/file/${s.id}?type=video`}
-                        controls
-                        className="w-full aspect-video rounded border border-neutral-900 bg-black"
-                        preload="metadata"
-                      >
-                        Your browser does not support the video tag.
-                      </video>
-                    </div>
-                  )}
 
                   {s.notes && (
                     <div className="p-3 bg-neutral-950/20 rounded border border-neutral-850/60 text-xs shadow-inner">

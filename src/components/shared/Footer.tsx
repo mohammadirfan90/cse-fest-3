@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Image from "next/image";
 import { Mail, Phone, MapPin, ArrowUpRight } from "lucide-react";
 import useSWR from "swr";
 import { CONTACT_DETAILS } from "@/constants/content";
@@ -33,8 +34,6 @@ export function Footer() {
       mapsUrl: dbData?.maps_url || CONTACT_DETAILS.mapsUrl,
     };
   }, [data]);
-
-  const currentYear = new Date().getFullYear();
 
   return (
     <footer id="contact" className="relative bg-neutral-950 mt-auto">
@@ -138,11 +137,43 @@ export function Footer() {
 
         {/* Bottom copyright notice */}
         <div className="flex flex-col items-center justify-center text-center gap-4 text-sm text-neutral-600 font-sans">
-          <p>
-            © {currentYear}{" "}
-            <span className="text-neutral-500">Department of CSE &amp; CSIT, SMUCT.</span>
-            {" "}All rights reserved.
-          </p>
+          
+          <div className="flex flex-wrap items-center justify-center gap-2.5 text-xs text-neutral-500">
+            <span>Powered by</span>
+            <div className="flex items-center">
+              <Image
+                src="/ChronoLightMode.png"
+                alt="Chrono"
+                width={80}
+                height={24}
+                className="h-6 w-auto object-contain dark:hidden"
+              />
+              <Image
+                src="/ChronoDarkMode.png"
+                alt="Chrono"
+                width={80}
+                height={24}
+                className="h-6 w-auto object-contain hidden dark:block"
+              />
+            </div>
+            <span>and</span>
+            <div className="flex items-center">
+              <Image
+                src="/ClubLightModeLogoWithText.png"
+                alt="Club"
+                width={140}
+                height={28}
+                className="h-7 w-auto object-contain dark:hidden"
+              />
+              <Image
+                src="/ClubDarkModeLogoWithText.png"
+                alt="Club"
+                width={140}
+                height={28}
+                className="h-7 w-auto object-contain hidden dark:block"
+              />
+            </div>
+          </div>
         </div>
       </div>
     </footer>

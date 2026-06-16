@@ -22,12 +22,9 @@ import {
   CheckCircle2,
   GraduationCap,
   Phone,
-  Mail,
   UserCheck,
   Shirt,
-  Upload,
   ArrowRight,
-  ArrowLeft,
 } from "lucide-react";
 import useSWR from "swr";
 import { motion, AnimatePresence } from "framer-motion";
@@ -576,7 +573,7 @@ export default function TeamsPage() {
       if (nextMemberIndex <= maxMembers) {
         // Go to next member in the wizard
         setRosterWizardMemberIndex(nextMemberIndex);
-        resetWizardForm();
+        resetWizardForm(true);
       } else {
         // Roster is complete
         setRosterWizardTeamId(null);
@@ -589,18 +586,18 @@ export default function TeamsPage() {
     }
   };
 
-  const resetWizardForm = () => {
-    setRosterForm({
+  const resetWizardForm = (keepAcademicInfo = false) => {
+    setRosterForm((prev) => ({
       full_name: "",
       email: "",
       phone: "",
       gender: "",
-      university: "",
-      department: "",
-      semester: "",
+      university: keepAcademicInfo ? prev.university : "",
+      department: keepAcademicInfo ? prev.department : "",
+      semester: keepAcademicInfo ? prev.semester : "",
       student_id: "",
       tshirt_size: "",
-    });
+    }));
     setMutationError(null);
   };
 
@@ -982,7 +979,21 @@ export default function TeamsPage() {
                         onClick={() => {
                           setRosterWizardTeamId(team.id);
                           setRosterWizardMemberIndex(acceptedCount + 1);
-                          resetWizardForm();
+                          const leader = team.members.find(
+                            (m) => m.role === "leader" || m.user_id === team.leader_id
+                          );
+                          setRosterForm({
+                            full_name: "",
+                            email: "",
+                            phone: "",
+                            gender: "",
+                            university: leader?.profiles?.university || "",
+                            department: leader?.profiles?.department || "",
+                            semester: leader?.profiles?.semester || "",
+                            student_id: "",
+                            tshirt_size: "",
+                          });
+                          setMutationError(null);
                         }}
                         className="gap-2 bg-neutral-100 hover:bg-neutral-200 text-neutral-900 border border-transparent font-mono text-xs uppercase tracking-wider py-2 rounded transition-all active:scale-98"
                       >
@@ -1343,11 +1354,11 @@ export default function TeamsPage() {
                     { label: "Full Name", key: "full_name", placeholder: "e.g. John Doe", required: true },
                     { label: "Email Address", key: "email", placeholder: "member@university.edu.bd", required: true, type: "email" },
                     { label: "Phone Number", key: "phone", placeholder: "e.g. 01712345678", required: true },
-                    { label: "University", key: "university", placeholder: "e.g. SMUCT", required: true },
-                    { label: "Department", key: "department", placeholder: "e.g. CSE", required: true },
-                    { label: "Semester", key: "semester", placeholder: "e.g. 8th", required: true },
+                    { label: "Institution", key: "university", placeholder: "e.g. SMUCT", required: true, disabled: true },
+                    { label: "Department", key: "department", placeholder: "e.g. CSE", required: true, disabled: true },
+                    { label: "Semester", key: "semester", placeholder: "e.g. 8th", required: true, disabled: true },
                     { label: "Student ID", key: "student_id", placeholder: "e.g. 201071024", required: true },
-                  ].map(({ label, key, placeholder, required, type }) => (
+                  ].map(({ label, key, placeholder, required, type, disabled }) => (
                     <div key={key} className="flex flex-col space-y-1.5">
                       <label className="text-sm font-semibold text-neutral-400 font-mono uppercase tracking-widest">
                         {label}
@@ -1357,27 +1368,12 @@ export default function TeamsPage() {
                         placeholder={placeholder}
                         value={rosterForm[key as keyof typeof rosterForm]}
                         onChange={(e) => setRosterForm((prev) => ({ ...prev, [key]: e.target.value }))}
-                        className="bg-neutral-950 border-neutral-800/80 focus:border-neutral-700 text-xs h-9"
+                        className="bg-neutral-950 border-neutral-800/80 focus:border-neutral-700 text-xs h-9 disabled:opacity-55 disabled:cursor-not-allowed"
                         required={required}
+                        disabled={disabled}
                       />
                     </div>
                   ))}
-
-                  {/* Gender */}
-                  <div className="flex flex-col space-y-1.5">
-                    <label className="text-sm font-semibold text-neutral-400 font-mono uppercase tracking-widest">Gender</label>
-                    <select
-                      value={rosterForm.gender}
-                      onChange={(e) => setRosterForm((prev) => ({ ...prev, gender: e.target.value }))}
-                      required
-                      className="flex h-9 w-full rounded border border-neutral-800/80 bg-neutral-950 px-3 py-2 text-xs text-neutral-200 focus:border-neutral-700 outline-none cursor-pointer"
-                    >
-                      <option value="">Select Gender</option>
-                      <option value="male">Male</option>
-                      <option value="female">Female</option>
-                      <option value="other">Other</option>
-                    </select>
-                  </div>
 
                   {/* T-Shirt Size */}
                   <div className="flex flex-col space-y-1.5">

@@ -26,9 +26,9 @@ export async function GET(req: NextRequest, context: RouteContext) {
     const { searchParams } = new URL(req.url);
     const fileType = searchParams.get("type");
 
-    if (!fileType || (fileType !== "pdf" && fileType !== "video")) {
+    if (!fileType || fileType !== "pdf") {
       return NextResponse.json(
-        { success: false, message: "Invalid type parameter. Must be 'pdf' or 'video'." },
+        { success: false, message: "Invalid type parameter. Must be 'pdf'." },
         { status: 400 }
       );
     }
@@ -99,17 +99,8 @@ export async function GET(req: NextRequest, context: RouteContext) {
       }
     }
 
-    // 4. Resolve the requested file path and content type
-    let relativePath = "";
-    let contentType = "";
-
-    if (fileType === "pdf") {
-      relativePath = submission.pdf_path;
-      contentType = "application/pdf";
-    } else {
-      relativePath = submission.video_path || "";
-      contentType = "video/mp4"; // Default content type for stream
-    }
+    const relativePath = submission.pdf_path;
+    const contentType = "application/pdf";
 
     if (!relativePath) {
       return NextResponse.json(

@@ -10,6 +10,7 @@ import { FileDropzone } from "@/components/submissions/FileDropzone";
 interface SubmissionFormCardProps {
   initialTitle?: string;
   initialNotes?: string;
+  initialYoutubeDemoUrl?: string;
   onSubmit: (formData: FormData) => Promise<void>;
   formLoading: boolean;
   isUpdate?: boolean;
@@ -20,6 +21,7 @@ interface SubmissionFormCardProps {
 export function SubmissionFormCard({
   initialTitle = "",
   initialNotes = "",
+  initialYoutubeDemoUrl = "",
   onSubmit,
   formLoading,
   isUpdate = false,
@@ -28,16 +30,24 @@ export function SubmissionFormCard({
   const [title, setTitle] = React.useState(initialTitle);
   const [notes, setNotes] = React.useState(initialNotes);
   const [pdfFile, setPdfFile] = React.useState<File | null>(null);
-  const [videoFile, setVideoFile] = React.useState<File | null>(null);
+  const [youtubeDemoUrl, setYoutubeDemoUrl] = React.useState(initialYoutubeDemoUrl);
+  const [youtubeError, setYoutubeError] = React.useState<string | null>(null);
 
-  React.useEffect(() => {
-    setTitle(initialTitle);
-    setNotes(initialNotes);
-  }, [initialTitle, initialNotes]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (formLoading) return;
+
+    // Validate YouTube URL
+    if (youtubeDemoUrl && youtubeDemoUrl.trim()) {
+      const trimmedUrl = youtubeDemoUrl.trim();
+      const regex = /^(https?:\/\/)?(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)/;
+      if (!regex.test(trimmedUrl)) {
+        setYoutubeError("Please enter a valid YouTube URL (youtube.com/watch?v=, youtu.be/, or youtube.com/embed/).");
+        return;
+      }
+    }
+    setYoutubeError(null);
 
     const formData = new FormData();
     formData.append("title", title);
@@ -47,8 +57,8 @@ export function SubmissionFormCard({
     if (pdfFile) {
       formData.append("pdf", pdfFile);
     }
-    if (videoFile) {
-      formData.append("video", videoFile);
+    if (youtubeDemoUrl && youtubeDemoUrl.trim()) {
+      formData.append("youtube_demo_url", youtubeDemoUrl.trim());
     }
 
     await onSubmit(formData);
@@ -56,7 +66,7 @@ export function SubmissionFormCard({
     // If successfully submitted a new entry, clear inputs
     if (!isUpdate) {
       setPdfFile(null);
-      setVideoFile(null);
+      setYoutubeDemoUrl("");
     }
   };
 
@@ -93,31 +103,18 @@ export function SubmissionFormCard({
             disabled={formLoading}
           />
 
-          <FileDropzone
-            label="Demo Video (Optional)"
-            accept="video/*"
-            maxSizeMB={200}
-            value={videoFile}
-            onChange={setVideoFile}
-            helperText="Optional. MP4/WebM, max 200 MB. Compress before uploading."
+          <Input
+            label="Project Demo Video Link"
+            placeholder="https://youtube.com/watch?v=..."
+            value={youtubeDemoUrl}
+            onChange={(e) => {
+              setYoutubeDemoUrl(e.target.value);
+              if (youtubeError) setYoutubeError(null);
+            }}
+            error={youtubeError || undefined}
             disabled={formLoading}
+            helperText="Provide an Unlisted YouTube video link demonstrating your project. The video should clearly explain the problem, solution, features, and working demonstration of the project."
           />
-
-          {/* Video compression guidance */}
-          <div className="text-sm text-neutral-500 font-sans leading-relaxed space-y-1 p-3 bg-neutral-950/60 border border-neutral-850 rounded-lg">
-            <p className="font-semibold text-neutral-400">📹 Video Upload Tips</p>
-            <ul className="list-disc list-inside space-y-0.5 ml-1">
-              <li>Compress to under 100 MB for faster upload — use <span className="font-mono text-neutral-400">HandBrake</span> (free) or an online compressor</li>
-              <li>Supported formats: <span className="font-mono text-neutral-400">MP4, WebM</span></li>
-              <li>Maximum size: <span className="font-mono text-neutral-400">200 MB</span></li>
-            </ul>
-          </div>
-
-          {videoFile && (
-            <p className="text-sm text-neutral-500 font-mono mt-1">
-              Selected: {videoFile.name} ({(videoFile.size / 1024 / 1024).toFixed(1)} MB)
-            </p>
-          )}
 
           {/* Upload Progress Bar */}
           {formLoading && uploadProgress > 0 && (

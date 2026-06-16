@@ -10,6 +10,18 @@ export async function proxy(request: NextRequest) {
 
   const path = request.nextUrl.pathname;
 
+  // CSRF Check for API mutations
+  if (path.startsWith("/api/") && ["POST", "PUT", "DELETE", "PATCH"].includes(request.method)) {
+    const origin = request.headers.get("origin");
+    const host = request.headers.get("host");
+    if (origin && !origin.includes(host || "")) {
+      return new NextResponse(
+        JSON.stringify({ success: false, message: "CSRF verification failed: invalid origin source" }),
+        { status: 403, headers: { "Content-Type": "application/json" } }
+      );
+    }
+  }
+
   // API routes handle their own auth — skip middleware entirely for them
   // to avoid a redundant Supabase round-trip on every API call
   if (path.startsWith("/api/")) {

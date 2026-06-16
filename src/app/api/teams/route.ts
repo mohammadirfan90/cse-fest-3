@@ -10,11 +10,9 @@ import {
   SUBMISSIONS_ROOT,
   getCompetitionSlug,
   isValidPDFSignature,
-  isValidVideoSignature,
   writeSubmissionFile,
   deleteSubmissionFile,
   MAX_PDF_BYTES,
-  MAX_VIDEO_BYTES,
 } from "@/lib/server/submissionStorage";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
 
@@ -27,7 +25,7 @@ const registerMemberSchema = z.object({
   full_name: z.string().min(2, "Full Name must be at least 2 characters"),
   email: z.string().email("Please enter a valid email address"),
   phone: z.string().min(10, "Phone number must be valid"),
-  gender: z.string().min(1, "Gender is required"),
+  gender: z.string().optional().nullable(),
   university: z.string().min(2, "University is required"),
   department: z.string().min(2, "Department is required"),
   semester: z.string().min(1, "Semester is required"),
@@ -40,7 +38,7 @@ const addMemberSchema = z.object({
   full_name: z.string().min(2, "Full Name must be at least 2 characters"),
   email: z.string().email("Please enter a valid email address"),
   phone: z.string().min(10, "Phone number must be valid"),
-  gender: z.string().min(1, "Gender is required"),
+  gender: z.string().optional().nullable(),
   university: z.string().min(2, "University is required"),
   department: z.string().min(2, "Department is required"),
   semester: z.string().min(1, "Semester is required"),
@@ -301,7 +299,7 @@ export async function POST(req: Request) {
       // Leader Profile Details
       const leader_full_name = formData.get("leader_full_name") as string;
       const leader_phone = formData.get("leader_phone") as string;
-      const leader_gender = formData.get("leader_gender") as string;
+      const leader_gender = (formData.get("leader_gender") as string) || null;
       const leader_university = formData.get("leader_university") as string;
       const leader_department = formData.get("leader_department") as string;
       const leader_semester = formData.get("leader_semester") as string;
@@ -314,7 +312,7 @@ export async function POST(req: Request) {
         full_name: string;
         email: string;
         phone: string;
-        gender: string;
+        gender?: string | null;
         university: string;
         department: string;
         semester: string;
@@ -331,9 +329,9 @@ export async function POST(req: Request) {
       const project_title = formData.get("project_title") as string || null;
       const project_notes = formData.get("project_notes") as string || null;
       
-      // Files (if uploaded)
+      // Files & YouTube URL (if uploaded)
       const pdfFile = formData.get("pdf") as File | null;
-      const videoFile = formData.get("video") as File | null;
+      const youtubeDemoUrl = formData.get("youtube_demo_url") as string | null;
 
       // Zod Validation for leader
       const leaderValidate = registerMemberSchema.safeParse({
@@ -517,7 +515,10 @@ export async function POST(req: Request) {
           }
 
           let pdfPath = "mock-vercel-uploads/placeholder.pdf";
-          let videoPath = null;
+          let trimmedYoutubeUrl = youtubeDemoUrl?.trim() || null;
+          if (trimmedYoutubeUrl === "") {
+            trimmedYoutubeUrl = null;
+          }
 
           const competitionSlug = await getCompetitionSlug(comp.id);
           const teamSlug = slugify(team.name);
@@ -545,34 +546,13 @@ export async function POST(req: Request) {
             throw new Error("Project proposal PDF file is required.");
           }
 
-          // Process Video
-          if (videoFile && videoFile.size > 0) {
-            if (videoFile.size > MAX_VIDEO_BYTES) {
-              throw new Error("Video file size must be less than 200 MB.");
-            }
-
-            const videoBuffer = Buffer.from(await videoFile.arrayBuffer());
-            if (!isValidVideoSignature(videoBuffer)) {
-              throw new Error("Invalid video file. Must be a valid MP4 or WebM video.");
-            }
-
-            const relativePath = await writeSubmissionFile(
-              competitionSlug,
-              teamSlug,
-              videoFile.name,
-              videoBuffer
-            );
-            filesToDeleteOnFailure.push(relativePath);
-            videoPath = relativePath;
-          }
-
           // Create the submission record
           const { error: subInsertErr } = await supabase.from("submissions").insert({
             team_id: team.id,
             competition_id: comp.id,
             title: project_title,
             pdf_path: pdfPath,
-            video_path: videoPath,
+            youtube_demo_url: trimmedYoutubeUrl,
             notes: project_notes,
             status: "submitted",
             submitted_at: new Date().toISOString(),
@@ -612,7 +592,7 @@ export async function POST(req: Request) {
         // Return the successfully created team details
         return NextResponse.json({ success: true, data: team });
 
-      } catch (err: any) {
+      } catch (err: unknown) {
         // Rollback operations:
         // 1. Delete the created team (this will cascade delete roster members and submissions)
         if (createdTeamId) {
@@ -623,7 +603,8 @@ export async function POST(req: Request) {
           await deleteSubmissionFile(relPath);
         }
 
-        return NextResponse.json({ success: false, message: err.message }, { status: 400 });
+        const errorMessage = err instanceof Error ? err.message : "An unexpected error occurred during registration.";
+        return NextResponse.json({ success: false, message: errorMessage }, { status: 400 });
       }
     }
 
@@ -903,7 +884,15 @@ export async function POST(req: Request) {
         .single();
 
       const oldName = oldTeam?.name;
-      const compSlug = (oldTeam?.competitions as any)?.slug;
+      const compRecord = oldTeam?.competitions;
+      let compSlug = "";
+      if (compRecord) {
+        if (Array.isArray(compRecord)) {
+          compSlug = (compRecord[0] as { slug: string } | undefined)?.slug || "";
+        } else {
+          compSlug = (compRecord as { slug: string }).slug || "";
+        }
+      }
 
       const { error: updateError } = await supabase
         .from("teams")
@@ -942,23 +931,15 @@ export async function POST(req: Request) {
         // Fetch the existing submission for this team to update the DB paths
         const { data: submission } = await supabase
           .from("submissions")
-          .select("id, pdf_path, video_path")
+          .select("id, pdf_path")
           .eq("team_id", parseResult.data.team_id)
           .maybeSingle();
 
         if (submission) {
           let updatedPdf = submission.pdf_path;
-          let updatedVideo = submission.video_path;
 
           if (updatedPdf && updatedPdf.startsWith(`csefest/competitions/${compSlug}/teams/${oldSlug}/`)) {
             updatedPdf = updatedPdf.replace(
-              `csefest/competitions/${compSlug}/teams/${oldSlug}/`,
-              `csefest/competitions/${compSlug}/teams/${newSlug}/`
-            );
-          }
-
-          if (updatedVideo && updatedVideo.startsWith(`csefest/competitions/${compSlug}/teams/${oldSlug}/`)) {
-            updatedVideo = updatedVideo.replace(
               `csefest/competitions/${compSlug}/teams/${oldSlug}/`,
               `csefest/competitions/${compSlug}/teams/${newSlug}/`
             );
@@ -968,7 +949,6 @@ export async function POST(req: Request) {
             .from("submissions")
             .update({
               pdf_path: updatedPdf,
-              video_path: updatedVideo,
             })
             .eq("id", submission.id);
         }

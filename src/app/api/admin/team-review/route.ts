@@ -53,7 +53,7 @@ export async function GET() {
     // 5. Fetch submissions for all teams
     const { data: submissions, error: submissionsError } = await supabase
       .from("submissions")
-      .select("id, team_id, title, pdf_path, video_path, notes, status, submitted_at")
+      .select("id, team_id, title, pdf_path, youtube_demo_url, notes, status, submitted_at")
       .in("team_id", teamIds);
 
     if (submissionsError) throw new Error(submissionsError.message);

@@ -3,11 +3,10 @@ import {
   getCompetitionSlug,
   slugify,
   isValidPDFSignature,
-  isValidVideoSignature,
   writeSubmissionFile,
   deleteSubmissionFile,
   MAX_PDF_BYTES,
-  MAX_VIDEO_BYTES,
+  checkDiskSpace,
 } from "./submissionStorage";
 
 export type SubmitResult =
@@ -89,16 +88,19 @@ export async function submitOrUpdateProposal(
     // 5. Fetch existing submission (if any)
     const { data: existingSubmission } = await supabase
       .from("submissions")
-      .select("id, pdf_path, video_path")
+      .select("id, pdf_path")
       .eq("team_id", teamId)
       .single();
 
-    // 6. Handle PDF and Video file uploads
+    // 6. Handle PDF file upload and YouTube URL
     const pdfFile = formData.get("pdf") as File | null;
-    const videoFile = formData.get("video") as File | null;
+    const youtubeDemoUrl = formData.get("youtube_demo_url") as string | null;
 
     let newPdfPath = existingSubmission?.pdf_path || "";
-    let newVideoPath = existingSubmission?.video_path || null;
+    let trimmedYoutubeUrl = youtubeDemoUrl?.trim() || null;
+    if (trimmedYoutubeUrl === "") {
+      trimmedYoutubeUrl = null;
+    }
 
     const filesToDeleteOnFailure: string[] = [];
     const filesToDeleteOnSuccess: string[] = [];
@@ -110,6 +112,16 @@ export async function submitOrUpdateProposal(
           success: false,
           status: 400,
           message: "PDF file size must be less than 5 MB.",
+        };
+      }
+
+      // 6a. Check disk safety threshold before executing write
+      const hasSpace = await checkDiskSpace();
+      if (!hasSpace) {
+        return {
+          success: false,
+          status: 507,
+          message: "Upload blocked: Server storage capacity threshold reached. Please contact support.",
         };
       }
 
@@ -141,48 +153,13 @@ export async function submitOrUpdateProposal(
       newPdfPath = "mock-vercel-uploads/placeholder.pdf";
     }
 
-    // Process Video
-    if (videoFile && videoFile.size > 0) {
-      if (videoFile.size > MAX_VIDEO_BYTES) {
-        return {
-          success: false,
-          status: 400,
-          message: "Video file size must be less than 200 MB.",
-        };
-      }
-
-      const videoBuffer = Buffer.from(await videoFile.arrayBuffer());
-      if (!isValidVideoSignature(videoBuffer)) {
-        return {
-          success: false,
-          status: 400,
-          message: "Invalid video file. Must be a valid MP4 or WebM video.",
-        };
-      }
-
-      const competitionSlug = await getCompetitionSlug(comp.id);
-      const teamSlug = slugify(teamRecord.name);
-      const relativePath = await writeSubmissionFile(
-        competitionSlug,
-        teamSlug,
-        videoFile.name,
-        videoBuffer
-      );
-
-      if (existingSubmission?.video_path) {
-        filesToDeleteOnSuccess.push(existingSubmission.video_path);
-      }
-      filesToDeleteOnFailure.push(relativePath);
-      newVideoPath = relativePath;
-    }
-
     // 7. Upsert Submission record
     const { error: upsertErr } = await supabase.from("submissions").upsert({
       team_id: teamId,
       competition_id: comp.id,
       title,
       pdf_path: newPdfPath,
-      video_path: newVideoPath,
+      youtube_demo_url: trimmedYoutubeUrl,
       notes,
       status: "submitted",
       submitted_at: new Date().toISOString(),

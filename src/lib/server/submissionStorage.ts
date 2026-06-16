@@ -1,5 +1,6 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
+import { exec } from "node:child_process";
 import { createClient } from "@/lib/supabase/server";
 
 const uploadDirEnv = process.env.UPLOAD_DIR || process.env.SUBMISSIONS_DIR || "storage/submissions";
@@ -194,4 +195,33 @@ startxref
   } catch {
     return new Response("File not found", { status: 404 });
   }
+}
+
+const MIN_FREE_DISK_GB = 5;
+
+/**
+ * Check VM remaining disk space using standard Linux df command
+ */
+export function checkDiskSpace(): Promise<boolean> {
+  return new Promise((resolve) => {
+    // Run df command on the root directory (specifying Gigabytes with -BG)
+    exec("df -BG /", (err, stdout) => {
+      if (err || !stdout) {
+        // Fallback to true if command fails (e.g. Windows or local dev)
+        return resolve(true);
+      }
+      
+      const lines = stdout.trim().split("\n");
+      if (lines.length < 2) return resolve(true);
+      
+      const cols = lines[1].split(/\s+/);
+      const availableStr = cols[3];
+      if (!availableStr) return resolve(true);
+      
+      const availableGB = parseInt(availableStr.replace("G", ""), 10);
+      if (isNaN(availableGB)) return resolve(true);
+      
+      resolve(availableGB > MIN_FREE_DISK_GB);
+    });
+  });
 }

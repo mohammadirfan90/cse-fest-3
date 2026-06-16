@@ -98,8 +98,6 @@ export default function DashboardPage() {
   const [userEmail, setUserEmail] = React.useState<string | null>(null);
   const [userName, setUserName] = React.useState<string | null>(null);
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
-  const [activeVideoId, setActiveVideoId] = React.useState<string | null>(null);
-
   const [allCompetitions, setAllCompetitions] = React.useState<any[]>([]);
 
   const supabase = createClient();
@@ -279,7 +277,7 @@ export default function DashboardPage() {
             {teams.map((team, idx) => {
               const comp = team.competitions;
               const pdfUrl = team.submission ? `/api/submissions/file/${team.submission.id}?type=pdf` : null;
-              const videoUrl = team.submission ? `/api/submissions/file/${team.submission.id}?type=video` : null;
+              const youtubeDemoUrl = team.submission?.youtube_demo_url || null;
 
               return (
                 <motion.div
@@ -428,40 +426,21 @@ export default function DashboardPage() {
                                   </a>
                                 )}
 
-                                {videoUrl && (
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      setActiveVideoId(
-                                        activeVideoId === team.id ? null : team.id
-                                      )
-                                    }
+                                {youtubeDemoUrl && (
+                                  <a
+                                    href={youtubeDemoUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
                                     className="w-full flex items-center justify-between p-2.5 rounded bg-neutral-900 border border-neutral-850 hover:border-neutral-700 transition-colors text-neutral-300 hover:text-neutral-100 text-xxs font-mono uppercase tracking-wider"
                                   >
                                     <span className="flex items-center gap-1.5">
                                       <Video className="h-3.5 w-3.5 text-neutral-400" />
                                       <span>Demo Video</span>
                                     </span>
-                                    <span className="text-sm text-neutral-500 font-sans">
-                                      {activeVideoId === team.id ? "Hide Player" : "Play Video"}
-                                    </span>
-                                  </button>
+                                    <ExternalLink className="h-3 w-3" />
+                                  </a>
                                 )}
                               </div>
-
-                              {/* Inline Video Player */}
-                              {videoUrl && activeVideoId === team.id && (
-                                <div className="border border-neutral-800 rounded-lg overflow-hidden bg-black p-1 animate-fade-in">
-                                  <video
-                                    src={videoUrl}
-                                    controls
-                                    className="w-full aspect-video rounded bg-black border border-neutral-900"
-                                    preload="metadata"
-                                  >
-                                    Your browser does not support the video tag.
-                                  </video>
-                                </div>
-                              )}
 
                               {team.submission.notes && (
                                 <div>

@@ -17,8 +17,7 @@ import {
   Send,
   Loader2,
   AlertTriangle,
-  LogOut,
-  CheckCircle2
+  LogOut
 } from "lucide-react";
 
 import { Navbar } from "@/components/shared/Navbar";
@@ -62,7 +61,6 @@ interface MemberState {
   full_name: string;
   email: string;
   phone: string;
-  gender: string;
   university: string;
   department: string;
   semester: string;
@@ -99,7 +97,6 @@ export default function CompetitionRegisterPage() {
     full_name: "",
     email: "",
     phone: "",
-    gender: "",
     university: "",
     department: "",
     semester: "",
@@ -114,7 +111,7 @@ export default function CompetitionRegisterPage() {
   const [projectTitle, setProjectTitle] = React.useState("");
   const projectNotes = "";
   const [pdfFile, setPdfFile] = React.useState<File | null>(null);
-  const [videoFile, setVideoFile] = React.useState<File | null>(null);
+  const [youtubeDemoUrl, setYoutubeDemoUrl] = React.useState("");
 
   // 4. Progress and error notifications
   const [formLoading, setFormLoading] = React.useState(false);
@@ -125,6 +122,7 @@ export default function CompetitionRegisterPage() {
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
   const [successMsg, setSuccessMsg] = React.useState<string | null>(null);
   const rosterInitializedRef = React.useRef(false);
+  const [isSmuct, setIsSmuct] = React.useState<boolean>(false);
 
   // Validation States
   const [touchedFields, setTouchedFields] = React.useState<Record<string, boolean>>({});
@@ -149,8 +147,7 @@ export default function CompetitionRegisterPage() {
     } else if (l.phone.trim().length < 10) {
       errors['leader_phone'] = "Phone number must be at least 10 digits.";
     }
-    if (!l.gender) errors['leader_gender'] = "Gender is required.";
-    if (!l.university || !l.university.trim()) errors['leader_university'] = "University is required.";
+    if (!l.university || !l.university.trim()) errors['leader_university'] = "Institution is required.";
     if (!l.department || !l.department.trim()) errors['leader_department'] = "Department is required.";
     if (!l.semester || !l.semester.trim()) errors['leader_semester'] = "Semester is required.";
     if (!l.student_id || !l.student_id.trim()) errors['leader_student_id'] = "Student ID is required.";
@@ -187,8 +184,7 @@ export default function CompetitionRegisterPage() {
         errors[`${prefix}_phone`] = `Member ${mNum} phone number must be at least 10 digits.`;
       }
 
-      if (!m.gender) errors[`${prefix}_gender`] = `Member ${mNum} Gender is required.`;
-      if (!m.university || !m.university.trim()) errors[`${prefix}_university`] = `Member ${mNum} University is required.`;
+      if (!m.university || !m.university.trim()) errors[`${prefix}_university`] = `Member ${mNum} Institution is required.`;
       if (!m.department || !m.department.trim()) errors[`${prefix}_department`] = `Member ${mNum} Department is required.`;
       if (!m.semester || !m.semester.trim()) errors[`${prefix}_semester`] = `Member ${mNum} Semester is required.`;
       if (!m.student_id || !m.student_id.trim()) errors[`${prefix}_student_id`] = `Member ${mNum} Student ID is required.`;
@@ -204,8 +200,17 @@ export default function CompetitionRegisterPage() {
       }
     }
 
+    // 5. YouTube URL validation (optional, but must be valid if provided)
+    if (youtubeDemoUrl && youtubeDemoUrl.trim()) {
+      const trimmedUrl = youtubeDemoUrl.trim();
+      const regex = /^(https?:\/\/)?(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)/;
+      if (!regex.test(trimmedUrl)) {
+        errors['youtubeDemoUrl'] = "Please enter a valid YouTube URL (youtube.com/watch?v=, youtu.be/, or youtube.com/embed/).";
+      }
+    }
+
     return errors;
-  }, [teamName, leaderForm, members, competition, projectTitle]);
+  }, [teamName, leaderForm, members, competition, projectTitle, youtubeDemoUrl]);
 
   const handleBlur = (fieldKey: string) => {
     setTouchedFields((prev) => ({ ...prev, [fieldKey]: true }));
@@ -240,10 +245,9 @@ export default function CompetitionRegisterPage() {
         full_name: "",
         email: "",
         phone: "",
-        gender: "",
-        university: "",
-        department: "",
-        semester: "",
+        university: leaderForm.university,
+        department: leaderForm.department,
+        semester: leaderForm.semester,
         student_id: "",
         tshirt_size: "",
       }));
@@ -251,7 +255,7 @@ export default function CompetitionRegisterPage() {
         setMembers(initialMembers);
       });
     }
-  }, [competition]);
+  }, [competition, leaderForm.university, leaderForm.department, leaderForm.semester]);
 
   // Load User, Profile, and check Existing Registrations in parallel to resolve waterfalls
   React.useEffect(() => {
@@ -279,17 +283,32 @@ export default function CompetitionRegisterPage() {
 
           if (profileRes.success && profileRes.data) {
             const profile = profileRes.data;
-            setLeaderForm({
+            const updatedLeader = {
               full_name: profile.full_name || "",
               email: loggedInUser.email || "",
               phone: profile.phone || "",
-              gender: profile.gender || "",
               university: profile.university || "",
               department: profile.department || "",
               semester: profile.semester || "",
               student_id: profile.student_id || "",
               tshirt_size: profile.tshirt_size || "",
-            });
+            };
+            setLeaderForm(updatedLeader);
+
+            // Sync loaded leader info to any pre-initialized member templates
+            setMembers((prev) =>
+              prev.map((m) => ({
+                ...m,
+                university: updatedLeader.university,
+                department: updatedLeader.department,
+                semester: updatedLeader.semester,
+              }))
+            );
+
+            if (profile.university) {
+              const isUnivSmuct = profile.university.toLowerCase().includes("smuct") || profile.university.toLowerCase().includes("shanto-mariam");
+              setIsSmuct(isUnivSmuct);
+            }
           }
 
           if (teamRes.success && Array.isArray(teamRes.data)) {
@@ -340,10 +359,9 @@ export default function CompetitionRegisterPage() {
         full_name: "",
         email: "",
         phone: "",
-        gender: "",
-        university: "",
-        department: "",
-        semester: "",
+        university: leaderForm.university,
+        department: leaderForm.department,
+        semester: leaderForm.semester,
         student_id: "",
         tshirt_size: "",
       },
@@ -365,6 +383,13 @@ export default function CompetitionRegisterPage() {
   // Update leader field
   const handleLeaderChange = (field: keyof MemberState, value: string) => {
     setLeaderForm((prev) => ({ ...prev, [field]: value }));
+
+    // Autofill Institution, Department, and Semester for all members
+    if (field === "university" || field === "department" || field === "semester") {
+      setMembers((prev) =>
+        prev.map((m) => ({ ...m, [field]: value }))
+      );
+    }
   };
 
   // Submit Handler: Atomic single API call
@@ -384,7 +409,6 @@ export default function CompetitionRegisterPage() {
       touchedAll['teamName'] = true;
       touchedAll['leader_full_name'] = true;
       touchedAll['leader_phone'] = true;
-      touchedAll['leader_gender'] = true;
       touchedAll['leader_university'] = true;
       touchedAll['leader_department'] = true;
       touchedAll['leader_semester'] = true;
@@ -395,7 +419,6 @@ export default function CompetitionRegisterPage() {
         touchedAll[`member_${idx}_full_name`] = true;
         touchedAll[`member_${idx}_email`] = true;
         touchedAll[`member_${idx}_phone`] = true;
-        touchedAll[`member_${idx}_gender`] = true;
         touchedAll[`member_${idx}_university`] = true;
         touchedAll[`member_${idx}_department`] = true;
         touchedAll[`member_${idx}_semester`] = true;
@@ -405,6 +428,10 @@ export default function CompetitionRegisterPage() {
 
       if (competition?.submissionRequired) {
         touchedAll['projectTitle'] = true;
+      }
+
+      if (youtubeDemoUrl) {
+        touchedAll['youtubeDemoUrl'] = true;
       }
 
       setTouchedFields(touchedAll);
@@ -442,7 +469,6 @@ export default function CompetitionRegisterPage() {
       // Leader Profile Details
       formData.append("leader_full_name", leaderForm.full_name);
       formData.append("leader_phone", leaderForm.phone);
-      formData.append("leader_gender", leaderForm.gender);
       formData.append("leader_university", leaderForm.university);
       formData.append("leader_department", leaderForm.department);
       formData.append("leader_semester", leaderForm.semester);
@@ -460,12 +486,12 @@ export default function CompetitionRegisterPage() {
         formData.append("project_notes", projectNotes);
       }
       
-      // Files (if uploaded)
+      // Files & YouTube URL (if uploaded)
       if (pdfFile) {
         formData.append("pdf", pdfFile);
       }
-      if (videoFile) {
-        formData.append("video", videoFile);
+      if (youtubeDemoUrl && youtubeDemoUrl.trim()) {
+        formData.append("youtube_demo_url", youtubeDemoUrl.trim());
       }
 
       // Upload using XHR for progress support
@@ -612,14 +638,6 @@ export default function CompetitionRegisterPage() {
             </p>
           </div>
         </div>
-
-        {/* Global Warnings / Info */}
-        {errorMsg && (
-          <div className="p-4 rounded-lg bg-error/10 border border-error/20 text-xs text-error font-sans font-semibold flex items-start gap-2.5 animate-fade-in">
-            <AlertCircle className="h-4.5 w-4.5 shrink-0 mt-0.5" />
-            <span>{errorMsg}</span>
-          </div>
-        )}
 
         {successMsg && (
           <div className="p-4 rounded-lg bg-success/10 border border-success/20 text-xs text-success font-sans font-semibold flex items-start gap-2.5 animate-fade-in">
@@ -807,56 +825,33 @@ export default function CompetitionRegisterPage() {
                     disabled={formLoading}
                     required
                   />
-                  <div className="flex flex-col space-y-1.5 w-full">
-                    <label className="text-sm font-medium text-neutral-350 select-none">
-                      Gender
+                  <div className="flex items-center space-x-3 w-full h-11 self-end pb-2">
+                    <input
+                      type="checkbox"
+                      id="is-smuct-checkbox"
+                      checked={isSmuct}
+                      onChange={(e) => {
+                        const checked = e.target.checked;
+                        setIsSmuct(checked);
+                        if (checked) {
+                          handleLeaderChange("university", "Shanto-Mariam University of Creative Technology");
+                        } else {
+                          handleLeaderChange("university", "");
+                        }
+                      }}
+                      disabled={formLoading}
+                      className="h-5 w-5 rounded border border-neutral-800 bg-neutral-950 text-primary focus:ring-1 focus:ring-primary focus:ring-offset-0 cursor-pointer accent-primary"
+                    />
+                    <label
+                      htmlFor="is-smuct-checkbox"
+                      className="text-sm font-medium text-neutral-350 cursor-pointer select-none font-sans"
+                    >
+                      SMUCT Student
                     </label>
-                    <div className="relative w-full flex items-center">
-                      <select
-                        value={leaderForm.gender}
-                        onChange={(e) => {
-                          handleLeaderChange("gender", e.target.value);
-                          handleBlur('leader_gender');
-                        }}
-                        onBlur={() => handleBlur('leader_gender')}
-                        disabled={formLoading}
-                        required
-                        className={`flex h-10 w-full rounded-lg border px-3 py-2 text-sm text-neutral-200 outline-none transition-colors cursor-pointer ${
-                          isInvalid('leader_gender')
-                            ? "border-[#EF4444] bg-[#FFFFFF] dark:bg-[#EF4444]/4 text-[#111827] dark:text-neutral-50 focus:border-[#EF4444] focus:ring-1 focus:ring-[#EF4444]/15 dark:focus:ring-[#EF4444]/18"
-                            : isValidField('leader_gender', leaderForm.gender)
-                            ? "border-[#10B981] dark:border-[#34D399] bg-neutral-950 focus:border-[#10B981] dark:focus:border-[#34D399]"
-                            : "border-neutral-800 bg-neutral-950 focus:border-primary focus:ring-1 focus:ring-primary"
-                        }`}
-                      >
-                        <option value="">Select Gender</option>
-                        <option value="male">Male</option>
-                        <option value="female">Female</option>
-                        <option value="other">Other</option>
-                      </select>
-                      {isInvalid('leader_gender') && (
-                        <span className="absolute right-8 text-[#DC2626] dark:text-[#EF4444] flex items-center pointer-events-none animate-fade-in">
-                          <AlertCircle className="h-4.5 w-4.5" />
-                        </span>
-                      )}
-                      {isValidField('leader_gender', leaderForm.gender) && (
-                        <span className="absolute right-8 text-[#10B981] dark:text-[#34D399] flex items-center pointer-events-none animate-fade-in">
-                          <CheckCircle2 className="h-4.5 w-4.5" />
-                        </span>
-                      )}
-                    </div>
-                    {isInvalid('leader_gender') ? (
-                      <span className="text-xs text-[#DC2626] dark:text-[#FCA5A5] font-sans font-medium tracking-tight flex items-center gap-1 mt-1 animate-fade-in">
-                        <span>✖</span> {allErrors['leader_gender']}
-                      </span>
-                    ) : isValidField('leader_gender', leaderForm.gender) ? (
-                      <span className="text-xs text-[#10B981] dark:text-[#34D399] font-sans font-medium tracking-tight flex items-center gap-1 mt-1 animate-fade-in">
-                        <span>✓</span>
-                      </span>
-                    ) : null}
                   </div>
+
                   <Input
-                    label="University"
+                    label="Institution"
                     placeholder="e.g. SMUCT"
                     value={leaderForm.university}
                     onChange={(e) => {
@@ -866,7 +861,7 @@ export default function CompetitionRegisterPage() {
                     onBlur={() => handleBlur('leader_university')}
                     error={getFieldError('leader_university')}
                     isValid={isValidField('leader_university', leaderForm.university)}
-                    disabled={formLoading}
+                    disabled={formLoading || isSmuct}
                     required
                   />
                   <Input
@@ -1058,94 +1053,34 @@ export default function CompetitionRegisterPage() {
                             disabled={formLoading}
                             required
                           />
-                          <div className="flex flex-col space-y-1.5 w-full">
-                            <label className="text-sm font-medium text-neutral-350 select-none">
-                              Gender
-                            </label>
-                            <div className="relative w-full flex items-center">
-                              <select
-                                value={member.gender}
-                                onChange={(e) => {
-                                  handleMemberChange(index, "gender", e.target.value);
-                                  handleBlur(`member_${index}_gender`);
-                                }}
-                                onBlur={() => handleBlur(`member_${index}_gender`)}
-                                disabled={formLoading}
-                                required
-                                className={`flex h-10 w-full rounded-lg border px-3 py-2 text-sm text-neutral-200 outline-none transition-colors cursor-pointer ${
-                                  isInvalid(`member_${index}_gender`)
-                                    ? "border-[#EF4444] bg-[#FFFFFF] dark:bg-[#EF4444]/4 text-[#111827] dark:text-neutral-50 focus:border-[#EF4444] focus:ring-1 focus:ring-[#EF4444]/15 dark:focus:ring-[#EF4444]/18"
-                                    : isValidField(`member_${index}_gender`, member.gender)
-                                    ? "border-[#10B981] dark:border-[#34D399] bg-neutral-950 focus:border-[#10B981] dark:focus:border-[#34D399]"
-                                    : "border-neutral-800 bg-neutral-950 focus:border-primary focus:ring-1 focus:ring-primary"
-                                }`}
-                              >
-                                <option value="">Select Gender</option>
-                                <option value="male">Male</option>
-                                <option value="female">Female</option>
-                                <option value="other">Other</option>
-                              </select>
-                              {isInvalid(`member_${index}_gender`) && (
-                                <span className="absolute right-8 text-[#DC2626] dark:text-[#EF4444] flex items-center pointer-events-none animate-fade-in">
-                                  <AlertCircle className="h-4.5 w-4.5" />
-                                </span>
-                              )}
-                              {isValidField(`member_${index}_gender`, member.gender) && (
-                                <span className="absolute right-8 text-[#10B981] dark:text-[#34D399] flex items-center pointer-events-none animate-fade-in">
-                                  <CheckCircle2 className="h-4.5 w-4.5" />
-                                </span>
-                              )}
-                            </div>
-                            {isInvalid(`member_${index}_gender`) ? (
-                              <span className="text-xs text-[#DC2626] dark:text-[#FCA5A5] font-sans font-medium tracking-tight flex items-center gap-1 mt-1 animate-fade-in">
-                                <span>✖</span> {allErrors[`member_${index}_gender`]}
-                              </span>
-                            ) : isValidField(`member_${index}_gender`, member.gender) ? (
-                              <span className="text-xs text-[#10B981] dark:text-[#34D399] font-sans font-medium tracking-tight flex items-center gap-1 mt-1 animate-fade-in">
-                                <span>✓</span>
-                              </span>
-                            ) : null}
-                          </div>
                           <Input
-                            label="University"
-                            placeholder="University"
+                            label="Institution"
+                            placeholder="Institution"
                             value={member.university}
-                            onChange={(e) => {
-                              handleMemberChange(index, "university", e.target.value);
-                              handleBlur(`member_${index}_university`);
-                            }}
                             onBlur={() => handleBlur(`member_${index}_university`)}
                             error={getFieldError(`member_${index}_university`)}
                             isValid={isValidField(`member_${index}_university`, member.university)}
-                            disabled={formLoading}
+                            disabled={true}
                             required
                           />
                           <Input
                             label="Department"
                             placeholder="Department"
                             value={member.department}
-                            onChange={(e) => {
-                              handleMemberChange(index, "department", e.target.value);
-                              handleBlur(`member_${index}_department`);
-                            }}
                             onBlur={() => handleBlur(`member_${index}_department`)}
                             error={getFieldError(`member_${index}_department`)}
                             isValid={isValidField(`member_${index}_department`, member.department)}
-                            disabled={formLoading}
+                            disabled={true}
                             required
                           />
                           <Input
                             label="Semester"
                             placeholder="Semester"
                             value={member.semester}
-                            onChange={(e) => {
-                              handleMemberChange(index, "semester", e.target.value);
-                              handleBlur(`member_${index}_semester`);
-                            }}
                             onBlur={() => handleBlur(`member_${index}_semester`)}
                             error={getFieldError(`member_${index}_semester`)}
                             isValid={isValidField(`member_${index}_semester`, member.semester)}
-                            disabled={formLoading}
+                            disabled={true}
                             required
                           />
                           <Input
@@ -1269,25 +1204,20 @@ export default function CompetitionRegisterPage() {
                     disabled={formLoading}
                   />
 
-                  <FileDropzone
-                    label="Demo Video (Optional)"
-                    accept="video/*"
-                    maxSizeMB={200}
-                    value={videoFile}
-                    onChange={setVideoFile}
-                    helperText="Optional. MP4/WebM, max 200 MB. Compress before uploading."
+                  <Input
+                    label="Project Demo Video Link"
+                    placeholder="https://youtube.com/watch?v=..."
+                    value={youtubeDemoUrl}
+                    onChange={(e) => {
+                      setYoutubeDemoUrl(e.target.value);
+                      handleBlur('youtubeDemoUrl');
+                    }}
+                    onBlur={() => handleBlur('youtubeDemoUrl')}
+                    error={getFieldError('youtubeDemoUrl')}
+                    isValid={isValidField('youtubeDemoUrl', youtubeDemoUrl)}
                     disabled={formLoading}
+                    helperText="Provide an Unlisted YouTube video link demonstrating your project. The video should clearly explain the problem, solution, features, and working demonstration of the project."
                   />
-
-                  {/* Video compression tips */}
-                  <div className="text-sm text-neutral-500 font-sans leading-relaxed space-y-1 p-3 bg-neutral-950/60 border border-neutral-850 rounded-lg">
-                    <p className="font-semibold text-neutral-400">📹 Video Upload Tips</p>
-                    <ul className="list-disc list-inside space-y-0.5 ml-1">
-                      <li>Compress to under 100 MB for faster upload — use <span className="font-mono text-neutral-400">HandBrake</span> (free) or online tools</li>
-                      <li>Supported formats: <span className="font-mono text-neutral-400">MP4, WebM</span></li>
-                      <li>Maximum size: <span className="font-mono text-neutral-400">200 MB</span></li>
-                    </ul>
-                  </div>
                 </CardContent>
               </Card>
             )}
@@ -1324,6 +1254,14 @@ export default function CompetitionRegisterPage() {
 
             {/* Big Action Submit Button */}
             <div className="pt-4 space-y-4">
+              {/* Server-side / Network Error Alert */}
+              {errorMsg && (
+                <div className="p-4 rounded-lg bg-error/10 border border-error/20 text-xs text-error font-sans font-semibold flex items-start gap-2.5 animate-fade-in">
+                  <AlertCircle className="h-4.5 w-4.5 shrink-0 mt-0.5" />
+                  <span>{errorMsg}</span>
+                </div>
+              )}
+
               {/* Validation Summary Alert Container */}
               {submittedOnce && Object.keys(allErrors).length > 0 && (
                 <div className="p-4 rounded-xl border bg-[#FEF2F2] dark:bg-red-500/12 border-[#EF4444] dark:border-red-500/40 text-[#991B1B] dark:text-[#FCA5A5] animate-fade-in transition-all duration-300">
@@ -1347,24 +1285,18 @@ export default function CompetitionRegisterPage() {
               <Button
                 type="submit"
                 disabled={formLoading || submitButtonStatus === "success"}
-                className={`w-full py-4 h-auto rounded-md text-base font-bold font-sans flex items-center justify-center gap-2 transition-all duration-300 select-none cursor-pointer ${
-                  submitButtonStatus === "success"
-                    ? "bg-success hover:bg-success/95 text-white shadow-[0_0_20px_rgba(16,185,129,0.35)]"
-                    : submitButtonStatus === "failure"
-                    ? "bg-error hover:bg-error/95 text-white shadow-[0_0_20px_rgba(239,68,68,0.35)]"
-                    : "bg-primary hover:bg-primary/95 text-white hover:shadow-[0_0_20px_rgba(99,102,241,0.35)]"
-                }`}
+                className={`w-full py-4 h-auto rounded-md text-base font-bold font-sans flex items-center justify-center gap-2 transition-all duration-300 select-none cursor-pointer bg-primary hover:bg-primary/95 text-white hover:shadow-[0_0_20px_rgba(99,102,241,0.35)]`}
               >
                 {submitButtonStatus === "loading" && <Loader2 className="h-5 w-5 animate-spin" />}
                 {submitButtonStatus === "success" && <Check className="h-5 w-5" />}
-                {submitButtonStatus === "failure" && <AlertCircle className="h-5 w-5" />}
+                {submitButtonStatus === "failure" && <Send className="h-4 w-4" />}
                 {submitButtonStatus === "idle" && <Send className="h-4 w-4" />}
 
                 <span>
                   {submitButtonStatus === "idle" && "Register & Submit Team"}
                   {submitButtonStatus === "loading" && "Submitting..."}
                   {submitButtonStatus === "success" && "Registration Submitted Successfully"}
-                  {submitButtonStatus === "failure" && "Submission Failed. Please fix the highlighted errors."}
+                  {submitButtonStatus === "failure" && "Register & Submit Team"}
                 </span>
               </Button>
             </div>
@@ -1401,6 +1333,8 @@ function CrownIcon() {
 function getFieldFriendlyName(key: string): string {
   if (key === "teamName") return "Team Name";
   if (key === "projectTitle") return "Project Title";
+  if (key === "isSmuct") return "SMUCT Student Status";
+  if (key === "youtubeDemoUrl") return "Project Demo Video Link";
   
   if (key.startsWith("leader_")) {
     const field = key.replace("leader_", "");

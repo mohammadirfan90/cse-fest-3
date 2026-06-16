@@ -9,7 +9,7 @@ import { ensureUserAndProfileExists } from "@/lib/server/userSelfHeal";
 const profileSchema = z.object({
   full_name: z.string().min(2, "Full Name must be at least 2 characters"),
   phone: z.string().min(10, "Phone number must be valid"),
-  gender: z.string().min(1, "Gender is required"),
+  gender: z.string().optional().nullable(),
   university: z.string().min(2, "University is required"),
   department: z.string().min(2, "Department is required"),
   semester: z.string().min(1, "Semester is required"),
@@ -69,7 +69,7 @@ export async function POST(req: Request) {
       .update({
         full_name: parseResult.data.full_name,
         phone: parseResult.data.phone,
-        gender: parseResult.data.gender,
+        gender: parseResult.data.gender || null,
         university: parseResult.data.university,
         department: parseResult.data.department,
         semester: parseResult.data.semester,

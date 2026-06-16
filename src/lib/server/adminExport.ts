@@ -421,7 +421,7 @@ interface SubmissionRowJoined {
   teams: unknown;
   competitions: unknown;
   pdf_path: string | null;
-  video_path: string | null;
+  youtube_demo_url: string | null;
   team_id: string;
   competition_id: string;
 }
@@ -439,7 +439,7 @@ async function buildSubmissionsExport(
   let query = supabase
     .from("submissions")
     .select(
-      "id, title, google_docs_url, notes, status, submitted_at, reviewed_at, teams(name), competitions(name), pdf_path, video_path, team_id, competition_id",
+      "id, title, google_docs_url, notes, status, submitted_at, reviewed_at, teams(name), competitions(name), pdf_path, youtube_demo_url, team_id, competition_id",
     );
   if (competitionId) query = query.eq("competition_id", competitionId);
   const { data, error } = await query;
@@ -474,7 +474,7 @@ async function buildSubmissionsExport(
       "Status",
       "Score",
       "PDF Link",
-      "Video Link",
+      "YouTube Demo URL",
       "Google Docs URL",
       "Notes",
       "Submitted At (ISO)",
@@ -488,7 +488,7 @@ async function buildSubmissionsExport(
       s.status,
       scoreMap.get(`${s.team_id}:${s.competition_id}`) ?? "",
       s.pdf_path ?? "",
-      s.video_path ?? "",
+      s.youtube_demo_url ?? "",
       s.google_docs_url,
       s.notes ?? "",
       toISO8601(s.submitted_at),

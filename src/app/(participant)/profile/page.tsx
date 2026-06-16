@@ -21,7 +21,7 @@ const fetcher = (url: string) => fetch(url).then((res) => res.json());
 const profileSchema = z.object({
   full_name: z.string().min(2, "Full Name must be at least 2 characters"),
   phone: z.string().min(10, "Phone number must be valid"),
-  gender: z.string().min(1, "Gender is required"),
+  gender: z.string().optional().nullable(),
   university: z.string().min(2, "University is required"),
   department: z.string().min(2, "Department is required"),
   semester: z.string().min(1, "Semester is required"),
@@ -249,52 +249,28 @@ export default function ProfilePage() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="flex flex-col space-y-1.5 w-full">
-                      <label className="text-sm font-semibold text-neutral-400 font-mono uppercase tracking-widest select-none">Gender</label>
-                      <select
-                        className={`flex h-9 w-full rounded border bg-neutral-950 px-3 py-2 text-xs text-neutral-200 outline-none transition-all duration-150 cursor-pointer font-sans ${
-                          errors.gender
-                            ? "border-rose-900/50 focus:border-rose-950 focus:ring-1 focus:ring-error/20"
-                            : "border-neutral-800/80 focus:border-neutral-700 focus:ring-1 focus:ring-neutral-700/20 hover:border-neutral-700/60"
-                        }`}
-                        {...register("gender")}
-                      >
-                        <option value="">Select Gender</option>
-                        <option value="male">Male</option>
-                        <option value="female">Female</option>
-                        <option value="other">Other</option>
-                      </select>
-                      {errors.gender && (
-                        <span className="text-xs text-error font-sans font-medium tracking-tight">
-                          {errors.gender.message}
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="flex flex-col space-y-1.5 w-full">
-                      <label className="text-sm font-semibold text-neutral-400 font-mono uppercase tracking-widest select-none">T-Shirt Size</label>
-                      <select
-                        className={`flex h-9 w-full rounded border bg-neutral-950 px-3 py-2 text-xs text-neutral-200 outline-none transition-all duration-155 cursor-pointer font-sans ${
-                          errors.tshirt_size
-                            ? "border-rose-900/50 focus:border-rose-950 focus:ring-1 focus:ring-error/20"
-                            : "border-neutral-800/80 focus:border-neutral-700 focus:ring-1 focus:ring-neutral-700/20 hover:border-neutral-700/60"
-                        }`}
-                        {...register("tshirt_size")}
-                      >
-                        <option value="">Select Size</option>
-                        <option value="S">Small (S)</option>
-                        <option value="M">Medium (M)</option>
-                        <option value="L">Large (L)</option>
-                        <option value="XL">Extra Large (XL)</option>
-                        <option value="XXL">Double Extra Large (XXL)</option>
-                      </select>
-                      {errors.tshirt_size && (
-                        <span className="text-xs text-error font-sans font-medium tracking-tight">
-                          {errors.tshirt_size.message}
-                        </span>
-                      )}
-                    </div>
+                  <div className="flex flex-col space-y-1.5 w-full">
+                    <label className="text-sm font-semibold text-neutral-400 font-mono uppercase tracking-widest select-none">T-Shirt Size</label>
+                    <select
+                      className={`flex h-9 w-full rounded border bg-neutral-950 px-3 py-2 text-xs text-neutral-200 outline-none transition-all duration-155 cursor-pointer font-sans ${
+                        errors.tshirt_size
+                          ? "border-rose-900/50 focus:border-rose-950 focus:ring-1 focus:ring-error/20"
+                          : "border-neutral-800/80 focus:border-neutral-700 focus:ring-1 focus:ring-neutral-700/20 hover:border-neutral-700/60"
+                      }`}
+                      {...register("tshirt_size")}
+                    >
+                      <option value="">Select Size</option>
+                      <option value="S">Small (S)</option>
+                      <option value="M">Medium (M)</option>
+                      <option value="L">Large (L)</option>
+                      <option value="XL">Extra Large (XL)</option>
+                      <option value="XXL">Double Extra Large (XXL)</option>
+                    </select>
+                    {errors.tshirt_size && (
+                      <span className="text-xs text-error font-sans font-medium tracking-tight">
+                        {errors.tshirt_size.message}
+                      </span>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -311,7 +287,7 @@ export default function ProfilePage() {
                 </CardHeader>
                 <CardContent className="p-0 space-y-4">
                   <div className="flex flex-col space-y-1.5 w-full">
-                    <label className="text-sm font-semibold text-neutral-400 font-mono uppercase tracking-widest select-none">University / Institution</label>
+                    <label className="text-sm font-semibold text-neutral-400 font-mono uppercase tracking-widest select-none">Institution</label>
                     <Input
                       placeholder="e.g. Shanto-Mariam University of Creative Technology"
                       className="bg-neutral-950 border-neutral-800/80 focus:border-neutral-700 focus:ring-1 focus:ring-neutral-700/20 hover:border-neutral-700/60 transition-all duration-150 text-xs h-9"

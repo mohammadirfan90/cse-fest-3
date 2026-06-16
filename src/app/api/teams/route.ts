@@ -5,12 +5,34 @@ import { SupabaseClient } from "@supabase/supabase-js";
 import { ensureUserAndProfileExists } from "@/lib/server/userSelfHeal";
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import { slugify, SUBMISSIONS_ROOT } from "@/lib/server/submissionStorage";
+import {
+  slugify,
+  SUBMISSIONS_ROOT,
+  getCompetitionSlug,
+  isValidPDFSignature,
+  isValidVideoSignature,
+  writeSubmissionFile,
+  deleteSubmissionFile,
+  MAX_PDF_BYTES,
+  MAX_VIDEO_BYTES,
+} from "@/lib/server/submissionStorage";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
 
 const createTeamSchema = z.object({
   name: z.string().min(3, "Team Name must be at least 3 characters"),
   competition_id: z.string().uuid("Please select a valid competition"),
+});
+
+const registerMemberSchema = z.object({
+  full_name: z.string().min(2, "Full Name must be at least 2 characters"),
+  email: z.string().email("Please enter a valid email address"),
+  phone: z.string().min(10, "Phone number must be valid"),
+  gender: z.string().min(1, "Gender is required"),
+  university: z.string().min(2, "University is required"),
+  department: z.string().min(2, "Department is required"),
+  semester: z.string().min(1, "Semester is required"),
+  student_id: z.string().min(2, "Student ID is required"),
+  tshirt_size: z.string().min(1, "T-shirt size is required"),
 });
 
 const addMemberSchema = z.object({
@@ -268,6 +290,342 @@ export async function POST(req: Request) {
 
     const { searchParams } = new URL(req.url);
     const action = searchParams.get("action");
+
+    // Action: atomic register team (creates team, updates leader profile, registers members, uploads submissions in one call)
+    if (action === "register") {
+      const formData = await req.formData();
+      
+      const team_name = formData.get("team_name") as string;
+      const competition_id = formData.get("competition_id") as string;
+      
+      // Leader Profile Details
+      const leader_full_name = formData.get("leader_full_name") as string;
+      const leader_phone = formData.get("leader_phone") as string;
+      const leader_gender = formData.get("leader_gender") as string;
+      const leader_university = formData.get("leader_university") as string;
+      const leader_department = formData.get("leader_department") as string;
+      const leader_semester = formData.get("leader_semester") as string;
+      const leader_student_id = formData.get("leader_student_id") as string;
+      const leader_tshirt_size = formData.get("leader_tshirt_size") as string;
+      
+      // Members (JSON string)
+      const membersRaw = formData.get("members") as string || "[]";
+      let members: Array<{
+        full_name: string;
+        email: string;
+        phone: string;
+        gender: string;
+        university: string;
+        department: string;
+        semester: string;
+        student_id: string;
+        tshirt_size: string;
+      }> = [];
+      try {
+        members = JSON.parse(membersRaw);
+      } catch {
+        return NextResponse.json({ success: false, message: "Invalid teammates payload." }, { status: 400 });
+      }
+
+      // Project Details (if applicable)
+      const project_title = formData.get("project_title") as string || null;
+      const project_notes = formData.get("project_notes") as string || null;
+      
+      // Files (if uploaded)
+      const pdfFile = formData.get("pdf") as File | null;
+      const videoFile = formData.get("video") as File | null;
+
+      // Zod Validation for leader
+      const leaderValidate = registerMemberSchema.safeParse({
+        full_name: leader_full_name,
+        email: user.email || "",
+        phone: leader_phone,
+        gender: leader_gender,
+        university: leader_university,
+        department: leader_department,
+        semester: leader_semester,
+        student_id: leader_student_id,
+        tshirt_size: leader_tshirt_size,
+      });
+
+      if (!leaderValidate.success) {
+        return NextResponse.json({ success: false, message: `Leader profile: ${leaderValidate.error.issues[0]?.message}` }, { status: 400 });
+      }
+
+      // Zod Validation for teammates
+      for (let i = 0; i < members.length; i++) {
+        const m = members[i];
+        const val = registerMemberSchema.safeParse(m);
+        if (!val.success) {
+          return NextResponse.json({ success: false, message: `Teammate ${i+2}: ${val.error.issues[0]?.message}` }, { status: 400 });
+        }
+      }
+
+      // Check registration deadline & limits for the competition
+      const { data: comp, error: compErr } = await supabase
+        .from("competitions")
+        .select("*")
+        .eq("id", competition_id)
+        .single();
+
+      if (compErr || !comp) {
+        return NextResponse.json({ success: false, message: "Competition not found." }, { status: 404 });
+      }
+
+      // Validate registration deadline
+      const registrationEnd = new Date(comp.registration_end);
+      if (new Date() > registrationEnd) {
+        return NextResponse.json({ success: false, message: "The registration deadline for this competition has passed." }, { status: 400 });
+      }
+
+      // Validate team size limits
+      const totalTeamSize = members.length + 1; // including leader
+      if (totalTeamSize < comp.min_members || totalTeamSize > comp.max_members) {
+        return NextResponse.json({
+          success: false,
+          message: `Team size of ${totalTeamSize} is not within the allowed limits of ${comp.min_members} to ${comp.max_members} members.`
+        }, { status: 400 });
+      }
+
+      // Check if Leader is already on a team in this competition
+      const { data: existingLeaderMember } = await supabase
+        .from("team_members")
+        .select("id, team_id, teams(competition_id)")
+        .eq("user_id", user.id)
+        .eq("invitation_status", "accepted");
+
+      const leaderAlreadyRegistered = existingLeaderMember?.some((m) => {
+        const teamInfo = m.teams as unknown as { competition_id: string } | null;
+        return teamInfo?.competition_id === competition_id;
+      });
+
+      if (leaderAlreadyRegistered) {
+        return NextResponse.json({ success: false, message: "You are already a registered team member in this competition." }, { status: 409 });
+      }
+
+      // Check if any Teammate is already on a team in this competition
+      // 1. Get all team IDs for this competition
+      const { data: competitionTeams } = await supabase
+        .from("teams")
+        .select("id")
+        .eq("competition_id", competition_id);
+      
+      const compTeamIds = competitionTeams?.map((t) => t.id) || [];
+
+      if (compTeamIds.length > 0) {
+        const teammateEmails = members.map((m) => m.email.trim().toLowerCase());
+        const { data: duplicateMembers } = await supabase
+          .from("v_team_members")
+          .select("member_id, email")
+          .in("team_id", compTeamIds)
+          .in("email", teammateEmails);
+
+        if (duplicateMembers && duplicateMembers.length > 0) {
+          const dupEmails = duplicateMembers.map((d) => d.email).join(", ");
+          return NextResponse.json({
+            success: false,
+            message: `One or more teammates are already registered in this competition: ${dupEmails}`
+          }, { status: 409 });
+        }
+      }
+
+      // Start the transaction-like sequence. Keep track of created team id for rollback.
+      let createdTeamId: string | null = null;
+      const filesToDeleteOnFailure: string[] = [];
+
+      try {
+        // Step 1: Update Leader Profile
+        const { error: profileError } = await supabase
+          .from("profiles")
+          .update({
+            full_name: leader_full_name,
+            phone: leader_phone,
+            gender: leader_gender,
+            university: leader_university,
+            department: leader_department,
+            semester: leader_semester,
+            student_id: leader_student_id,
+            tshirt_size: leader_tshirt_size,
+            profile_complete: true,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", user.id);
+
+        if (profileError) throw new Error(`Failed to save team leader profile: ${profileError.message}`);
+
+        // Step 2: Create the team
+        const { data: team, error: teamError } = await supabase
+          .from("teams")
+          .insert({
+            name: team_name,
+            competition_id: competition_id,
+            leader_id: user.id,
+            status: "forming",
+          })
+          .select()
+          .single();
+
+        if (teamError) {
+          if (teamError.code === "23505") {
+            throw new Error("A team with this name already exists in this competition.");
+          }
+          throw new Error(`Failed to create team: ${teamError.message}`);
+        }
+        createdTeamId = team.id;
+
+        // Step 3: Add Leader to team_members
+        const { error: leaderMemberError } = await supabase.from("team_members").insert({
+          team_id: team.id,
+          user_id: user.id,
+          role: "leader",
+          invitation_status: "accepted",
+          joined_at: new Date().toISOString(),
+        });
+
+        if (leaderMemberError) throw new Error(`Failed to add leader to roster: ${leaderMemberError.message}`);
+
+        // Step 4: Add Teammates to team_members
+        for (let i = 0; i < members.length; i++) {
+          const member = members[i];
+          const { error: memberInsertError } = await supabase.from("team_members").insert({
+            team_id: team.id,
+            user_id: null,
+            role: "member",
+            invitation_status: "accepted",
+            joined_at: new Date().toISOString(),
+            full_name: member.full_name,
+            email: member.email.trim().toLowerCase(),
+            phone: member.phone,
+            gender: member.gender,
+            university: member.university,
+            department: member.department,
+            semester: member.semester,
+            student_id: member.student_id,
+            tshirt_size: member.tshirt_size,
+          });
+
+          if (memberInsertError) {
+            throw new Error(`Failed to add teammate ${member.full_name} to roster: ${memberInsertError.message}`);
+          }
+        }
+
+        // Step 5: Handle Project Submission (if required by the competition or if title is supplied)
+        const isSubmissionRequired = comp.submission_required;
+        if (isSubmissionRequired || (project_title && project_title.trim().length > 0)) {
+          if (!project_title || project_title.trim().length < 5) {
+            throw new Error("Project Title must be at least 5 characters.");
+          }
+
+          let pdfPath = "mock-vercel-uploads/placeholder.pdf";
+          let videoPath = null;
+
+          const competitionSlug = await getCompetitionSlug(comp.id);
+          const teamSlug = slugify(team.name);
+
+          // Process PDF
+          if (pdfFile && pdfFile.size > 0) {
+            if (pdfFile.size > MAX_PDF_BYTES) {
+              throw new Error("PDF file size must be less than 5 MB.");
+            }
+
+            const pdfBuffer = Buffer.from(await pdfFile.arrayBuffer());
+            if (!isValidPDFSignature(pdfBuffer)) {
+              throw new Error("Invalid PDF file. The file is not a valid PDF document.");
+            }
+
+            const relativePath = await writeSubmissionFile(
+              competitionSlug,
+              teamSlug,
+              pdfFile.name,
+              pdfBuffer
+            );
+            filesToDeleteOnFailure.push(relativePath);
+            pdfPath = relativePath;
+          } else if (isSubmissionRequired) {
+            throw new Error("Project proposal PDF file is required.");
+          }
+
+          // Process Video
+          if (videoFile && videoFile.size > 0) {
+            if (videoFile.size > MAX_VIDEO_BYTES) {
+              throw new Error("Video file size must be less than 200 MB.");
+            }
+
+            const videoBuffer = Buffer.from(await videoFile.arrayBuffer());
+            if (!isValidVideoSignature(videoBuffer)) {
+              throw new Error("Invalid video file. Must be a valid MP4 or WebM video.");
+            }
+
+            const relativePath = await writeSubmissionFile(
+              competitionSlug,
+              teamSlug,
+              videoFile.name,
+              videoBuffer
+            );
+            filesToDeleteOnFailure.push(relativePath);
+            videoPath = relativePath;
+          }
+
+          // Create the submission record
+          const { error: subInsertErr } = await supabase.from("submissions").insert({
+            team_id: team.id,
+            competition_id: comp.id,
+            title: project_title,
+            pdf_path: pdfPath,
+            video_path: videoPath,
+            notes: project_notes,
+            status: "submitted",
+            submitted_at: new Date().toISOString(),
+          });
+
+          if (subInsertErr) {
+            throw new Error(`Failed to create submission record: ${subInsertErr.message}`);
+          }
+
+          // Update team's status to 'submitted'
+          const { error: teamStatusUpdateError } = await supabase
+            .from("teams")
+            .update({
+              status: "submitted",
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", team.id);
+
+          if (teamStatusUpdateError) {
+            throw new Error(`Failed to update team submission state: ${teamStatusUpdateError.message}`);
+          }
+        } else {
+          // If no submission is required and none is provided, mark status as 'registered'
+          const { error: teamStatusUpdateError } = await supabase
+            .from("teams")
+            .update({
+              status: "registered",
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", team.id);
+
+          if (teamStatusUpdateError) {
+            throw new Error(`Failed to update team registration state: ${teamStatusUpdateError.message}`);
+          }
+        }
+
+        // Return the successfully created team details
+        return NextResponse.json({ success: true, data: team });
+
+      } catch (err: any) {
+        // Rollback operations:
+        // 1. Delete the created team (this will cascade delete roster members and submissions)
+        if (createdTeamId) {
+          await supabase.from("teams").delete().eq("id", createdTeamId);
+        }
+        // 2. Delete any files written to disk
+        for (const relPath of filesToDeleteOnFailure) {
+          await deleteSubmissionFile(relPath);
+        }
+
+        return NextResponse.json({ success: false, message: err.message }, { status: 400 });
+      }
+    }
 
     // Action: create a new team
     if (action === "create") {

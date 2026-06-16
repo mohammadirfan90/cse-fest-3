@@ -10,7 +10,6 @@ import {
   Trophy,
   Users,
   Shield,
-  CreditCard,
   Plus,
   Trash2,
   AlertCircle,
@@ -30,6 +29,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { createClient } from "@/lib/supabase/client";
 import { FileDropzone } from "@/components/submissions/FileDropzone";
+import type { User } from "@supabase/supabase-js";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -85,7 +85,7 @@ export default function CompetitionRegisterPage() {
   const competition = compRes?.success ? compRes.data : null;
 
   // 2. Auth states
-  const [user, setUser] = React.useState<any>(null);
+  const [user, setUser] = React.useState<User | null>(null);
   const [authLoading, setAuthLoading] = React.useState(true);
   const [profileLoading, setProfileLoading] = React.useState(false);
   const [checkingRegistration, setCheckingRegistration] = React.useState(false);
@@ -112,7 +112,7 @@ export default function CompetitionRegisterPage() {
 
   // Submission States
   const [projectTitle, setProjectTitle] = React.useState("");
-  const [projectNotes, setProjectNotes] = React.useState("");
+  const projectNotes = "";
   const [pdfFile, setPdfFile] = React.useState<File | null>(null);
   const [videoFile, setVideoFile] = React.useState<File | null>(null);
 
@@ -122,13 +122,9 @@ export default function CompetitionRegisterPage() {
   const [formStatus, setFormStatus] = React.useState<
     "idle" | "updating_profile" | "creating_team" | "adding_members" | "submitting_proposal" | "success"
   >("idle");
-  const [currentMemberIndex, setCurrentMemberIndex] = React.useState<number>(0);
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
   const [successMsg, setSuccessMsg] = React.useState<string | null>(null);
-
-  // Robust Retrying States (Avoid duplicates if a step fails midway)
-  const [createdTeamId, setCreatedTeamId] = React.useState<string | null>(null);
-  const [addedMemberEmails, setAddedMemberEmails] = React.useState<string[]>([]);
+  const rosterInitializedRef = React.useRef(false);
 
   // Validation States
   const [touchedFields, setTouchedFields] = React.useState<Record<string, boolean>>({});
@@ -237,7 +233,8 @@ export default function CompetitionRegisterPage() {
 
   // Initialize teammate cards based on minMembers requirement
   React.useEffect(() => {
-    if (competition) {
+    if (competition && !rosterInitializedRef.current) {
+      rosterInitializedRef.current = true;
       const neededTeammatesCount = Math.max(0, competition.minMembers - 1);
       const initialMembers: MemberState[] = Array.from({ length: neededTeammatesCount }, () => ({
         full_name: "",
@@ -250,7 +247,9 @@ export default function CompetitionRegisterPage() {
         student_id: "",
         tshirt_size: "",
       }));
-      setMembers(initialMembers);
+      Promise.resolve().then(() => {
+        setMembers(initialMembers);
+      });
     }
   }, [competition]);
 
@@ -295,7 +294,7 @@ export default function CompetitionRegisterPage() {
 
           if (teamRes.success && Array.isArray(teamRes.data)) {
             const hasRegistered = teamRes.data.some(
-              (t: any) => t.competition_id === compId
+              (t: { competition_id: string }) => t.competition_id === compId
             );
             setAlreadyRegistered(hasRegistered);
           }
@@ -368,7 +367,7 @@ export default function CompetitionRegisterPage() {
     setLeaderForm((prev) => ({ ...prev, [field]: value }));
   };
 
-  // Submit Handler: Sequential API calls
+  // Submit Handler: Atomic single API call
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmittedOnce(true);
@@ -432,154 +431,81 @@ export default function CompetitionRegisterPage() {
     setSubmitButtonStatus("loading");
     setErrorMsg(null);
     setSuccessMsg(null);
-
-    let activeTeamId = createdTeamId;
+    setUploadProgress(0);
+    setFormStatus("submitting_proposal");
 
     try {
-      // Step 1: Update/Save Leader Profile
-      setFormStatus("updating_profile");
-      const profileRes = await fetch("/api/profile", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          full_name: leaderForm.full_name,
-          phone: leaderForm.phone,
-          gender: leaderForm.gender,
-          university: leaderForm.university,
-          department: leaderForm.department,
-          semester: leaderForm.semester,
-          student_id: leaderForm.student_id,
-          tshirt_size: leaderForm.tshirt_size,
-        }),
-      });
-
-      const profileData = await profileRes.json();
-      if (!profileData.success) {
-        throw new Error(profileData.message || "Failed to save team leader profile.");
+      const formData = new FormData();
+      formData.append("team_name", teamName);
+      formData.append("competition_id", compId);
+      
+      // Leader Profile Details
+      formData.append("leader_full_name", leaderForm.full_name);
+      formData.append("leader_phone", leaderForm.phone);
+      formData.append("leader_gender", leaderForm.gender);
+      formData.append("leader_university", leaderForm.university);
+      formData.append("leader_department", leaderForm.department);
+      formData.append("leader_semester", leaderForm.semester);
+      formData.append("leader_student_id", leaderForm.student_id);
+      formData.append("leader_tshirt_size", leaderForm.tshirt_size);
+      
+      // Members (JSON stringified)
+      formData.append("members", JSON.stringify(members));
+      
+      // Project Details (if applicable)
+      if (projectTitle) {
+        formData.append("project_title", projectTitle);
+      }
+      if (projectNotes) {
+        formData.append("project_notes", projectNotes);
+      }
+      
+      // Files (if uploaded)
+      if (pdfFile) {
+        formData.append("pdf", pdfFile);
+      }
+      if (videoFile) {
+        formData.append("video", videoFile);
       }
 
-      // Step 2: Create Team (if not already created in a previous retry attempt)
-      if (!activeTeamId) {
-        setFormStatus("creating_team");
-        const teamRes = await fetch("/api/teams?action=create", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            name: teamName,
-            competition_id: compId,
-          }),
-        });
+      // Upload using XHR for progress support
+      const uploadResult = await new Promise<{ success: boolean; message?: string }>(
+        (resolve, reject) => {
+          const xhr = new XMLHttpRequest();
 
-        const teamData = await teamRes.json();
-        if (!teamData.success) {
-          throw new Error(teamData.message || "Failed to create team.");
-        }
-        activeTeamId = teamData.data.id;
-        setCreatedTeamId(activeTeamId);
-      }
-
-      // Step 3: Add Teammates sequentially
-      if (activeTeamId) {
-        setFormStatus("adding_members");
-        for (let i = 0; i < members.length; i++) {
-          const member = members[i];
-          const mNum = i + 2;
-
-          // Skip if teammate already added during a prior failed attempt
-          if (addedMemberEmails.includes(member.email.trim().toLowerCase())) {
-            continue;
-          }
-
-          setCurrentMemberIndex(mNum);
-
-          const memberRes = await fetch("/api/teams?action=add_member", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              team_id: activeTeamId,
-              full_name: member.full_name,
-              email: member.email,
-              phone: member.phone,
-              gender: member.gender,
-              university: member.university,
-              department: member.department,
-              semester: member.semester,
-              student_id: member.student_id,
-              tshirt_size: member.tshirt_size,
-              id_front_base64: null,
-              id_back_base64: null,
-            }),
+          xhr.upload.addEventListener("progress", (event) => {
+            if (event.lengthComputable) {
+              const percent = Math.round((event.loaded / event.total) * 100);
+              setUploadProgress(percent);
+            }
           });
 
-          const memberData = await memberRes.json();
-          if (!memberData.success) {
-            throw new Error(
-              memberData.message || `Failed to add Teammate ${mNum} (${member.full_name}).`
-            );
-          }
-
-          // Register in state so we don't re-upload on retries
-          setAddedMemberEmails((prev) => [...prev, member.email.trim().toLowerCase()]);
-        }
-      }
-
-      // Step 4: Submission Upload (if required)
-      if (competition?.submissionRequired && activeTeamId) {
-        setFormStatus("submitting_proposal");
-        setUploadProgress(0);
-
-        const formData = new FormData();
-        formData.append("team_id", activeTeamId);
-        formData.append("title", projectTitle);
-        if (projectNotes) {
-          formData.append("notes", projectNotes);
-        }
-        if (pdfFile) {
-          formData.append("pdf", pdfFile);
-        }
-        if (videoFile) {
-          formData.append("video", videoFile);
-        }
-
-        // Upload using XHR for progress support
-        const uploadResult = await new Promise<{ success: boolean; message?: string }>(
-          (resolve, reject) => {
-            const xhr = new XMLHttpRequest();
-
-            xhr.upload.addEventListener("progress", (event) => {
-              if (event.lengthComputable) {
-                const percent = Math.round((event.loaded / event.total) * 100);
-                setUploadProgress(percent);
+          xhr.addEventListener("load", () => {
+            try {
+              const data = JSON.parse(xhr.responseText);
+              if (xhr.status >= 200 && xhr.status < 300) {
+                resolve(data);
+              } else {
+                reject(new Error(data.message || `Registration failed: status ${xhr.status}`));
               }
-            });
+            } catch {
+              reject(new Error("Failed to parse server response."));
+            }
+          });
 
-            xhr.addEventListener("load", () => {
-              try {
-                const data = JSON.parse(xhr.responseText);
-                if (xhr.status >= 200 && xhr.status < 300) {
-                  resolve(data);
-                } else {
-                  reject(new Error(data.message || `Proposal upload failed: status ${xhr.status}`));
-                }
-              } catch {
-                reject(new Error("Failed to parse server response."));
-              }
-            });
+          xhr.addEventListener("error", () => {
+            reject(new Error("Network error during registration upload. Please verify connection."));
+          });
 
-            xhr.addEventListener("error", () => {
-              reject(new Error("Network error during file upload. Please verify connection."));
-            });
-
-            xhr.open("POST", "/api/submissions?skipTimeWindowCheck=true");
-            xhr.send(formData);
-          }
-        );
-
-        if (!uploadResult.success) {
-          throw new Error(uploadResult.message || "Failed to submit project proposal.");
+          xhr.open("POST", "/api/teams?action=register");
+          xhr.send(formData);
         }
-        setUploadProgress(100);
+      );
+
+      if (!uploadResult.success) {
+        throw new Error(uploadResult.message || "Failed to submit team registration.");
       }
+      setUploadProgress(100);
 
       // Success!
       setFormStatus("success");
@@ -591,15 +517,15 @@ export default function CompetitionRegisterPage() {
         router.push("/dashboard");
       }, 1500);
 
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "An unexpected error occurred during registration.";
       console.error("Submit flow failure:", err);
-      setErrorMsg(err.message || "An unexpected error occurred during registration.");
+      setErrorMsg(message);
       setSubmitButtonStatus("failure");
       setFormLoading(false);
     }
   };
 
-  const isUploading = formLoading && uploadProgress > 0 && uploadProgress < 100;
   const isProcessing = formLoading && uploadProgress >= 100;
 
   // Render Loader
@@ -1115,18 +1041,8 @@ export default function CompetitionRegisterPage() {
                             onBlur={() => handleBlur(`member_${index}_email`)}
                             error={getFieldError(`member_${index}_email`)}
                             isValid={isValidField(`member_${index}_email`, member.email)}
-                            disabled={formLoading || addedMemberEmails.includes(member.email.trim().toLowerCase())}
+                            disabled={formLoading}
                             required
-                            helperText={
-                              addedMemberEmails.includes(member.email.trim().toLowerCase())
-                                ? "Teammate added successfully."
-                                : undefined
-                            }
-                            className={
-                              addedMemberEmails.includes(member.email.trim().toLowerCase())
-                                ? "border-success/30 text-success bg-success/5 opacity-80"
-                                : ""
-                            }
                           />
                           <Input
                             label="Phone Number"
@@ -1382,11 +1298,8 @@ export default function CompetitionRegisterPage() {
                 <div className="flex items-center gap-2">
                   <Loader2 className="h-4.5 w-4.5 text-primary animate-spin" />
                   <p className="text-xs font-semibold text-neutral-200">
-                    {formStatus === "updating_profile" && "Saving team leader profile..."}
-                    {formStatus === "creating_team" && "Registering team workspace..."}
-                    {formStatus === "adding_members" && `Registering Teammate ${currentMemberIndex} of ${members.length + 1}...`}
                     {formStatus === "submitting_proposal" && (
-                      isProcessing ? "Processing files on server..." : "Uploading project files..."
+                      isProcessing ? "Processing registration on server..." : "Uploading team registration details..."
                     )}
                     {formStatus === "success" && "Registration complete!"}
                   </p>
@@ -1422,7 +1335,7 @@ export default function CompetitionRegisterPage() {
                         <p className="text-xs font-mono uppercase tracking-wider opacity-85">Missing / Invalid Fields:</p>
                         <ul className="list-disc list-inside text-xs space-y-1 pl-1 font-sans opacity-95">
                           {Object.keys(allErrors).map((key) => (
-                            <li key={key}>{getFieldFriendlyName(key, competition)}</li>
+                            <li key={key}>{getFieldFriendlyName(key)}</li>
                           ))}
                         </ul>
                       </div>
@@ -1485,7 +1398,7 @@ function CrownIcon() {
 }
 
 // Field friendly name helper for validation summary
-function getFieldFriendlyName(key: string, competition: any): string {
+function getFieldFriendlyName(key: string): string {
   if (key === "teamName") return "Team Name";
   if (key === "projectTitle") return "Project Title";
   

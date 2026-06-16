@@ -259,19 +259,19 @@ $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 -- Automatically populates users & profiles on auth signup
 CREATE OR REPLACE FUNCTION public.handle_new_user()
-RETURNS trigger AS $$
+RETURNS trigger AS $body$
 BEGIN
   INSERT INTO public.users (id, email, role)
   VALUES (new.id, new.email, 'participant')
   ON CONFLICT (id) DO NOTHING;
 
-  INSERT INTO public.profiles (id, user_id, full_name, verification_status)
-  VALUES (new.id, new.id, COALESCE(new.raw_user_meta_data->>'full_name', ''), 'incomplete')
+  INSERT INTO public.profiles (id, user_id, full_name)
+  VALUES (new.id, new.id, COALESCE(new.raw_user_meta_data->>'full_name', ''))
   ON CONFLICT (id) DO NOTHING;
 
   RETURN new;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$body$ LANGUAGE plpgsql SECURITY DEFINER;
 
 CREATE OR REPLACE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users

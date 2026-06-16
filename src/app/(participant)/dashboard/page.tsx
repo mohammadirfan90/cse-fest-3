@@ -547,11 +547,20 @@ export default function DashboardPage() {
                           <span className="text-neutral-200 font-bold">{comp.fee}</span>
                         </div>
                         <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
-                          <Link href={`/competitions/${comp.id}/register`} className="grow">
-                            <Button className="w-full bg-primary hover:bg-primary/95 text-white py-2.5 h-auto rounded-md text-base font-bold font-sans">
-                              Register
+                          {comp.status === "registration_closed" ? (
+                            <Button
+                              disabled
+                              className="grow bg-neutral-900 text-neutral-500 border border-neutral-850 py-2.5 h-auto rounded-md text-base font-bold font-sans cursor-not-allowed"
+                            >
+                              Registration Closed
                             </Button>
-                          </Link>
+                          ) : (
+                            <Link href={`/competitions/${comp.id}/register`} className="grow">
+                              <Button className="w-full bg-primary hover:bg-primary/95 text-white py-2.5 h-auto rounded-md text-base font-bold font-sans">
+                                Register
+                              </Button>
+                            </Link>
+                          )}
                           {comp.rulebookUrl && (
                             <a
                               href={comp.rulebookUrl}

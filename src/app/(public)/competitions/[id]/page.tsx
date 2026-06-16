@@ -46,6 +46,12 @@ interface Competition {
   rulebookUrl?: string;
   registrationStart?: string;
   registrationEnd?: string;
+  status?: string;
+}
+
+interface UserTeam {
+  id: string;
+  competition_id: string;
 }
 
 const COMPETITION_IMAGES: Record<string, string> = {
@@ -81,6 +87,18 @@ export default function CompetitionDetailPage() {
     compId ? `/api/public/competitions?id=${compId}` : null,
     fetcher
   );
+
+  const { data: teamsData } = useSWR<{ success: boolean; data: UserTeam[] }>(
+    "/api/teams",
+    fetcher
+  );
+
+  const isUserRegistered = React.useMemo(() => {
+    if (teamsData?.success && Array.isArray(teamsData.data)) {
+      return teamsData.data.some((t) => t.competition_id === compId);
+    }
+    return false;
+  }, [teamsData, compId]);
 
   const competition = React.useMemo(() => (data?.success ? data.data : null), [data]);
 
@@ -238,12 +256,28 @@ export default function CompetitionDetailPage() {
             
             {/* Buttons in Header */}
             <div className="shrink-0 flex flex-col gap-3 w-full md:w-56 relative z-20">
-              <Link href={`/competitions/${compId}/register`} className="w-full">
-                <Button className="w-full relative overflow-hidden bg-gradient-to-r from-[#8B5CF6] to-[#A855F7] hover:from-[#9D66FF] hover:to-[#B56BFF] text-white font-heading font-black text-lg py-4 h-auto rounded-xl hover:shadow-[0_0_30px_rgba(139,92,246,0.55)] hover:-translate-y-0.5 active:translate-y-0 transition-all duration-300 group cursor-pointer tracking-wider">
-                  <span className="relative z-10">REGISTER NOW</span>
-                  <div className="absolute inset-0 w-[50%] h-full bg-white/25 skew-x-[-25deg] -translate-x-[150%] group-hover:translate-x-[250%] transition-transform duration-1000 ease-out" />
+              {competition.status === "registration_closed" ? (
+                <Button
+                  disabled
+                  className="w-full bg-neutral-900 text-neutral-500 border border-neutral-850 py-4 h-auto rounded-xl font-heading text-base font-black cursor-not-allowed tracking-widest"
+                >
+                  REGISTRATION CLOSED
                 </Button>
-              </Link>
+              ) : isUserRegistered ? (
+                <Link href="/dashboard" className="w-full">
+                  <Button className="w-full bg-success/20 hover:bg-success/30 text-success border border-success/30 py-4 h-auto rounded-xl font-heading font-black text-lg flex items-center justify-center gap-1.5 tracking-wider cursor-pointer">
+                    <CheckCircle className="h-5 w-5" />
+                    <span>REGISTERED</span>
+                  </Button>
+                </Link>
+              ) : (
+                <Link href={`/competitions/${compId}/register`} className="w-full">
+                  <Button className="w-full relative overflow-hidden bg-gradient-to-r from-[#8B5CF6] to-[#A855F7] hover:from-[#9D66FF] hover:to-[#B56BFF] text-white font-heading font-black text-lg py-4 h-auto rounded-xl hover:shadow-[0_0_30px_rgba(139,92,246,0.55)] hover:-translate-y-0.5 active:translate-y-0 transition-all duration-300 group cursor-pointer tracking-wider">
+                    <span className="relative z-10">REGISTER NOW</span>
+                    <div className="absolute inset-0 w-[50%] h-full bg-white/25 skew-x-[-25deg] -translate-x-[150%] group-hover:translate-x-[250%] transition-transform duration-1000 ease-out" />
+                  </Button>
+                </Link>
+              )}
               {competition.rulebookUrl && (
                 <a
                   href={competition.rulebookUrl}
@@ -404,12 +438,28 @@ export default function CompetitionDetailPage() {
                 </div>
               </div>
 
-              <Link href={`/competitions/${compId}/register`}>
-                <Button className="w-full relative overflow-hidden bg-gradient-to-r from-[#8B5CF6] to-[#A855F7] hover:from-[#9D66FF] hover:to-[#B56BFF] text-white font-sans font-bold text-sm uppercase tracking-widest py-3.5 h-auto rounded-xl hover:shadow-[0_0_30px_rgba(139,92,246,0.55)] hover:-translate-y-0.5 active:translate-y-0 transition-all duration-300 cursor-pointer group">
-                  <span className="relative z-10">Apply to Participate</span>
-                  <div className="absolute inset-0 w-[50%] h-full bg-white/25 skew-x-[-25deg] -translate-x-[150%] group-hover:translate-x-[250%] transition-transform duration-1000 ease-out" />
+              {competition.status === "registration_closed" ? (
+                <Button
+                  disabled
+                  className="w-full bg-neutral-900 text-neutral-500 border border-neutral-850 py-3.5 h-auto rounded-xl font-sans font-bold text-sm uppercase tracking-widest cursor-not-allowed"
+                >
+                  REGISTRATION CLOSED
                 </Button>
-              </Link>
+              ) : isUserRegistered ? (
+                <Link href="/dashboard" className="w-full">
+                  <Button className="w-full bg-success/20 hover:bg-success/30 text-success border border-success/30 py-3.5 h-auto rounded-xl font-sans font-bold text-sm uppercase tracking-widest flex items-center justify-center gap-1.5 cursor-pointer">
+                    <CheckCircle className="h-4 w-4" />
+                    <span>Registered</span>
+                  </Button>
+                </Link>
+              ) : (
+                <Link href={`/competitions/${compId}/register`}>
+                  <Button className="w-full relative overflow-hidden bg-gradient-to-r from-[#8B5CF6] to-[#A855F7] hover:from-[#9D66FF] hover:to-[#B56BFF] text-white font-sans font-bold text-sm uppercase tracking-widest py-3.5 h-auto rounded-xl hover:shadow-[0_0_30px_rgba(139,92,246,0.55)] hover:-translate-y-0.5 active:translate-y-0 transition-all duration-300 cursor-pointer group">
+                    <span className="relative z-10">Apply to Participate</span>
+                    <div className="absolute inset-0 w-[50%] h-full bg-white/25 skew-x-[-25deg] -translate-x-[150%] group-hover:translate-x-[250%] transition-transform duration-1000 ease-out" />
+                  </Button>
+                </Link>
+              )}
             </motion.div>
 
             {/* Support Helper Widget */}

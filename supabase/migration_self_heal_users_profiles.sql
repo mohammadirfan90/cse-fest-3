@@ -15,12 +15,11 @@ FROM auth.users
 ON CONFLICT (id) DO NOTHING;
 
 -- 2. Sync any missing profiles from auth.users to public.profiles
-INSERT INTO public.profiles (id, user_id, full_name, verification_status, created_at, updated_at)
+INSERT INTO public.profiles (id, user_id, full_name, created_at, updated_at)
 SELECT 
   id, 
   id, 
   COALESCE(raw_user_meta_data->>'full_name', raw_user_meta_data->>'name', ''), 
-  'incomplete', 
   COALESCE(created_at, NOW()), 
   COALESCE(updated_at, NOW())
 FROM auth.users

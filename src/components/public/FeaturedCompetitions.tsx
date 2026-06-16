@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowRight, Sparkles } from "lucide-react";
+import { ArrowRight, Sparkles, CheckCircle } from "lucide-react";
 import useSWR from "swr";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -22,6 +22,11 @@ interface Competition {
   coverImageUrl?: string;
   rulebookUrl?: string;
   status?: string;
+}
+
+interface UserTeam {
+  id: string;
+  competition_id: string;
 }
 
 const COMPETITION_FALLBACK_IMAGES: Record<string, string> = {
@@ -47,6 +52,18 @@ export function FeaturedCompetitions() {
     mounted ? "/api/public/competitions" : null,
     fetcher
   );
+
+  const { data: teamsData } = useSWR<{ success: boolean; data: UserTeam[] }>(
+    mounted ? "/api/teams" : null,
+    fetcher
+  );
+
+  const registeredCompIds = React.useMemo(() => {
+    if (teamsData?.success && Array.isArray(teamsData.data)) {
+      return new Set(teamsData.data.map((t) => t.competition_id));
+    }
+    return new Set<string>();
+  }, [teamsData]);
 
   const competitions = React.useMemo(() => (data?.success ? data.data : []), [data]);
 
@@ -169,6 +186,13 @@ export function FeaturedCompetitions() {
                       >
                         Registration Closed
                       </Button>
+                    ) : registeredCompIds.has(comp.id) ? (
+                      <Link href="/dashboard" className="grow">
+                        <Button className="w-full bg-success/20 hover:bg-success/30 text-success border border-success/30 py-3.5 h-auto rounded-xl font-heading text-base font-black tracking-wider flex items-center justify-center gap-1.5 cursor-pointer">
+                          <CheckCircle className="h-5 w-5" />
+                          <span>Registered</span>
+                        </Button>
+                      </Link>
                     ) : (
                       <Link href={`/competitions/${comp.id}/register`} className="grow">
                         <Button className="w-full bg-gradient-to-r from-[#8B5CF6] to-[#A855F7] hover:from-[#9D66FF] hover:to-[#B56BFF] text-white hover:shadow-[0_0_20px_rgba(139,92,246,0.45)] hover:-translate-y-0.5 active:translate-y-0 transition-all duration-300 font-heading text-base font-black tracking-widest py-3.5 h-auto rounded-xl cursor-pointer">

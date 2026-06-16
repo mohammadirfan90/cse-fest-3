@@ -4,13 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
 import { ensureUserAndProfileExists } from "@/lib/server/userSelfHeal";
 
-// Normalizes a URL by prepending https:// if no protocol is present
-function normalizeUrl(val: string | undefined): string {
-  if (!val || val.trim() === "") return "";
-  const trimmed = val.trim();
-  if (/^https?:\/\//i.test(trimmed)) return trimmed;
-  return `https://${trimmed}`;
-}
+
 
 const profileSchema = z.object({
   full_name: z.string().min(2, "Full Name must be at least 2 characters"),

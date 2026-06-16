@@ -4,7 +4,7 @@ import * as React from "react";
 import { Suspense } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowLeft, Search, Sparkles } from "lucide-react";
+import { ArrowLeft, Search, Sparkles, CheckCircle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import useSWR from "swr";
 import { useSearchParams } from "next/navigation";
@@ -28,6 +28,11 @@ interface Competition {
   coverImageUrl?: string;
   rulebookUrl?: string;
   status?: string;
+}
+
+interface UserTeam {
+  id: string;
+  competition_id: string;
 }
 
 const COMPETITION_IMAGES: Record<string, string> = {
@@ -72,6 +77,18 @@ function CompetitionsListContent() {
     "/api/public/competitions",
     fetcher
   );
+
+  const { data: teamsData } = useSWR<{ success: boolean; data: UserTeam[] }>(
+    "/api/teams",
+    fetcher
+  );
+
+  const registeredCompIds = React.useMemo(() => {
+    if (teamsData?.success && Array.isArray(teamsData.data)) {
+      return new Set(teamsData.data.map((t) => t.competition_id));
+    }
+    return new Set<string>();
+  }, [teamsData]);
 
   const competitionsList = React.useMemo(() => (data?.success ? data.data : []), [data]);
 
@@ -243,6 +260,13 @@ function CompetitionsListContent() {
                             >
                               Registration Closed
                             </Button>
+                          ) : registeredCompIds.has(comp.id) ? (
+                            <Link href="/dashboard" className="grow">
+                              <Button className="w-full bg-success/20 hover:bg-success/30 text-success border border-success/30 py-3 h-auto rounded-lg text-sm font-bold font-sans flex items-center justify-center gap-1.5 cursor-pointer">
+                                <CheckCircle className="h-4 w-4" />
+                                <span>Registered</span>
+                              </Button>
+                            </Link>
                           ) : (
                             <Link href={`/competitions/${comp.id}/register`} className="grow">
                               <Button className="w-full bg-primary hover:bg-primary/95 text-white py-3 h-auto rounded-lg text-sm font-bold font-sans">

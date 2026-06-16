@@ -485,14 +485,17 @@ export async function POST(req: Request) {
         // Step 4: Add Teammates to team_members
         for (let i = 0; i < members.length; i++) {
           const member = members[i];
+          const emailLower = member.email.trim().toLowerCase();
+          const { data: existingUserId } = await supabase.rpc("get_user_id_by_email", { target_email: emailLower });
+
           const { error: memberInsertError } = await supabase.from("team_members").insert({
             team_id: team.id,
-            user_id: null,
+            user_id: existingUserId || null,
             role: "member",
             invitation_status: "accepted",
             joined_at: new Date().toISOString(),
             full_name: member.full_name,
-            email: member.email.trim().toLowerCase(),
+            email: emailLower,
             phone: member.phone,
             gender: member.gender,
             university: member.university,
@@ -768,15 +771,18 @@ export async function POST(req: Request) {
         }
       }
 
+      const emailLower = email.trim().toLowerCase();
+      const { data: existingUserId } = await supabase.rpc("get_user_id_by_email", { target_email: emailLower });
+
       // Create accepted member record directly
       const { error: insertError } = await supabase.from("team_members").insert({
         team_id: team.id,
-        user_id: null,
+        user_id: existingUserId || null,
         role: "member",
         invitation_status: "accepted",
         joined_at: new Date().toISOString(),
         full_name,
-        email: email.trim().toLowerCase(),
+        email: emailLower,
         phone,
         gender,
         university,

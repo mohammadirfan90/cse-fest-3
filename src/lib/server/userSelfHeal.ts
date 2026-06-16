@@ -60,6 +60,34 @@ export async function ensureUserAndProfileExists(supabase: SupabaseClient, user:
         console.error("[Self-Heal] Error inserting public.profiles:", insertProfileError.message);
       }
     }
+
+    // 3. Auto-claim any team member slots associated with the user's email
+    if (user.email) {
+      const emailLower = user.email.trim().toLowerCase();
+      
+      const { data: unclaimedSlots, error: checkError } = await supabase
+        .from("team_members")
+        .select("id")
+        .eq("email", emailLower)
+        .is("user_id", null);
+
+      if (checkError) {
+        console.error("[Self-Heal] Error checking unclaimed team member slots:", checkError.message);
+      } else if (unclaimedSlots && unclaimedSlots.length > 0) {
+        console.log(`[Self-Heal] Found ${unclaimedSlots.length} unclaimed slots for email ${emailLower}. Claiming...`);
+        const { error: claimError } = await supabase
+          .from("team_members")
+          .update({ user_id: user.id })
+          .eq("email", emailLower)
+          .is("user_id", null);
+
+        if (claimError) {
+          console.error("[Self-Heal] Error claiming team member slots:", claimError.message);
+        } else {
+          console.log(`[Self-Heal] Successfully claimed slots for email ${emailLower}`);
+        }
+      }
+    }
   } catch (err) {
     console.error("[Self-Heal] Unexpected error during check:", err);
   }

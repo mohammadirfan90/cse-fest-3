@@ -436,9 +436,9 @@ export default function CompetitionDetailPage() {
                   Contest Overview
                 </h3>
               </div>
-              <ReactMarkdown className="text-[#4B5563] dark:text-neutral-400 text-sm sm:text-base leading-relaxed font-sans prose prose-sm max-w-none dark:prose-invert">
-                {competition.description}
-              </ReactMarkdown>
+              <div className="text-[#4B5563] dark:text-neutral-400 text-sm sm:text-base leading-relaxed font-sans">
+                <ReactMarkdown>{competition.description}</ReactMarkdown>
+              </div>
               {/* <div className="space-y-4 mt-6 border-t border-neutral-200 dark:border-neutral-800/60 pt-6 font-sans">
                 <h4 className="font-heading text-sm font-bold text-[#8B5CF6] uppercase font-sans">Key Highlights</h4>
                 <ul className="space-y-4">

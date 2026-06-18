@@ -4,13 +4,27 @@ import * as React from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useParams } from "next/navigation";
-import { ArrowLeft, Trophy, Users, Shield, CreditCard, HelpCircle, CheckCircle } from "lucide-react";
+import {
+  ArrowLeft,
+  Trophy,
+  Users,
+  Shield,
+  CreditCard,
+  HelpCircle,
+  CheckCircle,
+} from "lucide-react";
 import useSWR from "swr";
-import { motion, useMotionValue, useSpring, useMotionTemplate } from "framer-motion";
+import {
+  motion,
+  useMotionValue,
+  useSpring,
+  useMotionTemplate,
+} from "framer-motion";
 import { Navbar } from "@/components/shared/Navbar";
 import { Footer } from "@/components/shared/Footer";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import ReactMarkdown from "react-markdown";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -84,14 +98,14 @@ export default function CompetitionDetailPage() {
     return () => window.removeEventListener("mousemove", handleMouseMove);
   }, [mouseX, mouseY]);
 
-  const { data, error, isLoading } = useSWR<{ success: boolean; data: Competition }>(
-    compId ? `/api/public/competitions?id=${compId}` : null,
-    fetcher
-  );
+  const { data, error, isLoading } = useSWR<{
+    success: boolean;
+    data: Competition;
+  }>(compId ? `/api/public/competitions?id=${compId}` : null, fetcher);
 
   const { data: teamsData } = useSWR<{ success: boolean; data: UserTeam[] }>(
     "/api/teams",
-    fetcher
+    fetcher,
   );
 
   const isUserRegistered = React.useMemo(() => {
@@ -101,7 +115,10 @@ export default function CompetitionDetailPage() {
     return false;
   }, [teamsData, compId]);
 
-  const competition = React.useMemo(() => (data?.success ? data.data : null), [data]);
+  const competition = React.useMemo(
+    () => (data?.success ? data.data : null),
+    [data],
+  );
 
   if (isLoading) {
     return (
@@ -128,12 +145,17 @@ export default function CompetitionDetailPage() {
       <div className="flex flex-col min-h-screen bg-[#FAF8FF] dark:bg-[#0f1117]">
         <Navbar />
         <div className="grow flex flex-col items-center justify-center py-24 px-4 text-center">
-          <h2 className="text-2xl font-heading font-extrabold text-neutral-800 dark:text-neutral-300 mb-4">Competition Not Found</h2>
+          <h2 className="text-2xl font-heading font-extrabold text-neutral-800 dark:text-neutral-300 mb-4">
+            Competition Not Found
+          </h2>
           <p className="text-sm text-neutral-500 font-sans mb-6">
-            The competition you are looking for does not exist or has been archived.
+            The competition you are looking for does not exist or has been
+            archived.
           </p>
           <Link href="/competitions">
-            <Button className="bg-[#8B5CF6] hover:bg-[#7C3AED] text-white font-sans font-bold py-3.5 px-6 rounded-xl">Return to Catalog</Button>
+            <Button className="bg-[#8B5CF6] hover:bg-[#7C3AED] text-white font-sans font-bold py-3.5 px-6 rounded-xl">
+              Return to Catalog
+            </Button>
           </Link>
         </div>
         <Footer />
@@ -143,7 +165,6 @@ export default function CompetitionDetailPage() {
 
   return (
     <div className="flex flex-col min-h-screen bg-gradient-to-br from-[#FAF8FF] via-[#F8F9FF] to-[#FCFBFF] dark:from-neutral-950 dark:via-neutral-900 dark:to-neutral-950 text-on-background relative overflow-hidden bg-noise">
-      
       {/* Mouse-following spotlight effect */}
       <motion.div
         className="pointer-events-none fixed inset-0 z-30 hidden sm:block"
@@ -154,7 +175,7 @@ export default function CompetitionDetailPage() {
       <div className="absolute inset-0 bg-grid-pattern opacity-[0.09] dark:opacity-[0.18] pointer-events-none z-0 animate-subtle-grid-pulse" />
 
       {/* Subtle animated gradient movement in background */}
-      <div 
+      <div
         className="absolute inset-0 bg-gradient-to-tr from-[#8B5CF6]/8 via-transparent to-[#22D3EE]/8 dark:from-[#8B5CF6]/15 dark:to-[#22D3EE]/8 opacity-55 animate-gradient-shift pointer-events-none z-0"
         style={{ animationDuration: "15s" }}
       />
@@ -200,16 +221,26 @@ export default function CompetitionDetailPage() {
           {/* Backlighting inside hero */}
           <div className="absolute -top-20 -left-20 w-80 h-80 bg-[#8B5CF6]/15 rounded-full blur-[80px] pointer-events-none" />
           <div className="absolute -bottom-20 right-10 w-80 h-80 bg-[#22D3EE]/12 rounded-full blur-[80px] pointer-events-none" />
-          
+
           {/* Floating hero particles */}
           <div className="absolute top-10 right-16 w-8 h-8 rounded-full border border-[#8B5CF6]/20 dark:border-primary/45 animate-float pointer-events-none opacity-40" />
-          <div className="absolute bottom-10 left-1/3 w-6 h-6 rounded-full border border-[#22D3EE]/20 dark:border-secondary/45 animate-float pointer-events-none opacity-40" style={{ animationDelay: '2s' }} />
+          <div
+            className="absolute bottom-10 left-1/3 w-6 h-6 rounded-full border border-[#22D3EE]/20 dark:border-secondary/45 animate-float pointer-events-none opacity-40"
+            style={{ animationDelay: "2s" }}
+          />
 
           {/* Banner image with smooth zoom hover */}
-          {(competition.bannerImageUrl || competition.coverImageUrl || COMPETITION_IMAGES[competition.id]) ? (
+          {competition.bannerImageUrl ||
+          competition.coverImageUrl ||
+          COMPETITION_IMAGES[competition.id] ? (
             <>
               <Image
-                src={competition.bannerImageUrl || competition.coverImageUrl || COMPETITION_IMAGES[competition.id] || ""}
+                src={
+                  competition.bannerImageUrl ||
+                  competition.coverImageUrl ||
+                  COMPETITION_IMAGES[competition.id] ||
+                  ""
+                }
                 alt={competition.name}
                 fill
                 className="object-cover opacity-15 dark:opacity-25 pointer-events-none group-hover:scale-[1.04] group-hover:brightness-110 transition-all duration-700 ease-out"
@@ -235,24 +266,38 @@ export default function CompetitionDetailPage() {
               <p className="text-sm sm:text-base text-[#4B5563] dark:text-neutral-400 font-sans leading-relaxed">
                 {competition.shortDescription}
               </p>
-              
+
               {/* Metadata Pills */}
               {competition.registrationStart && competition.registrationEnd && (
                 <div className="flex flex-wrap items-center gap-3 pt-2">
-                  <Badge variant="secondary" className="bg-white dark:bg-neutral-900/60 border border-neutral-200 dark:border-neutral-800 text-[#4B5563] dark:text-neutral-300 text-base sm:text-lg md:text-xl font-mono py-2.5 px-5 rounded-full flex items-center gap-2.5 shadow-sm font-semibold">
+                  <Badge
+                    variant="secondary"
+                    className="bg-white dark:bg-neutral-900/60 border border-neutral-200 dark:border-neutral-800 text-[#4B5563] dark:text-neutral-300 text-base sm:text-lg md:text-xl font-mono py-2.5 px-5 rounded-full flex items-center gap-2.5 shadow-sm font-semibold"
+                  >
                     <span className="w-2 h-2 rounded-full bg-[#10B981]" />
-                    <span className="text-neutral-500 dark:text-neutral-400 font-bold uppercase">Opens:</span>
-                    <span className="font-extrabold text-[#111827] dark:text-neutral-100">{formatDate(competition.registrationStart)}</span>
+                    <span className="text-neutral-500 dark:text-neutral-400 font-bold uppercase">
+                      Opens:
+                    </span>
+                    <span className="font-extrabold text-[#111827] dark:text-neutral-100">
+                      {formatDate(competition.registrationStart)}
+                    </span>
                   </Badge>
-                  <Badge variant="secondary" className="bg-white dark:bg-neutral-900/60 border border-neutral-200 dark:border-neutral-800 text-[#4B5563] dark:text-neutral-300 text-base sm:text-lg md:text-xl font-mono py-2.5 px-5 rounded-full flex items-center gap-2.5 shadow-sm font-semibold">
+                  <Badge
+                    variant="secondary"
+                    className="bg-white dark:bg-neutral-900/60 border border-neutral-200 dark:border-neutral-800 text-[#4B5563] dark:text-neutral-300 text-base sm:text-lg md:text-xl font-mono py-2.5 px-5 rounded-full flex items-center gap-2.5 shadow-sm font-semibold"
+                  >
                     <span className="w-2 h-2 rounded-full bg-[#8B5CF6]" />
-                    <span className="text-neutral-500 dark:text-neutral-400 font-bold uppercase">Deadline:</span>
-                    <span className="text-[#8B5CF6] dark:text-[#A78BFA] font-bold">{formatDate(competition.registrationEnd)}</span>
+                    <span className="text-neutral-500 dark:text-neutral-400 font-bold uppercase">
+                      Deadline:
+                    </span>
+                    <span className="text-[#8B5CF6] dark:text-[#A78BFA] font-bold">
+                      {formatDate(competition.registrationEnd)}
+                    </span>
                   </Badge>
                 </div>
               )}
             </div>
-            
+
             {/* Buttons in Header */}
             <div className="shrink-0 flex flex-col gap-3 w-full md:w-56 relative z-20">
               {competition.status === "registration_closed" ? (
@@ -270,7 +315,10 @@ export default function CompetitionDetailPage() {
                   </Button>
                 </Link>
               ) : (
-                <Link href={`/competitions/${compId}/register`} className="w-full">
+                <Link
+                  href={`/competitions/${compId}/register`}
+                  className="w-full"
+                >
                   <Button className="w-full relative overflow-hidden bg-gradient-to-r from-[#8B5CF6] to-[#A855F7] hover:from-[#9D66FF] hover:to-[#B56BFF] text-white font-heading font-black text-lg py-4 h-auto rounded-xl hover:shadow-[0_0_30px_rgba(139,92,246,0.55)] hover:-translate-y-0.5 active:translate-y-0 transition-all duration-300 group cursor-pointer tracking-wider">
                     <span className="relative z-10">REGISTER NOW</span>
                     <div className="absolute inset-0 w-[50%] h-full bg-white/25 skew-x-[-25deg] -translate-x-[150%] group-hover:translate-x-[250%] transition-transform duration-1000 ease-out" />
@@ -284,7 +332,10 @@ export default function CompetitionDetailPage() {
                   rel="noopener noreferrer"
                   className="w-full"
                 >
-                  <Button variant="secondary" className="w-full border border-[#8B5CF6] dark:border-[#8B5CF6]/50 bg-white dark:bg-[#12141a]/60 text-[#8B5CF6] dark:text-[#A78BFA] hover:bg-[#FAF8FF] dark:hover:bg-neutral-900/40 py-3.5 h-auto rounded-xl font-heading text-base font-black tracking-widest cursor-pointer hover:shadow-[0_0_20px_rgba(139,92,246,0.25)] transition-all duration-300">
+                  <Button
+                    variant="secondary"
+                    className="w-full border border-[#8B5CF6] dark:border-[#8B5CF6]/50 bg-white dark:bg-[#12141a]/60 text-[#8B5CF6] dark:text-[#A78BFA] hover:bg-[#FAF8FF] dark:hover:bg-neutral-900/40 py-3.5 h-auto rounded-xl font-heading text-base font-black tracking-widest cursor-pointer hover:shadow-[0_0_20px_rgba(139,92,246,0.25)] transition-all duration-300"
+                  >
                     OPEN RULEBOOK
                   </Button>
                 </a>
@@ -297,7 +348,6 @@ export default function CompetitionDetailPage() {
         <div className="flex flex-col lg:flex-row gap-10 items-start">
           {/* Main Content (Left Column - 70%) */}
           <div className="grow w-full lg:w-0 space-y-16">
-            
             {/* Prizes Section */}
             <motion.div
               initial={{ opacity: 0, y: 30 }}
@@ -308,10 +358,11 @@ export default function CompetitionDetailPage() {
             >
               <div className="flex items-center gap-3">
                 <Trophy className="h-6 w-6 text-[#F4B400] animate-pulse" />
-                <h3 className="font-heading text-2xl font-black text-[#111827] dark:text-neutral-100 tracking-tight font-heading">Reward Pool Split</h3>
+                <h3 className="font-heading text-2xl font-black text-[#111827] dark:text-neutral-100 tracking-tight font-heading">
+                  Reward Pool Split
+                </h3>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 pt-2 items-stretch">
-                
                 {/* Champion Card (Premium Gold styling) */}
                 <div className="bg-white/60 dark:bg-[#12141a]/60 backdrop-blur-xl border border-[#F4B400] p-8 rounded-3xl flex flex-col justify-between items-center text-center space-y-5 hover:-translate-y-2 shadow-[0_10px_30px_rgba(244,180,0,0.06),0_2px_8px_rgba(0,0,0,0.05)] hover:shadow-[0_20px_50px_rgba(244,180,0,0.18)] transition-all duration-300 group/champ relative overflow-hidden sm:scale-105 z-10">
                   <div className="absolute inset-0 bg-gradient-to-b from-[#F4B400]/8 to-transparent pointer-events-none z-0" />
@@ -319,10 +370,16 @@ export default function CompetitionDetailPage() {
                     <Trophy className="h-8 w-8 drop-shadow-[0_0_8px_rgba(244,180,0,0.4)]" />
                   </div>
                   <div className="relative z-10 space-y-2">
-                    <h5 className="font-sans text-xs font-black uppercase tracking-widest text-[#F4B400]">Champion</h5>
-                    <div className="font-heading text-2xl font-black mt-1 bg-gradient-to-r from-[#F4B400] via-[#F5C842] to-[#D4AF37] bg-clip-text text-transparent drop-shadow-[0_2px_4px_rgba(244,180,0,0.15)]">{competition.championPrize}</div>
+                    <h5 className="font-sans text-xs font-black uppercase tracking-widest text-[#F4B400]">
+                      Champion
+                    </h5>
+                    <div className="font-heading text-2xl font-black mt-1 bg-gradient-to-r from-[#F4B400] via-[#F5C842] to-[#D4AF37] bg-clip-text text-transparent drop-shadow-[0_2px_4px_rgba(244,180,0,0.15)]">
+                      {competition.championPrize}
+                    </div>
                   </div>
-                  <p className="relative z-10 text-sm text-[#4B5563] dark:text-neutral-400 leading-normal font-sans">Certificate + Goodies</p>
+                  <p className="relative z-10 text-sm text-[#4B5563] dark:text-neutral-400 leading-normal font-sans">
+                    Certificate + Goodies
+                  </p>
                 </div>
 
                 {/* Runner Up */}
@@ -332,10 +389,16 @@ export default function CompetitionDetailPage() {
                     <Trophy className="h-6 w-6 drop-shadow-[0_0_8px_rgba(160,160,160,0.3)]" />
                   </div>
                   <div className="space-y-2">
-                    <h5 className="font-sans text-xs font-bold uppercase tracking-widest text-[#4B5563] dark:text-neutral-400">Runner Up</h5>
-                    <div className="font-heading text-xl font-black text-[#111827] dark:text-neutral-100 mt-1">{competition.runnerUpPrize}</div>
+                    <h5 className="font-sans text-xs font-bold uppercase tracking-widest text-[#4B5563] dark:text-neutral-400">
+                      Runner Up
+                    </h5>
+                    <div className="font-heading text-xl font-black text-[#111827] dark:text-neutral-100 mt-1">
+                      {competition.runnerUpPrize}
+                    </div>
                   </div>
-                  <p className="text-sm text-[#4B5563] dark:text-neutral-400 leading-normal font-sans">Certificate + Goodies</p>
+                  <p className="text-sm text-[#4B5563] dark:text-neutral-400 leading-normal font-sans">
+                    Certificate + Goodies
+                  </p>
                 </div>
 
                 {/* 2nd Runner Up */}
@@ -345,10 +408,16 @@ export default function CompetitionDetailPage() {
                     <Trophy className="h-6 w-6 drop-shadow-[0_0_8px_rgba(205,127,50,0.3)]" />
                   </div>
                   <div className="space-y-2">
-                    <h5 className="font-sans text-xs font-bold uppercase tracking-widest text-[#4B5563] dark:text-neutral-400">2nd Runner Up</h5>
-                    <div className="font-heading text-xl font-black text-[#111827] dark:text-neutral-100 mt-1">{competition.secondRunnerUp}</div>
+                    <h5 className="font-sans text-xs font-bold uppercase tracking-widest text-[#4B5563] dark:text-neutral-400">
+                      2nd Runner Up
+                    </h5>
+                    <div className="font-heading text-xl font-black text-[#111827] dark:text-neutral-100 mt-1">
+                      {competition.secondRunnerUp}
+                    </div>
                   </div>
-                  <p className="text-sm text-[#4B5563] dark:text-neutral-400 leading-normal font-sans">Certificate + Goodies</p>
+                  <p className="text-sm text-[#4B5563] dark:text-neutral-400 leading-normal font-sans">
+                    Certificate + Goodies
+                  </p>
                 </div>
               </div>
             </motion.div>
@@ -363,10 +432,14 @@ export default function CompetitionDetailPage() {
             >
               <div className="flex items-center gap-3">
                 <Users className="h-6 w-6 text-[#22D3EE]" />
-                <h3 className="font-heading text-2xl font-black text-[#111827] dark:text-neutral-100 tracking-tight">Exhibition Overview</h3>
+                <h3 className="font-heading text-2xl font-black text-[#111827] dark:text-neutral-100 tracking-tight">
+                  Contest Overview
+                </h3>
               </div>
-              <p className="text-[#4B5563] dark:text-neutral-400 text-sm sm:text-base leading-relaxed font-sans">{competition.description}</p>
-              <div className="space-y-4 mt-6 border-t border-neutral-200 dark:border-neutral-800/60 pt-6 font-sans">
+              <ReactMarkdown className="text-[#4B5563] dark:text-neutral-400 text-sm sm:text-base leading-relaxed font-sans prose prose-sm max-w-none dark:prose-invert">
+                {competition.description}
+              </ReactMarkdown>
+              {/* <div className="space-y-4 mt-6 border-t border-neutral-200 dark:border-neutral-800/60 pt-6 font-sans">
                 <h4 className="font-heading text-sm font-bold text-[#8B5CF6] uppercase font-sans">Key Highlights</h4>
                 <ul className="space-y-4">
                   <li className="flex items-start gap-4">
@@ -384,7 +457,7 @@ export default function CompetitionDetailPage() {
                     </div>
                   </li>
                 </ul>
-              </div>
+              </div> */}
             </motion.div>
           </div>
 
@@ -402,36 +475,57 @@ export default function CompetitionDetailPage() {
               <h3 className="font-heading text-lg font-bold text-[#111827] dark:text-neutral-200 border-b border-neutral-200 dark:border-neutral-800 pb-4">
                 Competition Brief
               </h3>
-              
+
               <div className="space-y-4">
-                <div className="flex items-center gap-4 animate-fade-in" style={{ animationDelay: '0.1s' }}>
+                <div
+                  className="flex items-center gap-4 animate-fade-in"
+                  style={{ animationDelay: "0.1s" }}
+                >
                   <div className="w-10 h-10 rounded-xl bg-neutral-100 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-850 flex items-center justify-center font-sans group-hover:scale-105 transition-transform duration-300">
                     <CreditCard className="h-4 w-4 text-[#22D3EE]" />
                   </div>
                   <div>
-                    <div className="text-xs uppercase tracking-widest text-neutral-400 font-mono font-bold">Entry Fee</div>
-                    <div className="text-[#111827] dark:text-neutral-200 font-semibold text-sm font-sans">{competition.fee}</div>
+                    <div className="text-xs uppercase tracking-widest text-neutral-400 font-mono font-bold">
+                      Entry Fee
+                    </div>
+                    <div className="text-[#111827] dark:text-neutral-200 font-semibold text-sm font-sans">
+                      {competition.fee}
+                    </div>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-4 font-sans animate-fade-in" style={{ animationDelay: '0.2s' }}>
+                <div
+                  className="flex items-center gap-4 font-sans animate-fade-in"
+                  style={{ animationDelay: "0.2s" }}
+                >
                   <div className="w-10 h-10 rounded-xl bg-neutral-100 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-850 flex items-center justify-center group-hover:scale-105 transition-transform duration-300">
                     <Users className="h-4 w-4 text-[#8B5CF6]" />
                   </div>
                   <div>
-                    <div className="text-xs uppercase tracking-widest text-neutral-400 font-mono font-bold">Team Size</div>
-                    <div className="text-[#111827] dark:text-neutral-200 font-semibold text-sm font-sans">{competition.teamSize}</div>
+                    <div className="text-xs uppercase tracking-widest text-neutral-400 font-mono font-bold">
+                      Team Size
+                    </div>
+                    <div className="text-[#111827] dark:text-neutral-200 font-semibold text-sm font-sans">
+                      {competition.teamSize}
+                    </div>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-4 font-sans animate-fade-in" style={{ animationDelay: '0.3s' }}>
+                <div
+                  className="flex items-center gap-4 font-sans animate-fade-in"
+                  style={{ animationDelay: "0.3s" }}
+                >
                   <div className="w-10 h-10 rounded-xl bg-neutral-100 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-850 flex items-center justify-center group-hover:scale-105 transition-transform duration-300">
                     <Shield className="h-4 w-4 text-[#22D3EE]" />
                   </div>
                   <div>
-                    <div className="text-xs uppercase tracking-widest text-neutral-400 font-mono font-bold">Eligibility</div>
+                    <div className="text-xs uppercase tracking-widest text-neutral-400 font-mono font-bold">
+                      Eligibility
+                    </div>
                     <div className="text-[#111827] dark:text-neutral-200 font-semibold text-sm capitalize font-sans">
-                      {competition.eligibility?.toLowerCase() === "both" ? "INTER-UNI" : `${competition.eligibility} Only`}
+                      {competition.eligibility?.toLowerCase() === "both"
+                        ? "INTER-UNI"
+                        : `${competition.eligibility} Only`}
                     </div>
                   </div>
                 </div>
@@ -470,8 +564,12 @@ export default function CompetitionDetailPage() {
             >
               <HelpCircle className="h-5 w-5 text-[#8B5CF6]" />
               <div>
-                <h4 className="font-sans text-xs font-bold text-[#111827] dark:text-neutral-200">Need Assistance?</h4>
-                <p className="text-sm text-[#4B5563] dark:text-neutral-500">Contact our coordination desk</p>
+                <h4 className="font-sans text-xs font-bold text-[#111827] dark:text-neutral-200">
+                  Need Assistance?
+                </h4>
+                <p className="text-sm text-[#4B5563] dark:text-neutral-500">
+                  Contact our coordination desk
+                </p>
               </div>
             </motion.div>
           </aside>

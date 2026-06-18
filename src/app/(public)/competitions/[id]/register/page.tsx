@@ -68,6 +68,19 @@ interface MemberState {
   tshirt_size: string;
 }
 
+// Bangladeshi mobile phone validation: exactly 11 digits, must start with "01".
+// The canonical format is `01XXXXXXXXX`. Spaces and dashes are tolerated
+// during input (stripped before testing) so pasted numbers like
+// "01712 345678" or "017-12345678" still work.
+const BD_PHONE_REGEX = /^01\d{9}$/;
+const BD_PHONE_HINT =
+  "Phone number must be 11 digits and start with 01 (e.g. 01712345678).";
+
+function isValidBdPhone(value: string): boolean {
+  const normalized = value.trim().replace(/[\s-]/g, "");
+  return BD_PHONE_REGEX.test(normalized);
+}
+
 export default function CompetitionRegisterPage() {
   const params = useParams();
   const router = useRouter();
@@ -144,8 +157,8 @@ export default function CompetitionRegisterPage() {
     if (!l.full_name || !l.full_name.trim()) errors['leader_full_name'] = "Full Name is required.";
     if (!l.phone || !l.phone.trim()) {
       errors['leader_phone'] = "Phone Number is required.";
-    } else if (l.phone.trim().length < 10) {
-      errors['leader_phone'] = "Phone number must be at least 10 digits.";
+    } else if (!isValidBdPhone(l.phone)) {
+      errors['leader_phone'] = BD_PHONE_HINT;
     }
     if (!l.university || !l.university.trim()) errors['leader_university'] = "Institution is required.";
     if (!l.department || !l.department.trim()) errors['leader_department'] = "Department is required.";
@@ -180,8 +193,8 @@ export default function CompetitionRegisterPage() {
 
       if (!m.phone || !m.phone.trim()) {
         errors[`${prefix}_phone`] = `Member ${mNum} Phone is required.`;
-      } else if (m.phone.trim().length < 10) {
-        errors[`${prefix}_phone`] = `Member ${mNum} phone number must be at least 10 digits.`;
+      } else if (!isValidBdPhone(m.phone)) {
+        errors[`${prefix}_phone`] = `Member ${mNum}: ${BD_PHONE_HINT}`;
       }
 
       if (!m.university || !m.university.trim()) errors[`${prefix}_university`] = `Member ${mNum} Institution is required.`;
@@ -1041,7 +1054,7 @@ export default function CompetitionRegisterPage() {
                           />
                           <Input
                             label="Phone Number"
-                            placeholder="Phone number"
+                            placeholder="e.g. 01712345678"
                             value={member.phone}
                             onChange={(e) => {
                               handleMemberChange(index, "phone", e.target.value);

@@ -56,8 +56,8 @@ export const HOMEPAGE_FAQS = [
 export const CONTACT_DETAILS = {
   email: "csefest2026@smuct.edu.bd",
   phone: "+880 1711-223344",
-  facebook: "https://facebook.com/smuct.csefest",
-  linkedin: "https://linkedin.com/school/smuct",
+  facebook: "https://www.facebook.com/DeptofCSECSIT/",
+  linkedin: "https://www.linkedin.com/company/smuct",
   address: "Plot 3, Sector 15, Uttara, Dhaka, Bangladesh",
   mapsUrl: "https://maps.app.goo.gl/GQY48WmKwuSSwanCA",
 };

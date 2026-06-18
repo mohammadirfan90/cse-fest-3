@@ -82,27 +82,28 @@ export function SubmissionFormCard({
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-5">
+          <p className="font-bold text-red-400 my-4">PDF submission is MANDATORY.PDF Submission is MANDATORY FOR SOFTWARE, IOT & IDEA Showcase</p>
           <Input
             label="Project Title"
             placeholder="e.g. Smart IoT Agriculture Tracker"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             disabled={formLoading}
-            required
+            
             className="w-full"
           />
-
+          
           <FileDropzone
             label="Project PDF Report"
             accept="application/pdf"
             maxSizeMB={5}
-            required={!isUpdate} // Optional on update, required on new
+           
             value={pdfFile}
             onChange={setPdfFile}
             helperText="Upload your project proposal in PDF format"
             disabled={formLoading}
           />
-
+          <p className="font-bold text-red-400 my-4">Video submission is MANDATORY for IOT PROJECT SHOWCASE ONLY</p>
           <Input
             label="Project Demo Video Link"
             placeholder="https://youtube.com/watch?v=..."
@@ -113,7 +114,7 @@ export function SubmissionFormCard({
             }}
             error={youtubeError || undefined}
             disabled={formLoading}
-            helperText="Provide an Unlisted YouTube video link demonstrating your project. The video should clearly explain the problem, solution, features, and working demonstration of the project."
+            helperText="Video is MANDATORY for IOT Project Showcase. Provide an Unlisted YouTube video link demonstrating your project. The video should clearly explain the problem, solution, features, and working demonstration of the project."
           />
 
           {/* Upload Progress Bar */}
@@ -146,7 +147,7 @@ export function SubmissionFormCard({
             </div>
           )}
 
-          <div className="flex flex-col space-y-1.5">
+          {/* <div className="flex flex-col space-y-1.5">
             <label className="text-sm font-medium text-neutral-350 select-none">
               Additional Notes (Optional)
             </label>
@@ -158,13 +159,14 @@ export function SubmissionFormCard({
               disabled={formLoading}
               className="flex w-full rounded-lg border border-neutral-800 bg-neutral-950 px-3 py-2.5 text-sm text-neutral-50 placeholder:text-neutral-600 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all duration-200 resize-none leading-relaxed font-sans disabled:opacity-50"
             />
-          </div>
+          </div> */}
 
           <Button
             variant="primary"
             type="submit"
             isLoading={formLoading}
-            disabled={formLoading || (!isUpdate && !pdfFile)}
+            // disabled={formLoading || (!isUpdate && !pdfFile)}
+            disabled={formLoading}
             className="w-full justify-center py-2.5 font-semibold active:scale-[0.99] transition-all flex items-center gap-2"
           >
             <Send className="h-4 w-4" />

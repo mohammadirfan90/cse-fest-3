@@ -69,3 +69,7 @@ Desktop.ini
 .mcp.json
 skills-lock.json
 skills.txt
+
+
+        pm2
+        pnpm-workspace.yaml

@@ -73,6 +73,7 @@ export default function CompetitionDetailPage() {
   const springConfig = { damping: 25, stiffness: 220, mass: 0.6 };
   const spotlightX = useSpring(mouseX, springConfig);
   const spotlightY = useSpring(mouseY, springConfig);
+  const spotlightBackground = useMotionTemplate`radial-gradient(350px circle at ${spotlightX}px ${spotlightY}px, rgba(139, 92, 246, 0.18) 0%, rgba(139, 92, 246, 0.06) 50%, transparent 100%)`;
 
   React.useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -146,9 +147,7 @@ export default function CompetitionDetailPage() {
       {/* Mouse-following spotlight effect */}
       <motion.div
         className="pointer-events-none fixed inset-0 z-30 hidden sm:block"
-        style={{
-          background: useMotionTemplate`radial-gradient(350px circle at ${spotlightX}px ${spotlightY}px, rgba(139, 92, 246, 0.18) 0%, rgba(139, 92, 246, 0.06) 50%, transparent 100%)`,
-        }}
+        style={{ background: spotlightBackground }}
       />
 
       {/* Dynamic Grid Pattern */}

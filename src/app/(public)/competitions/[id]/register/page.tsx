@@ -54,6 +54,8 @@ interface Competition {
   minMembers: number;
   maxMembers: number;
   submissionRequired: boolean;
+  /** When true, the YouTube demo URL field is required (IOT-style). */
+  isVideoRequired: boolean;
   rulebookUrl?: string;
   templateLink?: string;
   bannerImageUrl?: string;
@@ -87,6 +89,11 @@ interface MemberState {
 const BD_PHONE_REGEX = /^01\d{9}$/;
 const BD_PHONE_HINT =
   "Phone number must be 11 digits and start with 01 (e.g. 01712345678).";
+
+// YouTube URL shape accepted for demo videos. Both `youtube.com/watch?v=`
+// and short `youtu.be/` links resolve to the same videos.
+const YOUTUBE_URL_REGEX =
+  /^(https?:\/\/)?(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)/;
 
 function isValidBdPhone(value: string): boolean {
   const normalized = value.trim().replace(/[\s-]/g, "");
@@ -292,7 +299,8 @@ export default function CompetitionRegisterPage() {
           `Member ${mNum} T-shirt Size is required.`;
     });
 
-    // 4. Project Details
+    // 4. Project Details — PDF is required whenever the competition asks for a
+    // submission; video is required only when `isVideoRequired` is true.
     if (competition?.submissionRequired) {
       if (!projectTitle || !projectTitle.trim()) {
         errors["projectTitle"] = "Project Title is required.";
@@ -300,14 +308,21 @@ export default function CompetitionRegisterPage() {
         errors["projectTitle"] =
           "Project Title must be at least 5 characters long.";
       }
-    }
 
-    // 5. YouTube URL validation (optional, but must be valid if provided)
-    if (youtubeDemoUrl && youtubeDemoUrl.trim()) {
-      const trimmedUrl = youtubeDemoUrl.trim();
-      const regex =
-        /^(https?:\/\/)?(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)/;
-      if (!regex.test(trimmedUrl)) {
+      if (!pdfFile) {
+        errors["pdf"] = "Project proposal PDF file is required.";
+      }
+
+      const trimmedUrl = (youtubeDemoUrl || "").trim();
+      if (competition.isVideoRequired) {
+        if (!trimmedUrl) {
+          errors["youtubeDemoUrl"] = "YouTube demo URL is required.";
+        } else if (!YOUTUBE_URL_REGEX.test(trimmedUrl)) {
+          errors["youtubeDemoUrl"] =
+            "Please enter a valid YouTube URL (youtube.com/watch?v=, youtu.be/, or youtube.com/embed/).";
+        }
+      } else if (trimmedUrl && !YOUTUBE_URL_REGEX.test(trimmedUrl)) {
+        // Optional when not required, but still validate format.
         errors["youtubeDemoUrl"] =
           "Please enter a valid YouTube URL (youtube.com/watch?v=, youtu.be/, or youtube.com/embed/).";
       }
@@ -320,6 +335,7 @@ export default function CompetitionRegisterPage() {
     members,
     competition,
     projectTitle,
+    pdfFile,
     youtubeDemoUrl,
     isInternalCompetition,
   ]);
@@ -601,10 +617,10 @@ export default function CompetitionRegisterPage() {
 
       if (competition?.submissionRequired) {
         touchedAll["projectTitle"] = true;
-      }
-
-      if (youtubeDemoUrl) {
-        touchedAll["youtubeDemoUrl"] = true;
+        touchedAll["pdf"] = true;
+        if (competition.isVideoRequired || youtubeDemoUrl) {
+          touchedAll["youtubeDemoUrl"] = true;
+        }
       }
 
       setTouchedFields(touchedAll);
@@ -1674,18 +1690,27 @@ export default function CompetitionRegisterPage() {
                   />
 
                   <FileDropzone
-                    label="Project PDF Report (Optional)"
+                    label="Project PDF Report"
                     accept="application/pdf"
                     maxSizeMB={5}
-                    required={false}
+                    required={competition.submissionRequired}
                     value={pdfFile}
                     onChange={setPdfFile}
-                    helperText="Optional. Upload your project proposal in PDF format"
+                    helperText={
+                      competition.submissionRequired
+                        ? "Upload your project proposal in PDF format"
+                        : "Optional. Upload your project proposal in PDF format"
+                    }
                     disabled={formLoading}
+                    externalError={getFieldError("pdf")}
                   />
 
                   <Input
-                    label="Project Demo Video Link"
+                    label={
+                      competition.isVideoRequired
+                        ? "Project Demo Video Link"
+                        : "Project Demo Video Link (Optional)"
+                    }
                     placeholder="https://youtube.com/watch?v=..."
                     value={youtubeDemoUrl}
                     onChange={(e) => {
@@ -1696,7 +1721,11 @@ export default function CompetitionRegisterPage() {
                     error={getFieldError("youtubeDemoUrl")}
                     isValid={isValidField("youtubeDemoUrl", youtubeDemoUrl)}
                     disabled={formLoading}
-                    helperText="Provide an Unlisted YouTube video link demonstrating your project. The video should clearly explain the problem, solution, features, and working demonstration of the project."
+                    helperText={
+                      competition.isVideoRequired
+                        ? "Required. Provide an Unlisted YouTube video link demonstrating your project. The video should clearly explain the problem, solution, features, and working demonstration of the project."
+                        : "Optional. Provide an Unlisted YouTube video link demonstrating your project. The video should clearly explain the problem, solution, features, and working demonstration of the project."
+                    }
                   />
                 </CardContent>
               </Card>

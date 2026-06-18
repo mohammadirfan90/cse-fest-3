@@ -60,6 +60,11 @@ const teamIdOnlySchema = z.object({
   team_id: z.string().uuid(),
 });
 
+// YouTube URL patterns accepted by the public registration form.
+// Mirrors YOUTUBE_URL_REGEX in src/app/(public)/competitions/[id]/register/page.tsx.
+const YOUTUBE_URL_REGEX =
+  /^(https?:\/\/)?(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)/;
+
 const removeMemberSchema = z.object({
   team_id: z.string().uuid(),
   user_id: z.string().uuid().optional().nullable(),
@@ -376,6 +381,63 @@ export async function POST(req: Request) {
         return NextResponse.json({ success: false, message: "The registration deadline for this competition has passed." }, { status: 400 });
       }
 
+      // Pre-validate submission requirements BEFORE any DB writes (Step 4 hardening).
+      // This fixes the bug where partial submissions reach the DB and return
+      // "already registered" on retry with the missing fields.
+      const isSubmissionRequired = !!comp.submission_required;
+      const isVideoRequired = !!comp.is_video_required;
+      const trimmedYoutubeUrl = (youtubeDemoUrl || "").trim();
+
+      if (isSubmissionRequired) {
+        if (!project_title || !project_title.trim()) {
+          return NextResponse.json(
+            { success: false, message: "Project Title is required." },
+            { status: 400 }
+          );
+        }
+        if (project_title.trim().length < 5) {
+          return NextResponse.json(
+            { success: false, message: "Project Title must be at least 5 characters." },
+            { status: 400 }
+          );
+        }
+
+        if (!pdfFile || pdfFile.size === 0) {
+          return NextResponse.json(
+            { success: false, message: "Project proposal PDF file is required." },
+            { status: 400 }
+          );
+        }
+
+        if (isVideoRequired) {
+          if (!trimmedYoutubeUrl) {
+            return NextResponse.json(
+              { success: false, message: "YouTube demo URL is required for this competition." },
+              { status: 400 }
+            );
+          }
+          if (!YOUTUBE_URL_REGEX.test(trimmedYoutubeUrl)) {
+            return NextResponse.json(
+              {
+                success: false,
+                message:
+                  "Please enter a valid YouTube URL (youtube.com/watch?v=, youtu.be/, or youtube.com/embed/).",
+              },
+              { status: 400 }
+            );
+          }
+        } else if (trimmedYoutubeUrl && !YOUTUBE_URL_REGEX.test(trimmedYoutubeUrl)) {
+          return NextResponse.json(
+            {
+              success: false,
+              message:
+                "Please enter a valid YouTube URL (youtube.com/watch?v=, youtu.be/, or youtube.com/embed/).",
+            },
+            { status: 400 }
+          );
+        }
+      }
+
       // Validate team size limits
       const totalTeamSize = members.length + 1; // including leader
       if (totalTeamSize < comp.min_members || totalTeamSize > comp.max_members) {
@@ -513,9 +575,8 @@ export async function POST(req: Request) {
         // Step 5: Handle Project Submission (if required by the competition or if title is supplied)
         const isSubmissionRequired = comp.submission_required;
         if (isSubmissionRequired || (project_title && project_title.trim().length > 0)) {
-          if (!project_title || project_title.trim().length < 5) {
-            throw new Error("Project Title must be at least 5 characters.");
-          }
+          // Title and PDF presence are pre-validated above (Step 4). We only need
+          // to validate file-level constraints (size + magic bytes) here.
 
           let pdfPath = "mock-vercel-uploads/placeholder.pdf";
           let trimmedYoutubeUrl = youtubeDemoUrl?.trim() || null;
@@ -546,6 +607,7 @@ export async function POST(req: Request) {
             filesToDeleteOnFailure.push(relativePath);
             pdfPath = relativePath;
           } else if (isSubmissionRequired) {
+            // Defensive: pre-validation should have caught this.
             throw new Error("Project proposal PDF file is required.");
           }
 

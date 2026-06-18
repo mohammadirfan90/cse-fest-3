@@ -25,6 +25,7 @@ interface CompetitionDb {
   entry_fee: number;
   payment_instructions: string | null;
   submission_required: boolean;
+  is_video_required: boolean;
   template_link: string | null;
   rulebook_url: string | null;
   judging_criteria: unknown;
@@ -67,6 +68,7 @@ function mapCompetition(c: CompetitionDb) {
     fee: feeStr,
     paymentInstructions: c.payment_instructions || "",
     submissionRequired: c.submission_required,
+    isVideoRequired: c.is_video_required,
     templateLink: c.template_link || "",
     rulebookUrl: c.rulebook_url || "",
     judgingCriteria: c.judging_criteria,

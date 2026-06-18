@@ -570,6 +570,9 @@ export default function CompetitionDetailPage() {
                 <p className="text-sm text-[#4B5563] dark:text-neutral-500">
                   Contact our coordination desk
                 </p>
+                <p className="text-sm text-[#4B5563] dark:text-neutral-500">
+                  01937-309224
+                </p>
               </div>
             </motion.div>
           </aside>

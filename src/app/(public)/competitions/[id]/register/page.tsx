@@ -33,6 +33,7 @@ import {
   SMUCT_INSTITUTION,
   SEMESTER_PLACEHOLDER,
   SEMESTER_OPTIONS,
+  DEPARTMENT_PLACEHOLDER,
   isInternal,
   isSemesterRequiredFor,
   isSmuctInstitution,
@@ -279,9 +280,13 @@ export default function CompetitionRegisterPage() {
         errors[`${prefix}_university`] =
           `Member ${mNum}: this competition is open to SMUCT students only.`;
       }
-      if (!m.department || !m.department.trim())
-        errors[`${prefix}_department`] =
-          `Member ${mNum} Department is required.`;
+      // Department is required only for SMUCT members. For non-SMUCT members
+      // the field is locked + empty, and the backend stores an empty value.
+      if (isSmuctInstitution(m.university)) {
+        if (!m.department || !m.department.trim())
+          errors[`${prefix}_department`] =
+            `Member ${mNum} Department is required.`;
+      }
       if (
         isSemesterRequiredFor(m.university) &&
         (!m.semester ||
@@ -450,12 +455,13 @@ export default function CompetitionRegisterPage() {
             };
             setLeaderForm(updatedLeader);
 
-            // Sync loaded leader info to any pre-initialized member templates
+            // Sync loaded leader info to any pre-initialized member templates.
+            // Department is intentionally NOT cascaded — each member fills it
+            // independently (SMUCT only; non-SMUCT members keep it locked + empty).
             setMembers((prev) =>
               prev.map((m) => ({
                 ...m,
                 university: updatedLeader.university,
-                department: updatedLeader.department,
                 semester: isInternalCompetition
                   ? updatedLeader.semester
                   : SEMESTER_PLACEHOLDER,
@@ -667,8 +673,17 @@ export default function CompetitionRegisterPage() {
       formData.append("leader_student_id", leaderForm.student_id);
       formData.append("leader_tshirt_size", leaderForm.tshirt_size);
 
-      // Members (JSON stringified)
-      formData.append("members", JSON.stringify(members));
+      // Members (JSON stringified).
+      // For non-SMUCT members the department field is locked + empty in the UI;
+      // substitute the placeholder so the backend schema (>= 2 chars) stays
+      // satisfied. SMUCT members send whatever the user typed.
+      const membersForApi = members.map((m) => ({
+        ...m,
+        department: isSmuctInstitution(m.university)
+          ? m.department
+          : DEPARTMENT_PLACEHOLDER,
+      }));
+      formData.append("members", JSON.stringify(membersForApi));
 
       // Project Details (if applicable)
       if (projectTitle) {
@@ -1483,6 +1498,13 @@ export default function CompetitionRegisterPage() {
                             label="Department"
                             placeholder="Department"
                             value={member.department}
+                            onChange={(e) =>
+                              handleMemberChange(
+                                index,
+                                "department",
+                                e.target.value,
+                              )
+                            }
                             onBlur={() =>
                               handleBlur(`member_${index}_department`)
                             }
@@ -1491,7 +1513,10 @@ export default function CompetitionRegisterPage() {
                               `member_${index}_department`,
                               member.department,
                             )}
-                            disabled={true}
+                            // Department is editable for SMUCT members only.
+                            // For non-SMUCT members the field stays locked and
+                            // empty (the backend stores a placeholder).
+                            disabled={!isSmuctInstitution(member.university)}
                             required
                           />
                           {/* Semester only appears for SMUCT teammates. For

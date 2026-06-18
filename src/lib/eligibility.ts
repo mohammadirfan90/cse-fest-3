@@ -62,6 +62,13 @@ export function isSmuctInstitution(value: string | null | undefined): boolean {
 export const SEMESTER_PLACEHOLDER = "N/A";
 
 /**
+ * The department field is required only for SMUCT members. For non-SMUCT
+ * members the field is locked + empty in the UI, so we send `"N/A"` so the
+ * backend schema (which still requires a non-null department) stays valid.
+ */
+export const DEPARTMENT_PLACEHOLDER = "N/A";
+
+/**
  * Valid semester values surfaced as quick-pick chips. The backend column
  * is a free-text string, but constraining the UI to these buckets keeps
  * data consistent for downstream analytics.

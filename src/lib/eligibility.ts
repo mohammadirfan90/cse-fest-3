@@ -55,8 +55,37 @@ export function isSmuctInstitution(value: string | null | undefined): boolean {
 }
 
 /**
- * The semester field is no longer exposed on the registration form.
- * We send `"N/A"` on every team so existing backend rows that require
- * a non-null semester remain valid without forcing a UI change.
+ * The semester field is required only for SMUCT students. For other
+ * universities we send `"N/A"` so existing backend rows that require a
+ * non-null semester remain valid without forcing a UI change.
  */
 export const SEMESTER_PLACEHOLDER = "N/A";
+
+/**
+ * Valid semester values surfaced as quick-pick chips. The backend column
+ * is a free-text string, but constraining the UI to these buckets keeps
+ * data consistent for downstream analytics.
+ */
+export const SEMESTER_OPTIONS: ReadonlyArray<string> = [
+  "1st",
+  "2nd",
+  "3rd",
+  "4th",
+  "5th",
+  "6th",
+  "7th",
+  "8th",
+  "9th",
+  "10th",
+  "11th",
+  "12th",
+];
+
+/**
+ * True when the semester input should be rendered for a given member.
+ * A non-empty SMUCT institution is the trigger. We accept the same
+ * matching rules as {@link isSmuctInstitution}.
+ */
+export function isSemesterRequiredFor(university: string | null | undefined): boolean {
+  return isSmuctInstitution(university);
+}

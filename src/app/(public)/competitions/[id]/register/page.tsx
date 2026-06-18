@@ -32,7 +32,9 @@ import { FileDropzone } from "@/components/submissions/FileDropzone";
 import {
   SMUCT_INSTITUTION,
   SEMESTER_PLACEHOLDER,
+  SEMESTER_OPTIONS,
   isInternal,
+  isSemesterRequiredFor,
   isSmuctInstitution,
   normalizeEligibility,
   type Eligibility,
@@ -156,6 +158,14 @@ export default function CompetitionRegisterPage() {
   const rosterInitializedRef = React.useRef(false);
   const [isSmuct, setIsSmuct] = React.useState<boolean>(false);
 
+  // Semester is collected per-person. The field is rendered for any member
+  // (leader or teammate) whose institution resolves to SMUCT; everyone else
+  // submits the `SEMESTER_PLACEHOLDER` ("N/A") to satisfy the non-null
+  // backend contract.
+  const leaderNeedsSemester = isSemesterRequiredFor(leaderForm.university);
+  const membersNeedingSemester = members.map((m) => isSemesterRequiredFor(m.university));
+  const anySemesterRequired = leaderNeedsSemester || membersNeedingSemester.some(Boolean);
+
   // Validation States
   const [touchedFields, setTouchedFields] = React.useState<Record<string, boolean>>({});
   const [submittedOnce, setSubmittedOnce] = React.useState(false);
@@ -185,6 +195,9 @@ export default function CompetitionRegisterPage() {
       errors['leader_university'] = "This competition is open to SMUCT students only.";
     }
     if (!l.department || !l.department.trim()) errors['leader_department'] = "Department is required.";
+    if (isSemesterRequiredFor(l.university) && (!l.semester || !l.semester.trim() || l.semester === SEMESTER_PLACEHOLDER)) {
+      errors['leader_semester'] = "Semester is required for SMUCT students.";
+    }
     if (!l.student_id || !l.student_id.trim()) errors['leader_student_id'] = "Student ID is required.";
     if (!l.tshirt_size) errors['leader_tshirt_size'] = "T-shirt Size is required.";
 
@@ -225,6 +238,9 @@ export default function CompetitionRegisterPage() {
         errors[`${prefix}_university`] = `Member ${mNum}: this competition is open to SMUCT students only.`;
       }
       if (!m.department || !m.department.trim()) errors[`${prefix}_department`] = `Member ${mNum} Department is required.`;
+      if (isSemesterRequiredFor(m.university) && (!m.semester || !m.semester.trim() || m.semester === SEMESTER_PLACEHOLDER)) {
+        errors[`${prefix}_semester`] = `Member ${mNum}: Semester is required for SMUCT students.`;
+      }
       if (!m.student_id || !m.student_id.trim()) errors[`${prefix}_student_id`] = `Member ${mNum} Student ID is required.`;
       if (!m.tshirt_size) errors[`${prefix}_tshirt_size`] = `Member ${mNum} T-shirt Size is required.`;
     });
@@ -248,7 +264,7 @@ export default function CompetitionRegisterPage() {
     }
 
     return errors;
-  }, [teamName, leaderForm, members, competition, projectTitle, youtubeDemoUrl]);
+  }, [teamName, leaderForm, members, competition, projectTitle, youtubeDemoUrl, isInternalCompetition]);
 
   const handleBlur = (fieldKey: string) => {
     setTouchedFields((prev) => ({ ...prev, [fieldKey]: true }));
@@ -414,16 +430,34 @@ export default function CompetitionRegisterPage() {
   // Update member field
   const handleMemberChange = (index: number, field: keyof MemberState, value: string) => {
     setMembers((prev) =>
-      prev.map((m, i) => (i === index ? { ...m, [field]: value } : m))
+      prev.map((m, i) => {
+        if (i !== index) return m;
+        const next: MemberState = { ...m, [field]: value };
+        // When institution changes away from SMUCT, semester is no longer
+        // collected — reset to the placeholder so backend gets a valid value.
+        if (field === "university" && !isSemesterRequiredFor(value)) {
+          next.semester = SEMESTER_PLACEHOLDER;
+        }
+        return next;
+      })
     );
   };
 
   // Update leader field
   const handleLeaderChange = (field: keyof MemberState, value: string) => {
-    setLeaderForm((prev) => ({ ...prev, [field]: value }));
+    setLeaderForm((prev) => {
+      const next = { ...prev, [field]: value };
+      // When institution changes away from SMUCT, semester is no longer
+      // collected — reset to the placeholder so backend gets a valid value.
+      if (field === "university" && !isSemesterRequiredFor(value)) {
+        next.semester = SEMESTER_PLACEHOLDER;
+      }
+      return next;
+    });
 
-    // Autofill Institution and Department for all teammates. Semester is no
-    // longer surfaced in the UI; teammate semester stays at the placeholder.
+    // Autofill Institution and Department for all teammates. Semester is
+    // personal to each member (only collected for SMUCT), so we never copy
+    // it across — non-SMUCT members keep the placeholder.
     if (field === "university" || field === "department") {
       setMembers((prev) =>
         prev.map((m) => ({ ...m, [field]: value }))
@@ -450,22 +484,28 @@ export default function CompetitionRegisterPage() {
       touchedAll['leader_phone'] = true;
       touchedAll['leader_university'] = true;
       touchedAll['leader_department'] = true;
-      touchedAll['leader_student_id'] = true;
-      touchedAll['leader_tshirt_size'] = true;
+    if (isSemesterRequiredFor(leaderForm.university)) {
+      touchedAll['leader_semester'] = true;
+    }
+    touchedAll['leader_student_id'] = true;
+    touchedAll['leader_tshirt_size'] = true;
 
-      members.forEach((_, idx) => {
-        touchedAll[`member_${idx}_full_name`] = true;
-        touchedAll[`member_${idx}_email`] = true;
-        touchedAll[`member_${idx}_phone`] = true;
-        touchedAll[`member_${idx}_university`] = true;
-        touchedAll[`member_${idx}_department`] = true;
-        touchedAll[`member_${idx}_student_id`] = true;
-        touchedAll[`member_${idx}_tshirt_size`] = true;
-      });
-
-      if (competition?.submissionRequired) {
-        touchedAll['projectTitle'] = true;
+    members.forEach((m, idx) => {
+      touchedAll[`member_${idx}_full_name`] = true;
+      touchedAll[`member_${idx}_email`] = true;
+      touchedAll[`member_${idx}_phone`] = true;
+      touchedAll[`member_${idx}_university`] = true;
+      touchedAll[`member_${idx}_department`] = true;
+      if (isSemesterRequiredFor(m.university)) {
+        touchedAll[`member_${idx}_semester`] = true;
       }
+      touchedAll[`member_${idx}_student_id`] = true;
+      touchedAll[`member_${idx}_tshirt_size`] = true;
+    });
+
+    if (competition?.submissionRequired) {
+      touchedAll['projectTitle'] = true;
+    }
 
       if (youtubeDemoUrl) {
         touchedAll['youtubeDemoUrl'] = true;
@@ -776,14 +816,14 @@ export default function CompetitionRegisterPage() {
                     <>
                       This competition is open to <span className="text-neutral-200 font-medium">SMUCT students only</span>.
                       The Institution field is locked to {SMUCT_INSTITUTION}.
-                      Each member must provide a valid Student ID. Semester is not collected.
+                      Each member must provide a valid Student ID. Semester is required for every member.
                     </>
                   ) : (
                     <>
                       Open to <span className="text-neutral-200 font-medium">all universities</span>.
                       Toggle <span className="text-neutral-200 font-medium">SMUCT Student</span> to lock the
                       Institution field; otherwise type your university directly.
-                      Each member must provide a valid Student ID. Semester is not collected.
+                      Each member must provide a valid Student ID. Semester is collected only for SMUCT students.
                     </>
                   )}
                 </div>
@@ -952,8 +992,51 @@ export default function CompetitionRegisterPage() {
                     disabled={formLoading}
                     required
                   />
-                  {/* Semester field intentionally removed — backend receives
-                      SEMESTER_PLACEHOLDER ("N/A") for every registrant. */}
+                  {/* Semester is only collected for SMUCT students. The payload
+                      always carries a non-null semester (placeholder "N/A" for
+                      non-SMUCT) so the backend contract stays valid. */}
+                  {leaderNeedsSemester && (
+                    <div className="flex flex-col space-y-1.5 w-full">
+                      <label className="text-sm font-medium text-neutral-350 select-none font-sans">
+                        Semester
+                      </label>
+                      <div className={`p-2 rounded-lg border transition-all duration-200 ${
+                        isInvalid('leader_semester')
+                          ? "border-[#EF4444] bg-[#EF4444]/4"
+                          : "border-transparent"
+                      }`}>
+                        <div className="flex flex-wrap gap-2 pt-1">
+                          {SEMESTER_OPTIONS.map((sem) => (
+                            <button
+                              key={sem}
+                              type="button"
+                              onClick={() => {
+                                handleLeaderChange("semester", sem);
+                                handleBlur('leader_semester');
+                              }}
+                              disabled={formLoading}
+                              className={`min-w-11 px-3 py-2 border rounded-lg text-xs font-bold font-sans transition-all duration-150 ${
+                                leaderForm.semester === sem
+                                  ? "bg-primary text-white border-primary shadow-[0_0_12px_rgba(99,102,241,0.25)]"
+                                  : "bg-neutral-950 border-neutral-800 text-neutral-400 hover:border-neutral-700"
+                              }`}
+                            >
+                              {sem}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      {isInvalid('leader_semester') ? (
+                        <span className="text-xs text-[#DC2626] dark:text-[#FCA5A5] font-sans font-medium tracking-tight flex items-center gap-1 mt-1 animate-fade-in">
+                          <span>✖</span> {allErrors['leader_semester']}
+                        </span>
+                      ) : isValidField('leader_semester', leaderForm.semester) ? (
+                        <span className="text-xs text-[#10B981] dark:text-[#34D399] font-sans font-medium tracking-tight flex items-center gap-1 mt-1 animate-fade-in">
+                          <span>✓</span>
+                        </span>
+                      ) : null}
+                    </div>
+                  )}
                   <Input
                     label="Student ID"
                     placeholder="e.g. 211071032"
@@ -1135,8 +1218,52 @@ export default function CompetitionRegisterPage() {
                             disabled={true}
                             required
                           />
-                          {/* Teammate Semester field removed; backend receives
-                              SEMESTER_PLACEHOLDER ("N/A") for every member. */}
+                          {/* Semester only appears for SMUCT teammates. For
+                              non-SMUCT teammates the form sends the
+                              SEMESTER_PLACEHOLDER so the backend contract is
+                              preserved without surfacing a useless field. */}
+                          {membersNeedingSemester[index] && (
+                            <div className="flex flex-col space-y-1.5 w-full">
+                              <label className="text-sm font-medium text-neutral-350 select-none font-sans">
+                                Semester
+                              </label>
+                              <div className={`p-2 rounded-lg border transition-all duration-200 ${
+                                isInvalid(`member_${index}_semester`)
+                                  ? "border-[#EF4444] bg-[#EF4444]/4"
+                                  : "border-transparent"
+                              }`}>
+                                <div className="flex flex-wrap gap-2 pt-1">
+                                  {SEMESTER_OPTIONS.map((sem) => (
+                                    <button
+                                      key={sem}
+                                      type="button"
+                                      onClick={() => {
+                                        handleMemberChange(index, "semester", sem);
+                                        handleBlur(`member_${index}_semester`);
+                                      }}
+                                      disabled={formLoading}
+                                      className={`min-w-11 px-3 py-2 border rounded-lg text-xs font-bold font-sans transition-all duration-150 ${
+                                        member.semester === sem
+                                          ? "bg-primary text-white border-primary shadow-[0_0_12px_rgba(99,102,241,0.25)]"
+                                          : "bg-neutral-950 border-neutral-800 text-neutral-400 hover:border-neutral-700"
+                                      }`}
+                                    >
+                                      {sem}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                              {isInvalid(`member_${index}_semester`) ? (
+                                <span className="text-xs text-[#DC2626] dark:text-[#FCA5A5] font-sans font-medium tracking-tight flex items-center gap-1 mt-1 animate-fade-in">
+                                  <span>✖</span> {allErrors[`member_${index}_semester`]}
+                                </span>
+                              ) : isValidField(`member_${index}_semester`, member.semester) ? (
+                                <span className="text-xs text-[#10B981] dark:text-[#34D399] font-sans font-medium tracking-tight flex items-center gap-1 mt-1 animate-fade-in">
+                                  <span>✓</span>
+                                </span>
+                              ) : null}
+                            </div>
+                          )}
                           <Input
                             label="Student ID"
                             placeholder="Student ID"

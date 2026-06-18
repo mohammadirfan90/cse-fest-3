@@ -22,12 +22,21 @@ import {
 
 import { Navbar } from "@/components/shared/Navbar";
 import { Footer } from "@/components/shared/Footer";
+import { EligibilityBadge } from "@/components/shared/EligibilityBadge";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { createClient } from "@/lib/supabase/client";
 import { FileDropzone } from "@/components/submissions/FileDropzone";
+import {
+  SMUCT_INSTITUTION,
+  SEMESTER_PLACEHOLDER,
+  isInternal,
+  isSmuctInstitution,
+  normalizeEligibility,
+  type Eligibility,
+} from "@/lib/eligibility";
 import type { User } from "@supabase/supabase-js";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
@@ -38,6 +47,7 @@ interface Competition {
   type: string;
   shortDescription: string;
   fee: string;
+  /** Narrowed via `normalizeEligibility()`; the API may return unknown values. */
   eligibility: string;
   minMembers: number;
   maxMembers: number;
@@ -95,6 +105,12 @@ export default function CompetitionRegisterPage() {
 
   const competition = compRes?.success ? compRes.data : null;
 
+  // Narrow the raw eligibility value from the API. `isInternalCompetition`
+  // is the single source of truth for "internal-only" branching across the
+  // page (form, validator, submit gating, eligibility notice).
+  const eligibility: Eligibility = normalizeEligibility(competition?.eligibility);
+  const isInternalCompetition = isInternal(eligibility);
+
   // 2. Auth states
   const [user, setUser] = React.useState<User | null>(null);
   const [authLoading, setAuthLoading] = React.useState(true);
@@ -105,14 +121,17 @@ export default function CompetitionRegisterPage() {
   // 3. Form Data States
   const [teamName, setTeamName] = React.useState("");
 
-  // Leader Form State (pre-filled later)
+  // Leader Form State (pre-filled later).
+  // `semester` is intentionally pre-populated with the placeholder so the
+  // submit payload always carries a non-null value. The Semester input has
+  // been removed from the UI; this keeps the existing backend contract intact.
   const [leaderForm, setLeaderForm] = React.useState<MemberState>({
     full_name: "",
     email: "",
     phone: "",
     university: "",
     department: "",
-    semester: "",
+    semester: SEMESTER_PLACEHOLDER,
     student_id: "",
     tshirt_size: "",
   });
@@ -160,9 +179,12 @@ export default function CompetitionRegisterPage() {
     } else if (!isValidBdPhone(l.phone)) {
       errors['leader_phone'] = BD_PHONE_HINT;
     }
-    if (!l.university || !l.university.trim()) errors['leader_university'] = "Institution is required.";
+    if (!l.university || !l.university.trim()) {
+      errors['leader_university'] = "Institution is required.";
+    } else if (isInternalCompetition && !isSmuctInstitution(l.university)) {
+      errors['leader_university'] = "This competition is open to SMUCT students only.";
+    }
     if (!l.department || !l.department.trim()) errors['leader_department'] = "Department is required.";
-    if (!l.semester || !l.semester.trim()) errors['leader_semester'] = "Semester is required.";
     if (!l.student_id || !l.student_id.trim()) errors['leader_student_id'] = "Student ID is required.";
     if (!l.tshirt_size) errors['leader_tshirt_size'] = "T-shirt Size is required.";
 
@@ -197,9 +219,12 @@ export default function CompetitionRegisterPage() {
         errors[`${prefix}_phone`] = `Member ${mNum}: ${BD_PHONE_HINT}`;
       }
 
-      if (!m.university || !m.university.trim()) errors[`${prefix}_university`] = `Member ${mNum} Institution is required.`;
+      if (!m.university || !m.university.trim()) {
+        errors[`${prefix}_university`] = `Member ${mNum} Institution is required.`;
+      } else if (isInternalCompetition && !isSmuctInstitution(m.university)) {
+        errors[`${prefix}_university`] = `Member ${mNum}: this competition is open to SMUCT students only.`;
+      }
       if (!m.department || !m.department.trim()) errors[`${prefix}_department`] = `Member ${mNum} Department is required.`;
-      if (!m.semester || !m.semester.trim()) errors[`${prefix}_semester`] = `Member ${mNum} Semester is required.`;
       if (!m.student_id || !m.student_id.trim()) errors[`${prefix}_student_id`] = `Member ${mNum} Student ID is required.`;
       if (!m.tshirt_size) errors[`${prefix}_tshirt_size`] = `Member ${mNum} T-shirt Size is required.`;
     });
@@ -260,7 +285,7 @@ export default function CompetitionRegisterPage() {
         phone: "",
         university: leaderForm.university,
         department: leaderForm.department,
-        semester: leaderForm.semester,
+        semester: SEMESTER_PLACEHOLDER,
         student_id: "",
         tshirt_size: "",
       }));
@@ -302,7 +327,7 @@ export default function CompetitionRegisterPage() {
               phone: profile.phone || "",
               university: profile.university || "",
               department: profile.department || "",
-              semester: profile.semester || "",
+              semester: SEMESTER_PLACEHOLDER,
               student_id: profile.student_id || "",
               tshirt_size: profile.tshirt_size || "",
             };
@@ -314,12 +339,12 @@ export default function CompetitionRegisterPage() {
                 ...m,
                 university: updatedLeader.university,
                 department: updatedLeader.department,
-                semester: updatedLeader.semester,
+                semester: SEMESTER_PLACEHOLDER,
               }))
             );
 
             if (profile.university) {
-              const isUnivSmuct = profile.university.toLowerCase().includes("smuct") || profile.university.toLowerCase().includes("shanto-mariam");
+              const isUnivSmuct = isSmuctInstitution(profile.university);
               setIsSmuct(isUnivSmuct);
             }
           }
@@ -374,7 +399,7 @@ export default function CompetitionRegisterPage() {
         phone: "",
         university: leaderForm.university,
         department: leaderForm.department,
-        semester: leaderForm.semester,
+        semester: SEMESTER_PLACEHOLDER,
         student_id: "",
         tshirt_size: "",
       },
@@ -397,8 +422,9 @@ export default function CompetitionRegisterPage() {
   const handleLeaderChange = (field: keyof MemberState, value: string) => {
     setLeaderForm((prev) => ({ ...prev, [field]: value }));
 
-    // Autofill Institution, Department, and Semester for all members
-    if (field === "university" || field === "department" || field === "semester") {
+    // Autofill Institution and Department for all teammates. Semester is no
+    // longer surfaced in the UI; teammate semester stays at the placeholder.
+    if (field === "university" || field === "department") {
       setMembers((prev) =>
         prev.map((m) => ({ ...m, [field]: value }))
       );
@@ -424,7 +450,6 @@ export default function CompetitionRegisterPage() {
       touchedAll['leader_phone'] = true;
       touchedAll['leader_university'] = true;
       touchedAll['leader_department'] = true;
-      touchedAll['leader_semester'] = true;
       touchedAll['leader_student_id'] = true;
       touchedAll['leader_tshirt_size'] = true;
 
@@ -434,7 +459,6 @@ export default function CompetitionRegisterPage() {
         touchedAll[`member_${idx}_phone`] = true;
         touchedAll[`member_${idx}_university`] = true;
         touchedAll[`member_${idx}_department`] = true;
-        touchedAll[`member_${idx}_semester`] = true;
         touchedAll[`member_${idx}_student_id`] = true;
         touchedAll[`member_${idx}_tshirt_size`] = true;
       });
@@ -738,6 +762,34 @@ export default function CompetitionRegisterPage() {
         ) : (
           /* REGISTRATION FORM */
           <form onSubmit={handleRegister} noValidate className="space-y-8 font-sans select-text">
+            {/* Eligibility banner */}
+            <Card variant="glass" className="bg-glass border-glass">
+              <CardContent className="p-5 flex flex-col sm:flex-row sm:items-center gap-4">
+                <div className="flex items-center gap-3">
+                  <EligibilityBadge
+                    eligibility={competition?.eligibility}
+                    className="shrink-0"
+                  />
+                </div>
+                <div className="flex-1 text-xs text-neutral-400 font-sans leading-relaxed">
+                  {isInternalCompetition ? (
+                    <>
+                      This competition is open to <span className="text-neutral-200 font-medium">SMUCT students only</span>.
+                      The Institution field is locked to {SMUCT_INSTITUTION}.
+                      Each member must provide a valid Student ID. Semester is not collected.
+                    </>
+                  ) : (
+                    <>
+                      Open to <span className="text-neutral-200 font-medium">all universities</span>.
+                      Toggle <span className="text-neutral-200 font-medium">SMUCT Student</span> to lock the
+                      Institution field; otherwise type your university directly.
+                      Each member must provide a valid Student ID. Semester is not collected.
+                    </>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
             {/* Team details */}
             <Card variant="glass" className="bg-glass border-glass">
               <CardHeader className="border-b border-neutral-850 pb-4">
@@ -838,30 +890,37 @@ export default function CompetitionRegisterPage() {
                     disabled={formLoading}
                     required
                   />
-                  <div className="flex items-center space-x-3 w-full h-11 self-end pb-2">
-                    <input
-                      type="checkbox"
-                      id="is-smuct-checkbox"
-                      checked={isSmuct}
-                      onChange={(e) => {
-                        const checked = e.target.checked;
-                        setIsSmuct(checked);
-                        if (checked) {
-                          handleLeaderChange("university", "Shanto-Mariam University of Creative Technology");
-                        } else {
-                          handleLeaderChange("university", "");
-                        }
-                      }}
-                      disabled={formLoading}
-                      className="h-5 w-5 rounded border border-neutral-800 bg-neutral-950 text-primary focus:ring-1 focus:ring-primary focus:ring-offset-0 cursor-pointer accent-primary"
-                    />
-                    <label
-                      htmlFor="is-smuct-checkbox"
-                      className="text-sm font-medium text-neutral-350 cursor-pointer select-none font-sans"
-                    >
-                      SMUCT Student
-                    </label>
-                  </div>
+                  {/* SMUCT Student toggle — hidden for internal competitions.
+                      For open ("both") competitions it only auto-fills the
+                      Institution name; the Institution input becomes read-only
+                      while checked. */}
+                  {!isInternalCompetition && (
+                    <div className="flex items-center space-x-3 w-full h-11 self-end pb-2">
+                      <input
+                        type="checkbox"
+                        id="is-smuct-checkbox"
+                        checked={isSmuct}
+                        onChange={(e) => {
+                          const checked = e.target.checked;
+                          setIsSmuct(checked);
+                          if (checked) {
+                            handleLeaderChange("university", SMUCT_INSTITUTION);
+                          } else {
+                            handleLeaderChange("university", "");
+                          }
+                          handleBlur('leader_university');
+                        }}
+                        disabled={formLoading}
+                        className="h-5 w-5 rounded border border-neutral-800 bg-neutral-950 text-primary focus:ring-1 focus:ring-primary focus:ring-offset-0 cursor-pointer accent-primary"
+                      />
+                      <label
+                        htmlFor="is-smuct-checkbox"
+                        className="text-sm font-medium text-neutral-350 cursor-pointer select-none font-sans"
+                      >
+                        SMUCT Student
+                      </label>
+                    </div>
+                  )}
 
                   <Input
                     label="Institution"
@@ -874,7 +933,9 @@ export default function CompetitionRegisterPage() {
                     onBlur={() => handleBlur('leader_university')}
                     error={getFieldError('leader_university')}
                     isValid={isValidField('leader_university', leaderForm.university)}
-                    disabled={formLoading || isSmuct}
+                    // For internal comps the institution is locked to SMUCT.
+                    // For open comps, locking also happens when SMUCT is checked.
+                    disabled={formLoading || isInternalCompetition || isSmuct}
                     required
                   />
                   <Input
@@ -891,20 +952,8 @@ export default function CompetitionRegisterPage() {
                     disabled={formLoading}
                     required
                   />
-                  <Input
-                    label="Semester"
-                    placeholder="e.g. 8th"
-                    value={leaderForm.semester}
-                    onChange={(e) => {
-                      handleLeaderChange("semester", e.target.value);
-                      handleBlur('leader_semester');
-                    }}
-                    onBlur={() => handleBlur('leader_semester')}
-                    error={getFieldError('leader_semester')}
-                    isValid={isValidField('leader_semester', leaderForm.semester)}
-                    disabled={formLoading}
-                    required
-                  />
+                  {/* Semester field intentionally removed — backend receives
+                      SEMESTER_PLACEHOLDER ("N/A") for every registrant. */}
                   <Input
                     label="Student ID"
                     placeholder="e.g. 211071032"
@@ -1086,16 +1135,8 @@ export default function CompetitionRegisterPage() {
                             disabled={true}
                             required
                           />
-                          <Input
-                            label="Semester"
-                            placeholder="Semester"
-                            value={member.semester}
-                            onBlur={() => handleBlur(`member_${index}_semester`)}
-                            error={getFieldError(`member_${index}_semester`)}
-                            isValid={isValidField(`member_${index}_semester`, member.semester)}
-                            disabled={true}
-                            required
-                          />
+                          {/* Teammate Semester field removed; backend receives
+                              SEMESTER_PLACEHOLDER ("N/A") for every member. */}
                           <Input
                             label="Student ID"
                             placeholder="Student ID"
@@ -1346,7 +1387,6 @@ function CrownIcon() {
 function getFieldFriendlyName(key: string): string {
   if (key === "teamName") return "Team Name";
   if (key === "projectTitle") return "Project Title";
-  if (key === "isSmuct") return "SMUCT Student Status";
   if (key === "youtubeDemoUrl") return "Project Demo Video Link";
   
   if (key.startsWith("leader_")) {

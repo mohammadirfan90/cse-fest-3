@@ -126,7 +126,7 @@ export default function AdminLayout({
 
   const menuItems = [
     { label: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
-    { label: "Verifications", href: "/admin/verifications", icon: UserCheck },
+    
     { label: "Competitions", href: "/admin/competitions", icon: Trophy },
     { label: "Submissions", href: "/admin/submissions", icon: Send },
     { label: "Payments", href: "/admin/payments", icon: CreditCard },

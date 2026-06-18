@@ -371,7 +371,9 @@ export default function CompetitionRegisterPage() {
           phone: "",
           university: leaderForm.university,
           department: "",
-          semester: SEMESTER_PLACEHOLDER,
+          semester: isInternalCompetition
+            ? leaderForm.semester
+            : SEMESTER_PLACEHOLDER,
           student_id: "",
           tshirt_size: "",
         }),
@@ -438,7 +440,9 @@ export default function CompetitionRegisterPage() {
                 ...m,
                 university: updatedLeader.university,
                 department: updatedLeader.department,
-                semester: SEMESTER_PLACEHOLDER,
+                semester: isInternalCompetition
+                  ? updatedLeader.semester
+                  : SEMESTER_PLACEHOLDER,
               })),
             );
 
@@ -498,7 +502,9 @@ export default function CompetitionRegisterPage() {
         phone: "",
         university: leaderForm.university,
         department: "",
-        semester: SEMESTER_PLACEHOLDER,
+        semester: isInternalCompetition
+          ? leaderForm.semester
+          : SEMESTER_PLACEHOLDER,
         student_id: "",
         tshirt_size: "",
       },
@@ -542,11 +548,16 @@ export default function CompetitionRegisterPage() {
       return next;
     });
 
-    // Autofill Institution and Department for all teammates. Semester is
-    // personal to each member (only collected for SMUCT), so we never copy
-    // it across — non-SMUCT members keep the placeholder.
+    // Autofill Institution and Department for all teammates. For internal
+    // competitions every teammate is locked to SMUCT, so we also mirror the
+    // leader's semester across all of them — the teammate chip selector is
+    // disabled in the same case so the value can't be desynced.
     if (field === "university") {
       setMembers((prev) => prev.map((m) => ({ ...m, [field]: value })));
+    } else if (field === "semester" && isInternalCompetition) {
+      setMembers((prev) =>
+        prev.map((m) => ({ ...m, semester: value })),
+      );
     }
   };
 
@@ -1496,12 +1507,14 @@ export default function CompetitionRegisterPage() {
                                         );
                                         handleBlur(`member_${index}_semester`);
                                       }}
-                                      disabled={formLoading}
+                                      disabled={
+                                        formLoading || isInternalCompetition
+                                      }
                                       className={`min-w-11 px-3 py-2 border rounded-lg text-xs font-bold font-sans transition-all duration-150 ${
                                         member.semester === sem
                                           ? "bg-primary text-white border-primary shadow-[0_0_12px_rgba(99,102,241,0.25)]"
                                           : "bg-neutral-950 border-neutral-800 text-neutral-400 hover:border-neutral-700"
-                                      }`}
+                                      } ${isInternalCompetition ? "cursor-not-allowed opacity-90" : ""}`}
                                     >
                                       {sem}
                                     </button>

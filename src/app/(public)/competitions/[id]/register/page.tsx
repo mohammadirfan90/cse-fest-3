@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import * as React from "react";
 import Link from "next/link";
@@ -18,6 +18,7 @@ import {
   Loader2,
   AlertTriangle,
   LogOut,
+  Crown,
 } from "lucide-react";
 
 import { Navbar } from "@/components/shared/Navbar";
@@ -102,6 +103,19 @@ function isValidBdPhone(value: string): boolean {
   return BD_PHONE_REGEX.test(normalized);
 }
 
+/** Initial institution value for a new teammate row. */
+function getSeedMemberUniversity(
+  isInternalCompetition: boolean,
+  eligibility: Eligibility,
+  isSmuct: boolean,
+  leaderUniversity: string,
+): string {
+  if (isInternalCompetition) return SMUCT_INSTITUTION;
+  if (eligibility === ELIGIBILITY_BOTH && !isSmuct) return "";
+  if (isSmuct || isSmuctInstitution(leaderUniversity)) return SMUCT_INSTITUTION;
+  return leaderUniversity || "";
+}
+
 export default function CompetitionRegisterPage() {
   const params = useParams();
   const router = useRouter();
@@ -130,9 +144,10 @@ export default function CompetitionRegisterPage() {
 
   // 2. Auth states
   const [user, setUser] = React.useState<User | null>(null);
-  const [authLoading, setAuthLoading] = React.useState(true);
-  const [profileLoading, setProfileLoading] = React.useState(false);
-  const [checkingRegistration, setCheckingRegistration] = React.useState(false);
+  // Single source of truth for "initial bootstrap in flight" — covers
+  // session, profile, and existing-registration checks. They were three
+  // separate flags (race-prone, redundant render outputs) before.
+  const [isBootstrapping, setIsBootstrapping] = React.useState(true);
   const [alreadyRegistered, setAlreadyRegistered] = React.useState(false);
 
   // 3. Form Data States
@@ -146,11 +161,9 @@ export default function CompetitionRegisterPage() {
     full_name: "",
     email: "",
     phone: "",
-    // Seed with the canonical SMUCT institution so internal competitions
-    // (where this field is disabled + non-editable) never render an empty
-    // value. The cascade useEffect below will keep it locked to this value
-    // for the lifetime of an internal competition.
-    university: SMUCT_INSTITUTION,
+    // Open competitions start empty; internal competitions force SMUCT in the
+    // dedicated effect once competition data is available.
+    university: "",
     department: "",
     semester: SEMESTER_PLACEHOLDER,
     student_id: "",
@@ -179,7 +192,6 @@ export default function CompetitionRegisterPage() {
   >("idle");
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
   const [successMsg, setSuccessMsg] = React.useState<string | null>(null);
-  const rosterInitializedRef = React.useRef(false);
   const [isSmuct, setIsSmuct] = React.useState<boolean>(false);
 
   // Semester is collected per-person. The field is rendered for any member
@@ -407,79 +419,62 @@ export default function CompetitionRegisterPage() {
   const isTeammatesComplete = !Object.keys(allErrors).some((k) =>
     k.startsWith("member_"),
   );
-  const isProjectComplete = !Object.keys(allErrors).some((k) =>
-    k.startsWith("project"),
+  const isProjectComplete = !Object.keys(allErrors).some(
+    (k) =>
+      k.startsWith("project") || k === "pdf" || k === "youtubeDemoUrl",
   );
-
-  // Initialize teammate cards based on minMembers requirement
-  React.useEffect(() => {
-    if (competition && !rosterInitializedRef.current) {
-      rosterInitializedRef.current = true;
-      const neededTeammatesCount = Math.max(0, competition.minMembers - 1);
-      const initialMembers: MemberState[] = Array.from(
-        { length: neededTeammatesCount },
-        () => ({
-          full_name: "",
-          email: "",
-          phone: "",
-          // Internal competitions lock every roster slot to SMUCT — the
-          // Institution input is disabled in that mode, so seeding from the
-          // leader's `university` (which itself is forced to SMUCT just above)
-          // keeps the form consistent and submit-ready.
-          university: isInternalCompetition
-            ? SMUCT_INSTITUTION
-            : leaderForm.university,
-          department: "",
-          semester: isInternalCompetition
-            ? leaderForm.semester
-            : SEMESTER_PLACEHOLDER,
-          student_id: "",
-          tshirt_size: "",
-        }),
-      );
-      Promise.resolve().then(() => {
-        setMembers(initialMembers);
-      });
-    }
-  }, [
-    competition,
-    leaderForm.university,
-    leaderForm.department,
-    leaderForm.semester,
-  ]);
 
   // Internal competitions are SMUCT-only. The Institution input is disabled
   // for both leader and teammates, so the user has no way to populate it
   // manually. Force the canonical SMUCT name into the leader's form as soon
   // as we know the competition is internal — overriding any stale/empty
-  // value loaded from the user's profile — and cascade the same value to
-  // every teammate so submit-time validation has a valid institution for
-  // every roster slot.
+  // value loaded from the user's profile.
+  //
+  // Also seeds the teammate roster from `minMembers` once the competition
+  // data is available. This is the single source of truth for `members`
+  // initialization; `initAuth` and the leader-change cascade only mutate
+  // the existing array after that.
   React.useEffect(() => {
-    if (!isInternalCompetition) return;
-    setLeaderForm((prev) =>
-      prev.university === SMUCT_INSTITUTION
-        ? prev
-        : { ...prev, university: SMUCT_INSTITUTION },
-    );
+    if (!competition) return;
+    if (isInternalCompetition) {
+      setLeaderForm((prev) =>
+        prev.university === SMUCT_INSTITUTION
+          ? prev
+          : { ...prev, university: SMUCT_INSTITUTION },
+      );
+    }
+    const needed = Math.max(0, competition.minMembers - 1);
     setMembers((prev) =>
-      prev.length === 0
+      prev.length >= needed
         ? prev
-        : prev.map((m) =>
-            m.university === SMUCT_INSTITUTION
-              ? m
-              : { ...m, university: SMUCT_INSTITUTION },
-          ),
+        : [
+            ...prev,
+            ...Array.from({ length: needed - prev.length }, () => ({
+              full_name: "",
+              email: "",
+              phone: "",
+              university: getSeedMemberUniversity(
+                isInternalCompetition,
+                eligibility,
+                isSmuct,
+                leaderForm.university,
+              ),
+              department: "",
+              semester: isInternalCompetition
+                ? leaderForm.semester
+                : SEMESTER_PLACEHOLDER,
+              student_id: "",
+              tshirt_size: "",
+            })),
+          ],
     );
-  }, [isInternalCompetition]);
+  }, [competition, isInternalCompetition, eligibility, isSmuct, leaderForm.university, leaderForm.semester]);
 
   // Load User, Profile, and check Existing Registrations in parallel to resolve waterfalls
   React.useEffect(() => {
     async function initAuth() {
       try {
-        setAuthLoading(true);
-        setProfileLoading(true);
-        setCheckingRegistration(true);
+        setIsBootstrapping(true);
 
         const [userRes, profileRes, teamRes] = await Promise.all([
           supabase.auth.getUser(),
@@ -525,6 +520,8 @@ export default function CompetitionRegisterPage() {
               student_id: profile.student_id || "",
               tshirt_size: profile.tshirt_size || "",
             };
+            const leaderIsSmuct = isSmuctInstitution(profile.university);
+            setIsSmuct(leaderIsSmuct);
             setLeaderForm(updatedLeader);
 
             // Sync loaded leader info to any pre-initialized member templates.
@@ -533,21 +530,14 @@ export default function CompetitionRegisterPage() {
             //
             // Institution cascade policy:
             //  - Internal comps:  force SMUCT for every member (field is locked).
-            //  - "both" comps with isSmuct=true: cascade the leader's SMUCT
-            //    university to every teammate — they're all from SMUCT and the
-            //    field is locked per teammate anyway.
-            //  - "both" comps with isSmuct=false: do NOT cascade. The leader
-            //    isn't from SMUCT, so teammates can be from any institution;
-            //    each teammate fills their own university independently. The
-            //    member's Institution field is editable in this case.
-            let cascadedUniversity: string;
-            if (isInternalCompetition) {
-              cascadedUniversity = SMUCT_INSTITUTION;
-            } else if (eligibility === ELIGIBILITY_BOTH && !isSmuct) {
-              cascadedUniversity = "";
-            } else {
-              cascadedUniversity = updatedLeader.university;
-            }
+            //  - "both" comps with leaderIsSmuct=true: cascade SMUCT to every teammate.
+            //  - "both" comps with leaderIsSmuct=false: empty — each teammate fills independently.
+            const cascadedUniversity = getSeedMemberUniversity(
+              isInternalCompetition,
+              eligibility,
+              leaderIsSmuct,
+              updatedLeader.university,
+            );
             setMembers((prev) =>
               prev.map((m) => ({
                 ...m,
@@ -557,11 +547,6 @@ export default function CompetitionRegisterPage() {
                   : SEMESTER_PLACEHOLDER,
               })),
             );
-
-            if (profile.university) {
-              const isUnivSmuct = isSmuctInstitution(profile.university);
-              setIsSmuct(isUnivSmuct);
-            }
           }
 
           if (teamRes.success && Array.isArray(teamRes.data)) {
@@ -574,16 +559,14 @@ export default function CompetitionRegisterPage() {
       } catch (err) {
         console.error("Error loading user state:", err);
       } finally {
-        setAuthLoading(false);
-        setProfileLoading(false);
-        setCheckingRegistration(false);
+        setIsBootstrapping(false);
       }
     }
 
     if (compId) {
       initAuth();
     }
-  }, [supabase, compId]);
+  }, [supabase, compId, competition, isInternalCompetition, eligibility]);
 
   // Trigger Google Login
   const handleGoogleSignIn = async () => {
@@ -615,11 +598,12 @@ export default function CompetitionRegisterPage() {
         // On internal comps, Institution is locked to SMUCT for every member.
         // On "both" comps with a non-SMUCT leader, teammates can be from any
         // institution — start them empty so each member fills their own.
-        university: isInternalCompetition
-          ? SMUCT_INSTITUTION
-          : eligibility === ELIGIBILITY_BOTH && !isSmuct
-            ? ""
-            : leaderForm.university,
+        university: getSeedMemberUniversity(
+          isInternalCompetition,
+          eligibility,
+          isSmuct,
+          leaderForm.university,
+        ),
         department: "",
         semester: isInternalCompetition
           ? leaderForm.semester
@@ -886,7 +870,7 @@ export default function CompetitionRegisterPage() {
   const isProcessing = formLoading && uploadProgress >= 100;
 
   // Render Loader
-  if (compLoading || (user && checkingRegistration)) {
+  if (compLoading || isBootstrapping) {
     return (
       <div className="flex flex-col min-h-screen bg-background text-on-background bg-grid-pattern">
         <Navbar />
@@ -992,17 +976,7 @@ export default function CompetitionRegisterPage() {
         )}
 
         {/* Authentication Wall */}
-        {authLoading ? (
-          <Card
-            variant="glass"
-            className="bg-glass border-glass p-8 flex flex-col items-center space-y-4"
-          >
-            <Loader2 className="h-6 w-6 text-primary animate-spin" />
-            <p className="text-xs text-neutral-400 font-sans">
-              Checking session status...
-            </p>
-          </Card>
-        ) : !user ? (
+        {!user ? (
           <Card
             variant="glass"
             className="bg-glass border-glass p-8 text-center space-y-6"
@@ -1168,7 +1142,6 @@ export default function CompetitionRegisterPage() {
                   value={teamName}
                   onChange={(e) => {
                     setTeamName(e.target.value);
-                    handleBlur("teamName");
                   }}
                   onBlur={() => handleBlur("teamName")}
                   error={getFieldError("teamName")}
@@ -1185,7 +1158,7 @@ export default function CompetitionRegisterPage() {
               <CardHeader className="border-b border-neutral-850 pb-4">
                 <CardTitle className="text-lg md:text-xl font-heading font-bold text-neutral-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2 w-full">
                   <span className="flex items-center gap-2">
-                    <CrownIcon />
+                    <Crown className="h-5 w-5 text-primary" />
                     <span>Team Leader Details (You)</span>
                   </span>
                   <div className="flex items-center gap-2">
@@ -1215,11 +1188,6 @@ export default function CompetitionRegisterPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-6 space-y-4">
-                {profileLoading && (
-                  <p className="text-sm text-primary animate-pulse">
-                    Pre-filling profile details...
-                  </p>
-                )}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <Input
                     label="Full Name"
@@ -1227,7 +1195,6 @@ export default function CompetitionRegisterPage() {
                     value={leaderForm.full_name}
                     onChange={(e) => {
                       handleLeaderChange("full_name", e.target.value);
-                      handleBlur("leader_full_name");
                     }}
                     onBlur={() => handleBlur("leader_full_name")}
                     error={getFieldError("leader_full_name")}
@@ -1251,7 +1218,6 @@ export default function CompetitionRegisterPage() {
                     value={leaderForm.phone}
                     onChange={(e) => {
                       handleLeaderChange("phone", e.target.value);
-                      handleBlur("leader_phone");
                     }}
                     onBlur={() => handleBlur("leader_phone")}
                     error={getFieldError("leader_phone")}
@@ -1274,10 +1240,23 @@ export default function CompetitionRegisterPage() {
                           setIsSmuct(checked);
                           if (checked) {
                             handleLeaderChange("university", SMUCT_INSTITUTION);
+                            setMembers((prev) =>
+                              prev.map((m) => ({
+                                ...m,
+                                university: SMUCT_INSTITUTION,
+                              })),
+                            );
                           } else {
                             handleLeaderChange("university", "");
+                            setMembers((prev) =>
+                              prev.map((m) => ({
+                                ...m,
+                                university: isSmuctInstitution(m.university)
+                                  ? ""
+                                  : m.university,
+                              })),
+                            );
                           }
-                          handleBlur("leader_university");
                         }}
                         disabled={formLoading}
                         className="h-5 w-5 rounded border border-neutral-800 bg-neutral-950 text-primary focus:ring-1 focus:ring-primary focus:ring-offset-0 cursor-pointer accent-primary"
@@ -1297,7 +1276,6 @@ export default function CompetitionRegisterPage() {
                     value={leaderForm.university}
                     onChange={(e) => {
                       handleLeaderChange("university", e.target.value);
-                      handleBlur("leader_university");
                     }}
                     onBlur={() => handleBlur("leader_university")}
                     error={getFieldError("leader_university")}
@@ -1321,7 +1299,6 @@ export default function CompetitionRegisterPage() {
                     value={leaderForm.department}
                     onChange={(e) => {
                       handleLeaderChange("department", e.target.value);
-                      handleBlur("leader_department");
                     }}
                     onBlur={() => handleBlur("leader_department")}
                     error={getFieldError("leader_department")}
@@ -1354,7 +1331,6 @@ export default function CompetitionRegisterPage() {
                               type="button"
                               onClick={() => {
                                 handleLeaderChange("semester", sem);
-                                handleBlur("leader_semester");
                               }}
                               disabled={formLoading}
                               className={`min-w-11 px-3 py-2 border rounded-lg text-xs font-bold font-sans transition-all duration-150 ${
@@ -1388,7 +1364,6 @@ export default function CompetitionRegisterPage() {
                     value={leaderForm.student_id}
                     onChange={(e) => {
                       handleLeaderChange("student_id", e.target.value);
-                      handleBlur("leader_student_id");
                     }}
                     onBlur={() => handleBlur("leader_student_id")}
                     error={getFieldError("leader_student_id")}
@@ -1417,7 +1392,6 @@ export default function CompetitionRegisterPage() {
                             type="button"
                             onClick={() => {
                               handleLeaderChange("tshirt_size", size);
-                              handleBlur("leader_tshirt_size");
                             }}
                             disabled={formLoading}
                             className={`px-4 py-2 border rounded-lg text-xs font-bold font-sans transition-all duration-150 ${
@@ -1537,7 +1511,6 @@ export default function CompetitionRegisterPage() {
                                 "full_name",
                                 e.target.value,
                               );
-                              handleBlur(`member_${index}_full_name`);
                             }}
                             onBlur={() =>
                               handleBlur(`member_${index}_full_name`)
@@ -1561,7 +1534,6 @@ export default function CompetitionRegisterPage() {
                                 "email",
                                 e.target.value,
                               );
-                              handleBlur(`member_${index}_email`);
                             }}
                             onBlur={() => handleBlur(`member_${index}_email`)}
                             error={getFieldError(`member_${index}_email`)}
@@ -1582,7 +1554,6 @@ export default function CompetitionRegisterPage() {
                                 "phone",
                                 e.target.value,
                               );
-                              handleBlur(`member_${index}_phone`);
                             }}
                             onBlur={() => handleBlur(`member_${index}_phone`)}
                             error={getFieldError(`member_${index}_phone`)}
@@ -1674,7 +1645,6 @@ export default function CompetitionRegisterPage() {
                                           "semester",
                                           sem,
                                         );
-                                        handleBlur(`member_${index}_semester`);
                                       }}
                                       // Each SMUCT teammate fills their own
                                       // semester. Internal comps are SMUCT-only
@@ -1716,7 +1686,6 @@ export default function CompetitionRegisterPage() {
                                 "student_id",
                                 e.target.value,
                               );
-                              handleBlur(`member_${index}_student_id`);
                             }}
                             onBlur={() =>
                               handleBlur(`member_${index}_student_id`)
@@ -1751,7 +1720,6 @@ export default function CompetitionRegisterPage() {
                                         "tshirt_size",
                                         size,
                                       );
-                                      handleBlur(`member_${index}_tshirt_size`);
                                     }}
                                     disabled={formLoading}
                                     className={`px-4 py-2 border rounded-lg text-xs font-bold font-sans transition-all duration-150 ${
@@ -1834,7 +1802,6 @@ export default function CompetitionRegisterPage() {
                     value={projectTitle}
                     onChange={(e) => {
                       setProjectTitle(e.target.value);
-                      handleBlur("projectTitle");
                     }}
                     onBlur={() => handleBlur("projectTitle")}
                     error={getFieldError("projectTitle")}
@@ -1869,7 +1836,6 @@ export default function CompetitionRegisterPage() {
                     value={youtubeDemoUrl}
                     onChange={(e) => {
                       setYoutubeDemoUrl(e.target.value);
-                      handleBlur("youtubeDemoUrl");
                     }}
                     onBlur={() => handleBlur("youtubeDemoUrl")}
                     error={getFieldError("youtubeDemoUrl")}
@@ -1983,26 +1949,6 @@ export default function CompetitionRegisterPage() {
 
       <Footer />
     </div>
-  );
-}
-
-// Inline Custom Crown Icon
-function CrownIcon() {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="20"
-      height="20"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className="text-primary"
-    >
-      <path d="M2 4l3 12h14l3-12-6 7-4-7-4 7-6-7zm3 16h14a1 1 0 0 0 1-1v-1H4v1a1 1 0 0 0 1 1z" />
-    </svg>
   );
 }
 

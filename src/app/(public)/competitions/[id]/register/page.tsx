@@ -530,10 +530,24 @@ export default function CompetitionRegisterPage() {
             // Sync loaded leader info to any pre-initialized member templates.
             // Department is intentionally NOT cascaded — each member fills it
             // independently (SMUCT only; non-SMUCT members keep it locked + empty).
-            // Institution is also force-locked to SMUCT on internal comps.
-            const cascadedUniversity = isInternalCompetition
-              ? SMUCT_INSTITUTION
-              : updatedLeader.university;
+            //
+            // Institution cascade policy:
+            //  - Internal comps:  force SMUCT for every member (field is locked).
+            //  - "both" comps with isSmuct=true: cascade the leader's SMUCT
+            //    university to every teammate — they're all from SMUCT and the
+            //    field is locked per teammate anyway.
+            //  - "both" comps with isSmuct=false: do NOT cascade. The leader
+            //    isn't from SMUCT, so teammates can be from any institution;
+            //    each teammate fills their own university independently. The
+            //    member's Institution field is editable in this case.
+            let cascadedUniversity: string;
+            if (isInternalCompetition) {
+              cascadedUniversity = SMUCT_INSTITUTION;
+            } else if (eligibility === ELIGIBILITY_BOTH && !isSmuct) {
+              cascadedUniversity = "";
+            } else {
+              cascadedUniversity = updatedLeader.university;
+            }
             setMembers((prev) =>
               prev.map((m) => ({
                 ...m,
@@ -599,9 +613,13 @@ export default function CompetitionRegisterPage() {
         email: "",
         phone: "",
         // On internal comps, Institution is locked to SMUCT for every member.
+        // On "both" comps with a non-SMUCT leader, teammates can be from any
+        // institution — start them empty so each member fills their own.
         university: isInternalCompetition
           ? SMUCT_INSTITUTION
-          : leaderForm.university,
+          : eligibility === ELIGIBILITY_BOTH && !isSmuct
+            ? ""
+            : leaderForm.university,
         department: "",
         semester: isInternalCompetition
           ? leaderForm.semester
@@ -662,7 +680,14 @@ export default function CompetitionRegisterPage() {
     // every SMUCT teammate (the only kind that shows a semester chip on
     // internal comps, and the only kind that shows one on open comps when
     // SMUCT) fills their own semester independently.
-    if (field === "university") {
+    //
+    // Skip the cascade when the leader is a non-SMUCT student on a "both"
+    // competition: the team isn't tied to a single institution, so each
+    // teammate enters their own university independently.
+    if (
+      field === "university" &&
+      !(eligibility === ELIGIBILITY_BOTH && !isSmuct)
+    ) {
       setMembers((prev) => prev.map((m) => ({ ...m, [field]: value })));
     }
   };

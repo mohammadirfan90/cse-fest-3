@@ -34,6 +34,12 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { createClient } from "@/lib/supabase/client";
 import { useBodyScrollLock } from "@/hooks/useBodyScrollLock";
+import {
+  DEPARTMENT_PLACEHOLDER,
+  SEMESTER_PLACEHOLDER,
+  isInternal,
+  isSmuctInstitution,
+} from "@/lib/eligibility";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -393,6 +399,32 @@ export default function TeamsPage() {
     return teams.find(t => t.id === rosterWizardTeamId) || null;
   }, [teams, rosterWizardTeamId]);
 
+  // ─── Wizard eligibility context ────────────────────────────────────────────
+  // The wizard's institution field is editable for any non-SMUCT member.
+  // For SMUCT-flagged members (or on "internal" competitions) the field
+  // stays locked so the canonical SMUCT name cannot be overridden. This
+  // mirrors the rules in `competitions/[id]/register/page.tsx`.
+  const wizardCompetitionEligibility = activeWizardTeam?.competitions?.eligibility;
+  const isInternalWizardCompetition = isInternal(wizardCompetitionEligibility);
+  const wizardLeader = React.useMemo(
+    () =>
+      activeWizardTeam?.members.find(
+        (m) => m.role === "leader" || m.user_id === activeWizardTeam?.leader_id,
+      ) ?? null,
+    [activeWizardTeam],
+  );
+  const isLeaderSmuct = isSmuctInstitution(wizardLeader?.profiles?.university);
+
+  const isMemberUniversityEditable = React.useCallback(
+    (value: string) => {
+      if (isInternalWizardCompetition) return false;
+      if (isLeaderSmuct) return false; // whole team is SMUCT
+      if (isSmuctInstitution(value)) return false; // mid-wizard SMUCT pick
+      return true;
+    },
+    [isInternalWizardCompetition, isLeaderSmuct],
+  );
+
   useBodyScrollLock(
     confirmSetLeader !== null ||
       confirmDisbandId !== null ||
@@ -554,11 +586,23 @@ export default function TeamsPage() {
     setRosterWizardLoading(true);
     setMutationError(null);
 
+    // For non-SMUCT teammates, the department/semester inputs are disabled
+    // and empty. The backend's `addMemberSchema` still requires those
+    // columns to be non-empty, so we forward the documented placeholders
+    // ("N/A") — same convention used by the public registration flow.
+    const memberIsSmuct = isSmuctInstitution(rosterForm.university);
+    const submissionBody = {
+      team_id: rosterWizardTeamId,
+      ...rosterForm,
+      department: memberIsSmuct ? rosterForm.department : DEPARTMENT_PLACEHOLDER,
+      semester: memberIsSmuct ? rosterForm.semester : SEMESTER_PLACEHOLDER,
+    };
+
     try {
       const res = await fetch("/api/teams?action=add_member", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ team_id: rosterWizardTeamId, ...rosterForm }),
+        body: JSON.stringify(submissionBody),
       });
 
       const data = await res.json();
@@ -587,17 +631,25 @@ export default function TeamsPage() {
   };
 
   const resetWizardForm = (keepAcademicInfo = false) => {
-    setRosterForm((prev) => ({
-      full_name: "",
-      email: "",
-      phone: "",
-      gender: "",
-      university: keepAcademicInfo ? prev.university : "",
-      department: keepAcademicInfo ? prev.department : "",
-      semester: keepAcademicInfo ? prev.semester : "",
-      student_id: "",
-      tshirt_size: "",
-    }));
+    setRosterForm((prev) => {
+      // For SMUCT-flagged teams the academic block is shared across all
+      // members and can safely carry over. For non-SMUCT (or mid-wizard
+      // SMUCT) cases we drop the previous value so the leader picks the
+      // teammate's actual institution.
+      const persistAcademic =
+        keepAcademicInfo && isSmuctInstitution(prev.university);
+      return {
+        full_name: "",
+        email: "",
+        phone: "",
+        gender: "",
+        university: persistAcademic ? prev.university : "",
+        department: persistAcademic ? prev.department : "",
+        semester: persistAcademic ? prev.semester : "",
+        student_id: "",
+        tshirt_size: "",
+      };
+    });
     setMutationError(null);
   };
 
@@ -982,14 +1034,21 @@ export default function TeamsPage() {
                           const leader = team.members.find(
                             (m) => m.role === "leader" || m.user_id === team.leader_id
                           );
+                          // Only inherit academic fields from the leader when
+                          // the leader is a SMUCT student. For mixed (or
+                          // fully external) teams, each teammate can pick their
+                          // own institution, so we leave the field empty.
+                          const inheritAcademic = isSmuctInstitution(
+                            leader?.profiles?.university,
+                          );
                           setRosterForm({
                             full_name: "",
                             email: "",
                             phone: "",
                             gender: "",
-                            university: leader?.profiles?.university || "",
-                            department: leader?.profiles?.department || "",
-                            semester: leader?.profiles?.semester || "",
+                            university: inheritAcademic ? leader?.profiles?.university || "" : "",
+                            department: inheritAcademic ? leader?.profiles?.department || "" : "",
+                            semester: inheritAcademic ? leader?.profiles?.semester || "" : "",
                             student_id: "",
                             tshirt_size: "",
                           });
@@ -1354,9 +1413,34 @@ export default function TeamsPage() {
                     { label: "Full Name", key: "full_name", placeholder: "e.g. John Doe", required: true },
                     { label: "Email Address", key: "email", placeholder: "member@university.edu.bd", required: true, type: "email" },
                     { label: "Phone Number", key: "phone", placeholder: "e.g. 01712345678", required: true },
-                    { label: "Institution", key: "university", placeholder: "e.g. SMUCT", required: true, disabled: true },
-                    { label: "Department", key: "department", placeholder: "e.g. CSE", required: true, disabled: true },
-                    { label: "Semester", key: "semester", placeholder: "e.g. 8th", required: true, disabled: true },
+                    {
+                      label: "Institution",
+                      key: "university",
+                      placeholder: isLeaderSmuct ? "SMUCT" : "e.g. North South University",
+                      required: true,
+                      // Locked when the leader is SMUCT or the competition is
+                      // internal; otherwise the leader types the teammate's
+                      // own university. The field can also self-lock mid-wizard
+                      // if the user types a SMUCT-matching string.
+                      disabled: rosterWizardLoading || !isMemberUniversityEditable(rosterForm.university),
+                    },
+                    {
+                      label: "Department",
+                      key: "department",
+                      placeholder: "e.g. CSE",
+                      required: true,
+                      // Department is only required for SMUCT-flagged members;
+                      // for non-SMUCT teammates we send the placeholder at
+                      // submit time (mirrors the public registration flow).
+                      disabled: rosterWizardLoading || !isSmuctInstitution(rosterForm.university),
+                    },
+                    {
+                      label: "Semester",
+                      key: "semester",
+                      placeholder: "e.g. 8th",
+                      required: true,
+                      disabled: rosterWizardLoading || !isSmuctInstitution(rosterForm.university),
+                    },
                     { label: "Student ID", key: "student_id", placeholder: "e.g. 201071024", required: true },
                   ].map(({ label, key, placeholder, required, type, disabled }) => (
                     <div key={key} className="flex flex-col space-y-1.5">
@@ -1367,7 +1451,27 @@ export default function TeamsPage() {
                         type={type ?? "text"}
                         placeholder={placeholder}
                         value={rosterForm[key as keyof typeof rosterForm]}
-                        onChange={(e) => setRosterForm((prev) => ({ ...prev, [key]: e.target.value }))}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          setRosterForm((prev) => {
+                            // If the institution changed away from SMUCT,
+                            // clear the SMUCT-only academic fields so the
+                            // teammate's record stays consistent.
+                            if (
+                              key === "university" &&
+                              !isSmuctInstitution(value) &&
+                              (prev.department || prev.semester)
+                            ) {
+                              return {
+                                ...prev,
+                                university: value,
+                                department: "",
+                                semester: "",
+                              };
+                            }
+                            return { ...prev, [key]: value };
+                          });
+                        }}
                         className="bg-neutral-950 border-neutral-800/80 focus:border-neutral-700 text-xs h-9 disabled:opacity-55 disabled:cursor-not-allowed"
                         required={required}
                         disabled={disabled}

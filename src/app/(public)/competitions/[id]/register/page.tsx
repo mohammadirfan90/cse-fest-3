@@ -570,16 +570,12 @@ export default function CompetitionRegisterPage() {
       return next;
     });
 
-    // Autofill Institution and Department for all teammates. For internal
-    // competitions every teammate is locked to SMUCT, so we also mirror the
-    // leader's semester across all of them — the teammate chip selector is
-    // disabled in the same case so the value can't be desynced.
+    // Autofill Institution for all teammates. Semester is NOT mirrored:
+    // every SMUCT teammate (the only kind that shows a semester chip on
+    // internal comps, and the only kind that shows one on open comps when
+    // SMUCT) fills their own semester independently.
     if (field === "university") {
       setMembers((prev) => prev.map((m) => ({ ...m, [field]: value })));
-    } else if (field === "semester" && isInternalCompetition) {
-      setMembers((prev) =>
-        prev.map((m) => ({ ...m, semester: value })),
-      );
     }
   };
 
@@ -1548,14 +1544,15 @@ export default function CompetitionRegisterPage() {
                                         );
                                         handleBlur(`member_${index}_semester`);
                                       }}
-                                      disabled={
-                                        formLoading || isInternalCompetition
-                                      }
+                                      // Each SMUCT teammate fills their own
+                                      // semester. Internal comps are SMUCT-only
+                                      // so every teammate gets a chip here too.
+                                      disabled={formLoading}
                                       className={`min-w-11 px-3 py-2 border rounded-lg text-xs font-bold font-sans transition-all duration-150 ${
                                         member.semester === sem
                                           ? "bg-primary text-white border-primary shadow-[0_0_12px_rgba(99,102,241,0.25)]"
                                           : "bg-neutral-950 border-neutral-800 text-neutral-400 hover:border-neutral-700"
-                                      } ${isInternalCompetition ? "cursor-not-allowed opacity-90" : ""}`}
+                                      }`}
                                     >
                                       {sem}
                                     </button>

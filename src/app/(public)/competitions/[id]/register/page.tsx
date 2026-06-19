@@ -1597,6 +1597,13 @@ export default function CompetitionRegisterPage() {
                             label="Institution"
                             placeholder="Institution"
                             value={member.university}
+                            onChange={(e) =>
+                              handleMemberChange(
+                                index,
+                                "university",
+                                e.target.value,
+                              )
+                            }
                             onBlur={() =>
                               handleBlur(`member_${index}_university`)
                             }

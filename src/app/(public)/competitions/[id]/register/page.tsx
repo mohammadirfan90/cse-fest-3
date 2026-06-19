@@ -418,7 +418,13 @@ export default function CompetitionRegisterPage() {
           full_name: "",
           email: "",
           phone: "",
-          university: leaderForm.university,
+          // Internal competitions lock every roster slot to SMUCT — the
+          // Institution input is disabled in that mode, so seeding from the
+          // leader's `university` (which itself is forced to SMUCT just above)
+          // keeps the form consistent and submit-ready.
+          university: isInternalCompetition
+            ? SMUCT_INSTITUTION
+            : leaderForm.university,
           department: "",
           semester: isInternalCompetition
             ? leaderForm.semester
@@ -437,6 +443,31 @@ export default function CompetitionRegisterPage() {
     leaderForm.department,
     leaderForm.semester,
   ]);
+
+  // Internal competitions are SMUCT-only. The Institution input is disabled
+  // for both leader and teammates, so the user has no way to populate it
+  // manually. Force the canonical SMUCT name into the leader's form as soon
+  // as we know the competition is internal — overriding any stale/empty
+  // value loaded from the user's profile — and cascade the same value to
+  // every teammate so submit-time validation has a valid institution for
+  // every roster slot.
+  React.useEffect(() => {
+    if (!isInternalCompetition) return;
+    setLeaderForm((prev) =>
+      prev.university === SMUCT_INSTITUTION
+        ? prev
+        : { ...prev, university: SMUCT_INSTITUTION },
+    );
+    setMembers((prev) =>
+      prev.length === 0
+        ? prev
+        : prev.map((m) =>
+            m.university === SMUCT_INSTITUTION
+              ? m
+              : { ...m, university: SMUCT_INSTITUTION },
+          ),
+    );
+  }, [isInternalCompetition]);
 
   // Load User, Profile, and check Existing Registrations in parallel to resolve waterfalls
   React.useEffect(() => {
@@ -550,7 +581,10 @@ export default function CompetitionRegisterPage() {
         full_name: "",
         email: "",
         phone: "",
-        university: leaderForm.university,
+        // On internal comps, Institution is locked to SMUCT for every member.
+        university: isInternalCompetition
+          ? SMUCT_INSTITUTION
+          : leaderForm.university,
         department: "",
         semester: isInternalCompetition
           ? leaderForm.semester
@@ -575,7 +609,16 @@ export default function CompetitionRegisterPage() {
     setMembers((prev) =>
       prev.map((m, i) => {
         if (i !== index) return m;
-        const next: MemberState = { ...m, [field]: value };
+        // On internal comps the Institution field is disabled and locked to
+        // SMUCT — ignore any edit attempt so state can't drift from the
+        // disabled-input value.
+        const next: MemberState = {
+          ...m,
+          [field]:
+            isInternalCompetition && field === "university"
+              ? SMUCT_INSTITUTION
+              : value,
+        };
         // When institution changes away from SMUCT, semester is no longer
         // collected — reset to the placeholder so backend gets a valid value.
         if (field === "university" && !isSemesterRequiredFor(value)) {

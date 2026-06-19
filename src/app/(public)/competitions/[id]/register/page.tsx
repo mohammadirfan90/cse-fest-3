@@ -34,6 +34,7 @@ import {
   SEMESTER_PLACEHOLDER,
   SEMESTER_OPTIONS,
   DEPARTMENT_PLACEHOLDER,
+  ELIGIBILITY_BOTH,
   isInternal,
   isSemesterRequiredFor,
   isSmuctInstitution,
@@ -187,6 +188,33 @@ export default function CompetitionRegisterPage() {
   );
   const anySemesterRequired =
     leaderNeedsSemester || membersNeedingSemester.some(Boolean);
+
+  // Institution field editability rules.
+  //
+  // On `"internal"` competitions the institution is locked to SMUCT for
+  // everyone, so the input stays disabled. On `"both"` competitions the
+  // institution is editable for any non-SMUCT member (since they can pick
+  // their own university), but stays locked to SMUCT for SMUCT-flagged
+  // members (whose institution is forced to the canonical SMUCT name).
+  //
+  // The leader's "is SMUCT?" lives in the `isSmuct` checkbox state and is
+  // surfaced here as a single predicate so the leader input and the
+  // teammate inputs share the exact same rule.
+  const isLeaderUniversityEditable = React.useCallback(() => {
+    if (isInternalCompetition) return false;
+    if (eligibility === ELIGIBILITY_BOTH && isSmuct) return false;
+    return true;
+  }, [isInternalCompetition, eligibility, isSmuct]);
+
+  const isMemberUniversityEditable = React.useCallback(
+    (m: MemberState) => {
+      if (isInternalCompetition) return false;
+      if (eligibility === ELIGIBILITY_BOTH && isSmuctInstitution(m.university))
+        return false;
+      return true;
+    },
+    [isInternalCompetition, eligibility],
+  );
 
   // Validation States
   const [touchedFields, setTouchedFields] = React.useState<
@@ -1192,9 +1220,14 @@ export default function CompetitionRegisterPage() {
                       "leader_university",
                       leaderForm.university,
                     )}
-                    // For internal comps the institution is locked to SMUCT.
-                    // For open comps, locking also happens when SMUCT is checked.
-                    disabled={formLoading || isInternalCompetition || isSmuct}
+                    // Institution is editable only when the comp is "both" and
+                    // the leader has not flagged themselves as a SMUCT student.
+                    // For internal comps (and for SMUCT-flagged leaders on "both"
+                    // comps) the field is locked so the canonical SMUCT name
+                    // cannot be overridden.
+                    disabled={
+                      formLoading || !isLeaderUniversityEditable()
+                    }
                     required
                   />
                   <Input
@@ -1487,7 +1520,13 @@ export default function CompetitionRegisterPage() {
                               `member_${index}_university`,
                               member.university,
                             )}
-                            disabled={true}
+                            // Institution is editable on "both" comps for any
+                            // non-SMUCT member. On "internal" comps the field
+                            // stays locked to SMUCT. For SMUCT-flagged members
+                            // on "both" comps the field also stays locked.
+                            disabled={
+                              formLoading || !isMemberUniversityEditable(member)
+                            }
                             required
                           />
                           <Input
@@ -1509,10 +1548,11 @@ export default function CompetitionRegisterPage() {
                               `member_${index}_department`,
                               member.department,
                             )}
-                            // Department is editable for SMUCT members only.
-                            // For non-SMUCT members the field stays locked and
-                            // empty (the backend stores a placeholder).
-                            disabled={!isSmuctInstitution(member.university)}
+                            // Department is always editable. For non-SMUCT
+                            // teammates the value is sent as DEPARTMENT_PLACEHOLDER
+                            // at submit time so the backend contract stays
+                            // valid even if the user types a value here.
+                            disabled={formLoading}
                             required
                           />
                           {/* Semester only appears for SMUCT teammates. For

@@ -146,7 +146,11 @@ export default function CompetitionRegisterPage() {
     full_name: "",
     email: "",
     phone: "",
-    university: "",
+    // Seed with the canonical SMUCT institution so internal competitions
+    // (where this field is disabled + non-editable) never render an empty
+    // value. The cascade useEffect below will keep it locked to this value
+    // for the lifetime of an internal competition.
+    university: SMUCT_INSTITUTION,
     department: "",
     semester: SEMESTER_PLACEHOLDER,
     student_id: "",
@@ -502,11 +506,20 @@ export default function CompetitionRegisterPage() {
 
           if (profileRes.success && profileRes.data) {
             const profile = profileRes.data;
+            // For internal competitions the Institution field is locked to
+            // SMUCT regardless of what the user's profile stores. Loading
+            // `profile.university` here would overwrite the SMUCT seed (and
+            // the cascade effect's value) with the user's stored value, which
+            // for non-SMUCT profiles could be empty or a different string —
+            // breaking the locked UI and the submit-time check.
+            const leaderUniversity = isInternalCompetition
+              ? SMUCT_INSTITUTION
+              : profile.university || "";
             const updatedLeader = {
               full_name: profile.full_name || "",
               email: loggedInUser.email || "",
               phone: profile.phone || "",
-              university: profile.university || "",
+              university: leaderUniversity,
               department: profile.department || "",
               semester: SEMESTER_PLACEHOLDER,
               student_id: profile.student_id || "",
@@ -517,10 +530,14 @@ export default function CompetitionRegisterPage() {
             // Sync loaded leader info to any pre-initialized member templates.
             // Department is intentionally NOT cascaded — each member fills it
             // independently (SMUCT only; non-SMUCT members keep it locked + empty).
+            // Institution is also force-locked to SMUCT on internal comps.
+            const cascadedUniversity = isInternalCompetition
+              ? SMUCT_INSTITUTION
+              : updatedLeader.university;
             setMembers((prev) =>
               prev.map((m) => ({
                 ...m,
-                university: updatedLeader.university,
+                university: cascadedUniversity,
                 semester: isInternalCompetition
                   ? updatedLeader.semester
                   : SEMESTER_PLACEHOLDER,

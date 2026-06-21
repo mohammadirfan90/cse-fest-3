@@ -140,7 +140,12 @@ export function Footer() {
           
           <div className="flex flex-wrap items-center justify-center gap-2.5 text-xs text-neutral-500">
             <span>Powered by</span>
-            <div className="flex items-center">
+            <a
+              href="https://chronohome.vercel.app/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center hover:opacity-80 transition-opacity"
+            >
               <Image
                 src="/ChronoLightMode.png"
                 alt="Chrono"
@@ -155,7 +160,7 @@ export function Footer() {
                 height={24}
                 className="h-6 w-auto object-contain hidden dark:block"
               />
-            </div>
+            </a>
             <span>and</span>
             <div className="flex items-center">
               <Image

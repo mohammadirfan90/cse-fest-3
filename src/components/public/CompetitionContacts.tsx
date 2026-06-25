@@ -94,60 +94,99 @@ export function CompetitionContacts() {
               </p>
             </div>
           ) : (
-            <table className="min-w-full divide-y divide-neutral-200/60 dark:divide-neutral-850/60 text-left">
-              <thead className="bg-[#FAF8FF] dark:bg-neutral-900/40">
-                <tr>
-                  <th scope="col" className="px-6 py-4.5 font-heading text-sm font-black text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">
-                    Segment
-                  </th>
-                  <th scope="col" className="px-6 py-4.5 font-heading text-sm font-black text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">
-                    Coordinator
-                  </th>
-                  <th scope="col" className="px-6 py-4.5 font-heading text-sm font-black text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">
-                    Phone Number
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-neutral-200/50 dark:divide-neutral-850/50 bg-white/40 dark:bg-[#12141a]/40">
+            <>
+              {/* Desktop Table View */}
+              <table className="hidden md:table min-w-full divide-y divide-neutral-200/60 dark:divide-neutral-850/60 text-left">
+                <thead className="bg-[#FAF8FF] dark:bg-neutral-900/40">
+                  <tr>
+                    <th scope="col" className="px-6 py-4.5 font-heading text-sm font-black text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">
+                      Segment
+                    </th>
+                    <th scope="col" className="px-6 py-4.5 font-heading text-sm font-black text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">
+                      Coordinator
+                    </th>
+                    <th scope="col" className="px-6 py-4.5 font-heading text-sm font-black text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">
+                      Phone Number
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-neutral-200/50 dark:divide-neutral-850/50 bg-white/40 dark:bg-[#12141a]/40">
+                  {processedCompetitions.map((comp) => {
+                    const contact = getCompetitionContact(comp);
+                    return (
+                      <tr
+                        key={comp.id}
+                        className="group/row hover:bg-neutral-50/50 dark:hover:bg-neutral-900/20 transition-colors duration-normal"
+                      >
+                        <td className="px-6 py-5 whitespace-nowrap">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center text-primary group-hover/row:scale-105 transition-transform">
+                              <Trophy className="h-4 w-4" />
+                            </div>
+                            <span className="font-heading font-extrabold text-neutral-800 dark:text-neutral-200 text-base">
+                              {comp.name}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-5 whitespace-nowrap">
+                          <div className="flex items-center gap-2">
+                            <User className="h-4 w-4 text-[#8B5CF6] dark:text-[#A78BFA] opacity-80" />
+                            <span className="font-sans font-semibold text-neutral-700 dark:text-neutral-300 text-sm">
+                              {contact.coordinator}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-5 whitespace-nowrap">
+                          <a
+                            href={`tel:${contact.phone.replace(/[^0-9+]/g, "")}`}
+                            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border border-glass bg-background/50 hover:bg-[#8B5CF6]/10 hover:border-[#8B5CF6]/35 dark:hover:border-[#8B5CF6]/30 text-neutral-600 dark:text-neutral-300 hover:text-[#8B5CF6] dark:hover:text-[#A78BFA] transition-all duration-normal font-mono text-sm group/btn focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                          >
+                            <Phone className="h-3.5 w-3.5 text-neutral-400 group-hover/btn:text-[#8B5CF6] dark:group-hover/btn:text-[#A78BFA] transition-colors" />
+                            <span>{contact.phone}</span>
+                          </a>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+
+              {/* Mobile Card View */}
+              <div className="block md:hidden divide-y divide-neutral-200/60 dark:divide-neutral-850/60 bg-white/40 dark:bg-[#12141a]/40">
                 {processedCompetitions.map((comp) => {
                   const contact = getCompetitionContact(comp);
                   return (
-                    <tr
-                      key={comp.id}
-                      className="group/row hover:bg-neutral-50/50 dark:hover:bg-neutral-900/20 transition-colors duration-normal"
-                    >
-                      <td className="px-6 py-5 whitespace-nowrap">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center text-primary group-hover/row:scale-105 transition-transform">
-                            <Trophy className="h-4 w-4" />
-                          </div>
-                          <span className="font-heading font-extrabold text-neutral-800 dark:text-neutral-200 text-base">
-                            {comp.name}
-                          </span>
+                    <div key={comp.id} className="p-5 space-y-4 hover:bg-neutral-50/50 dark:hover:bg-neutral-900/10 transition-colors">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center text-primary">
+                          <Trophy className="h-4 w-4" />
                         </div>
-                      </td>
-                      <td className="px-6 py-5 whitespace-nowrap">
+                        <span className="font-heading font-extrabold text-neutral-800 dark:text-neutral-200 text-base">
+                          {comp.name}
+                        </span>
+                      </div>
+                      
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
                         <div className="flex items-center gap-2">
                           <User className="h-4 w-4 text-[#8B5CF6] dark:text-[#A78BFA] opacity-80" />
                           <span className="font-sans font-semibold text-neutral-700 dark:text-neutral-300 text-sm">
                             {contact.coordinator}
                           </span>
                         </div>
-                      </td>
-                      <td className="px-6 py-5 whitespace-nowrap">
+                        
                         <a
                           href={`tel:${contact.phone.replace(/[^0-9+]/g, "")}`}
-                          className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border border-glass bg-background/50 hover:bg-[#8B5CF6]/10 hover:border-[#8B5CF6]/35 dark:hover:border-[#8B5CF6]/30 text-neutral-600 dark:text-neutral-300 hover:text-[#8B5CF6] dark:hover:text-[#A78BFA] transition-all duration-normal font-mono text-sm group/btn focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                          className="inline-flex items-center justify-center gap-2 px-3 py-2 rounded-xl border border-glass bg-background/50 hover:bg-[#8B5CF6]/10 hover:border-[#8B5CF6]/35 dark:hover:border-[#8B5CF6]/30 text-neutral-600 dark:text-neutral-300 hover:text-[#8B5CF6] dark:hover:text-[#A78BFA] transition-all duration-normal font-mono text-sm group/btn focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary w-full sm:w-auto mt-2 sm:mt-0"
                         >
                           <Phone className="h-3.5 w-3.5 text-neutral-400 group-hover/btn:text-[#8B5CF6] dark:group-hover/btn:text-[#A78BFA] transition-colors" />
                           <span>{contact.phone}</span>
                         </a>
-                      </td>
-                    </tr>
+                      </div>
+                    </div>
                   );
                 })}
-              </tbody>
-            </table>
+              </div>
+            </>
           )}
         </div>
       </div>

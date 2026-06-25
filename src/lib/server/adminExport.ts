@@ -399,6 +399,8 @@ async function buildAllTeamsExport(
   if (error) throw error;
   const teams = (data ?? []) as unknown as DetailedTeamRow[];
 
+  const MAX_EXPORT_MEMBERS = 6;
+
   const rows = teams.map((t) => {
     const membersList = (t.team_members ?? []).filter((m) => m.invitation_status === "accepted");
     
@@ -427,13 +429,12 @@ async function buildAllTeamsExport(
       return [
         m.full_name || (mProfileObj?.full_name as string | undefined) || "NA",
         m.phone || (mProfileObj?.phone as string | undefined) || "NA",
-        m.email || (mUserObj?.email as string | undefined) || "NA",
         m.tshirt_size || (mProfileObj?.tshirt_size as string | undefined) || "NA",
         m.university || (mProfileObj?.university as string | undefined) || "NA",
       ];
     });
     
-    const totalMemberFieldsCount = (MAX_TEAM_MEMBERS - 1) * 5;
+    const totalMemberFieldsCount = MAX_EXPORT_MEMBERS * 4;
     const padded = padMembers<string>(memberDetails, totalMemberFieldsCount, PLACEHOLDER_NAME);
 
     return [
@@ -457,11 +458,10 @@ async function buildAllTeamsExport(
     "Leader T-Shirt Size",
     "Leader Institution",
   ];
-  for (let i = 1; i <= MAX_TEAM_MEMBERS - 1; i++) {
+  for (let i = 1; i <= MAX_EXPORT_MEMBERS; i++) {
     headers.push(
       `Member ${i} Name`,
       `Member ${i} Phone`,
-      `Member ${i} Email`,
       `Member ${i} T-Shirt Size`,
       `Member ${i} Institution`
     );

@@ -60,6 +60,7 @@ interface TeamWithJoins {
   created_at: string;
   competitions: unknown;
   users: unknown;
+  team_members?: unknown;
 }
 
 async function buildTeamsExport(
@@ -68,7 +69,7 @@ async function buildTeamsExport(
 ): Promise<ExportResult> {
   let query = supabase
     .from("teams")
-    .select("id, name, status, created_at, competitions(name), users:leader_id(email)");
+    .select("id, name, status, created_at, competitions(name), users:leader_id(email), team_members(id, invitation_status)");
   if (competitionId) query = query.eq("competition_id", competitionId);
   const { data, error } = await query;
   if (error) throw error;
@@ -82,16 +83,22 @@ async function buildTeamsExport(
       "Competition",
       "Leader Email",
       "Status",
+      "Member Count",
       "Created At (ISO)",
     ],
-    rows: teams.map((t) => [
-      t.id,
-      t.name,
-      getRelationField(t.competitions, "name"),
-      getRelationField(t.users, "email"),
-      t.status,
-      toISO8601(t.created_at),
-    ]),
+    rows: teams.map((t) => {
+      const membersList = (t.team_members as { id: string; invitation_status: string }[] | null) || [];
+      const memberCount = membersList.filter((m) => m.invitation_status === "accepted").length;
+      return [
+        t.id,
+        t.name,
+        getRelationField(t.competitions, "name"),
+        getRelationField(t.users, "email"),
+        t.status,
+        memberCount,
+        toISO8601(t.created_at),
+      ];
+    }),
   };
 }
 
@@ -209,7 +216,11 @@ interface ParticipantRowJoined {
   semester: string | null;
   student_id: string | null;
   tshirt_size: string | null;
-  teams: { name: string; competition_id: string } | null;
+  teams: { 
+    name: string; 
+    competition_id: string;
+    competitions: { name: string } | null;
+  } | null;
   users: unknown;
 }
 
@@ -234,7 +245,10 @@ async function buildParticipantsExport(
       tshirt_size,
       teams (
         name,
-        competition_id
+        competition_id,
+        competitions (
+          name
+        )
       ),
       users!team_members_user_id_fkey (
         email,
@@ -277,6 +291,10 @@ async function buildParticipantsExport(
     const department = m.department || (profileObj?.department as string | undefined) || "";
     const semester = m.semester || (profileObj?.semester as string | undefined) || "";
     const team = m.teams?.name ?? "N/A";
+    
+    const teamsObj = getRelationObject(m.teams);
+    const compsObj = getRelationObject(teamsObj?.competitions);
+    const segment = (compsObj?.name as string | undefined) || "N/A";
 
     return {
       name,
@@ -288,6 +306,7 @@ async function buildParticipantsExport(
       department,
       semester,
       team,
+      segment,
     };
   });
 
@@ -303,6 +322,7 @@ async function buildParticipantsExport(
       "Department",
       "Semester",
       "Team",
+      "Segment",
     ],
     rows: flat.map((p) => [
       p.name,
@@ -314,6 +334,7 @@ async function buildParticipantsExport(
       p.department,
       p.semester,
       p.team,
+      p.segment,
     ]),
   };
 }
@@ -324,6 +345,10 @@ interface TeamMemberJoined {
   role: string;
   full_name: string | null;
   phone: string | null;
+  email?: string | null;
+  university?: string | null;
+  tshirt_size?: string | null;
+  invitation_status: string;
   users: unknown;
 }
 
@@ -354,10 +379,17 @@ async function buildAllTeamsExport(
         role,
         full_name,
         phone,
+        email,
+        university,
+        tshirt_size,
+        invitation_status,
         users!team_members_user_id_fkey (
+          email,
           profiles (
             full_name,
-            phone
+            phone,
+            university,
+            tshirt_size
           )
         )
       )
@@ -368,7 +400,7 @@ async function buildAllTeamsExport(
   const teams = (data ?? []) as unknown as DetailedTeamRow[];
 
   const rows = teams.map((t) => {
-    const membersList = t.team_members ?? [];
+    const membersList = (t.team_members ?? []).filter((m) => m.invitation_status === "accepted");
     
     // Find leader info
     const leaderMembership = membersList.find((m) => m.role === "leader" || m.user_id === t.leader_id);
@@ -377,34 +409,67 @@ async function buildAllTeamsExport(
     
     const leaderName = leaderMembership?.full_name || (leaderProfileObj?.full_name as string | undefined) || "N/A";
     const leaderPhone = leaderMembership?.phone || (leaderProfileObj?.phone as string | undefined) || "N/A";
+    const leaderEmail = leaderMembership?.email || (leaderUserObj?.email as string | undefined) || "N/A";
+    const leaderTshirt = leaderMembership?.tshirt_size || (leaderProfileObj?.tshirt_size as string | undefined) || "N/A";
+    const leaderInstitution = leaderMembership?.university || (leaderProfileObj?.university as string | undefined) || "N/A";
     
     const competitionsObj = getRelationObject(t.competitions);
-    const maxMembers = (competitionsObj?.max_members as number | undefined) ?? MAX_TEAM_MEMBERS;
+    const compName = (competitionsObj?.name as string | undefined) || "N/A";
     
     // Filter out leader to get other members
     const otherMembers = membersList.filter(
       (m) => m.role !== "leader" && m.user_id !== t.leader_id,
     );
     
-    const memberNames = otherMembers.map((m) => {
+    const memberDetails = otherMembers.flatMap((m) => {
       const mUserObj = getRelationObject(m.users);
       const mProfileObj = getRelationObject(mUserObj?.profiles);
-      return m.full_name || (mProfileObj?.full_name as string | undefined) || "NA";
+      return [
+        m.full_name || (mProfileObj?.full_name as string | undefined) || "NA",
+        m.phone || (mProfileObj?.phone as string | undefined) || "NA",
+        m.email || (mUserObj?.email as string | undefined) || "NA",
+        m.tshirt_size || (mProfileObj?.tshirt_size as string | undefined) || "NA",
+        m.university || (mProfileObj?.university as string | undefined) || "NA",
+      ];
     });
     
-    const padded = padMembers<string>(memberNames, maxMembers - 1, PLACEHOLDER_NAME);
+    const totalMemberFieldsCount = (MAX_TEAM_MEMBERS - 1) * 5;
+    const padded = padMembers<string>(memberDetails, totalMemberFieldsCount, PLACEHOLDER_NAME);
 
-    return [t.name, leaderName, leaderPhone, ...padded];
+    return [
+      t.name,
+      compName,
+      leaderName,
+      leaderPhone,
+      leaderEmail,
+      leaderTshirt,
+      leaderInstitution,
+      ...padded
+    ];
   });
 
-  const memberColumns = Array.from(
-    { length: MAX_TEAM_MEMBERS - 1 },
-    (_, i) => `Member ${i + 1}`,
-  );
+  const headers = [
+    "Team Name",
+    "Competition",
+    "Leader Name",
+    "Leader Phone",
+    "Leader Email",
+    "Leader T-Shirt Size",
+    "Leader Institution",
+  ];
+  for (let i = 1; i <= MAX_TEAM_MEMBERS - 1; i++) {
+    headers.push(
+      `Member ${i} Name`,
+      `Member ${i} Phone`,
+      `Member ${i} Email`,
+      `Member ${i} T-Shirt Size`,
+      `Member ${i} Institution`
+    );
+  }
 
   return {
     filename: `all_teams_${competitionId ?? "all"}_${Date.now()}.csv`,
-    headers: ["Team Name", "Leader Name", "Leader Phone", ...memberColumns],
+    headers,
     rows,
   };
 }

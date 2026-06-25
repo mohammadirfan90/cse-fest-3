@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import * as React from "react";
 import Link from "next/link";
@@ -1076,6 +1076,7 @@ export default function CompetitionRegisterPage() {
                 <div className="flex items-center gap-3">
                   <EligibilityBadge
                     eligibility={competition?.eligibility}
+                    competitionName={competition?.name}
                     className="shrink-0"
                   />
                 </div>
@@ -1094,15 +1095,21 @@ export default function CompetitionRegisterPage() {
                     <>
                       Open to{" "}
                       <span className="text-neutral-200 font-medium">
-                        all universities
+                        {competition?.name?.toLowerCase().includes("idea") ? "all colleges" : "all universities"}
                       </span>
-                      . Toggle{" "}
-                      <span className="text-neutral-200 font-medium">
-                        SMUCT Student
-                      </span>{" "}
-                      to lock the Institution field; otherwise type your
-                      university directly. Each member must provide a valid
-                      Student ID. Semester is collected only for SMUCT students.
+                      . {competition?.name?.toLowerCase().includes("idea") ? (
+                        <>Type your college directly.</>
+                      ) : (
+                        <>
+                          Toggle{" "}
+                          <span className="text-neutral-200 font-medium">
+                            SMUCT Student
+                          </span>{" "}
+                          to lock the Institution field; otherwise type your
+                          university directly.
+                        </>
+                      )}{" "}
+                      Each member must provide a valid Student ID. Semester is collected only for SMUCT students.
                     </>
                   )}
                 </div>
@@ -1229,7 +1236,7 @@ export default function CompetitionRegisterPage() {
                       For open ("both") competitions it only auto-fills the
                       Institution name; the Institution input becomes read-only
                       while checked. */}
-                  {!isInternalCompetition && (
+                  {!isInternalCompetition && !competition?.name?.toLowerCase().includes("idea") && (
                     <div className="flex items-center space-x-3 w-full h-11 self-end pb-2">
                       <input
                         type="checkbox"

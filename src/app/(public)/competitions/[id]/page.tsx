@@ -25,6 +25,7 @@ import { Footer } from "@/components/shared/Footer";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import ReactMarkdown from "react-markdown";
+import { getCompetitionContact } from "@/constants/contacts";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -119,6 +120,11 @@ export default function CompetitionDetailPage() {
     () => (data?.success ? data.data : null),
     [data],
   );
+
+  const contactInfo = React.useMemo(() => {
+    if (!competition) return null;
+    return getCompetitionContact(competition);
+  }, [competition]);
 
   if (isLoading) {
     return (
@@ -523,7 +529,9 @@ export default function CompetitionDetailPage() {
                       Eligibility
                     </div>
                     <div className="text-[#111827] dark:text-neutral-200 font-semibold text-sm capitalize font-sans">
-                      {competition.eligibility?.toLowerCase() === "both"
+                      {competition.name?.toLowerCase().includes("idea") || competition.id === "dfec0659-6308-42e3-aaf6-dfdc85eb2cfa"
+                        ? "College Only"
+                        : competition.eligibility?.toLowerCase() === "both" || competition.eligibility?.toLowerCase() === "external"
                         ? "INTER-UNI"
                         : `${competition.eligibility} Only`}
                     </div>
@@ -556,25 +564,30 @@ export default function CompetitionDetailPage() {
             </motion.div>
 
             {/* Support Helper Widget */}
-            <motion.div
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, ease: "easeOut", delay: 0.3 }}
-              className="bg-white/60 dark:bg-neutral-900/50 backdrop-blur-xl border border-neutral-200/80 dark:border-neutral-850 rounded-3xl p-5 flex items-center gap-4 hover:bg-[#FAF8FF] dark:hover:bg-neutral-900/80 hover:border-[#8B5CF6]/35 dark:hover:border-[#8B5CF6]/30 transition-all duration-300 cursor-pointer shadow-[0_10px_30px_rgba(139,92,246,0.06),0_2px_8px_rgba(0,0,0,0.05)] hover:shadow-[0_20px_50px_rgba(139,92,246,0.12)]"
-            >
-              <HelpCircle className="h-5 w-5 text-[#8B5CF6]" />
-              <div>
-                <h4 className="font-sans text-xs font-bold text-[#111827] dark:text-neutral-200">
-                  Need Assistance?
-                </h4>
-                <p className="text-sm text-[#4B5563] dark:text-neutral-500">
-                  Contact our coordination desk
-                </p>
-                <p className="text-sm text-[#4B5563] dark:text-neutral-500">
-                  01937-309224
-                </p>
-              </div>
-            </motion.div>
+            {contactInfo && (
+              <motion.div
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, ease: "easeOut", delay: 0.3 }}
+                className="bg-white/60 dark:bg-neutral-900/50 backdrop-blur-xl border border-neutral-200/80 dark:border-neutral-850 rounded-3xl p-5 flex items-center gap-4 hover:bg-[#FAF8FF] dark:hover:bg-neutral-900/80 hover:border-[#8B5CF6]/35 dark:hover:border-[#8B5CF6]/30 transition-all duration-300 shadow-[0_10px_30px_rgba(139,92,246,0.06),0_2px_8px_rgba(0,0,0,0.05)] hover:shadow-[0_20px_50px_rgba(139,92,246,0.12)]"
+              >
+                <HelpCircle className="h-5 w-5 text-[#8B5CF6] shrink-0" />
+                <div>
+                  <h4 className="font-sans text-xs font-bold text-[#111827] dark:text-neutral-200">
+                    Need Assistance?
+                  </h4>
+                  <p className="text-xs text-neutral-500 dark:text-neutral-500 font-sans mt-0.5 leading-tight">
+                    Contact: {contactInfo.coordinator}
+                  </p>
+                  <a
+                    href={`tel:${contactInfo.phone.replace(/[^0-9+]/g, "")}`}
+                    className="text-sm font-semibold text-[#8B5CF6] dark:text-[#A78BFA] hover:underline font-mono inline-block mt-1 focus-visible:outline-none"
+                  >
+                    {contactInfo.phone}
+                  </a>
+                </div>
+              </motion.div>
+            )}
           </aside>
         </div>
       </main>

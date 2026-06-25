@@ -8,6 +8,7 @@ import { Navbar } from "@/components/shared/Navbar";
 import { NewsTicker } from "@/components/public/NewsTicker";
 import { HeroSection } from "@/components/public/HeroSection";
 import { FeaturedCompetitions } from "@/components/public/FeaturedCompetitions";
+import { CompetitionContacts } from "@/components/public/CompetitionContacts";
 import { Timeline } from "@/components/public/Timeline";
 import { Footer } from "@/components/shared/Footer";
 
@@ -199,6 +200,9 @@ export default function PublicHomePage() {
 
         {/* Competitions Section */}
         <FeaturedCompetitions />
+
+        {/* Competition Contacts Section */}
+        <CompetitionContacts />
 
         {/* Timeline Section */}
         <Timeline />

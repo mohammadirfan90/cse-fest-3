@@ -65,7 +65,16 @@ export function FeaturedCompetitions() {
     return new Set<string>();
   }, [teamsData]);
 
-  const competitions = React.useMemo(() => (data?.success ? data.data : []), [data]);
+  const competitions = React.useMemo(() => {
+    if (!data?.success || !Array.isArray(data.data)) return [];
+    return [...data.data].sort((a, b) => {
+      const eligibilityA = a.eligibility?.toLowerCase();
+      const eligibilityB = b.eligibility?.toLowerCase();
+      if (eligibilityA === "both" && eligibilityB !== "both") return -1;
+      if (eligibilityA !== "both" && eligibilityB === "both") return 1;
+      return 0;
+    });
+  }, [data]);
 
   if (!mounted || isLoading) {
     return (
@@ -133,7 +142,7 @@ export function FeaturedCompetitions() {
 
       {/* Grid of Competitions */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 relative z-10">
-        {competitions.slice(0, 3).map((comp) => {
+        {competitions.map((comp) => {
           const coverImage =
             comp.coverImageUrl ||
             COMPETITION_FALLBACK_IMAGES[comp.id] ||
@@ -168,7 +177,11 @@ export function FeaturedCompetitions() {
                       {comp.name}
                     </h3>
                     <Badge variant="accent" className="text-sm font-mono shrink-0 uppercase tracking-wider">
-                      {comp.eligibility?.toLowerCase() === "both" ? "INTER-UNI" : comp.eligibility}
+                      {comp.name?.toLowerCase().includes("idea") || comp.id === "dfec0659-6308-42e3-aaf6-dfdc85eb2cfa"
+                        ? "College Only"
+                        : comp.eligibility?.toLowerCase() === "both" || comp.eligibility?.toLowerCase() === "external"
+                        ? "INTER-UNI"
+                        : comp.eligibility}
                     </Badge>
                   </div>
                 </Link>

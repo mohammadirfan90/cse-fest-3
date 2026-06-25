@@ -21,7 +21,6 @@ export function DashboardStats({
 		totalUsers: number;
 		totalTeams: number;
 		totalRevenue: number;
-		verificationRate: number;
 	};
 }) {
 	const statItems: readonly Stat[] = [
@@ -42,12 +41,6 @@ export function DashboardStats({
 			value: `৳${stats.totalRevenue.toLocaleString()}`,
 			delta: 15.6,
 			hint: "vs prior week",
-		},
-		{
-			label: "Profile Completion Rate",
-			value: `${stats.verificationRate}%`,
-			delta: stats.verificationRate > 0 ? 5.2 : 0,
-			hint: "completion rate",
 		},
 	] as const;
 

@@ -23,17 +23,20 @@ export interface EligibilityBadgeProps {
   className?: string;
   /** Show a trailing "SMUCT only" / "All universities" hint inside the label. */
   withHint?: boolean;
+  competitionName?: string;
 }
 
 export function EligibilityBadge({
   eligibility,
   className,
   withHint = true,
+  competitionName,
 }: EligibilityBadgeProps) {
   const normalized = normalizeEligibility(eligibility);
   const internal = isInternal(normalized);
+  const isIdea = competitionName?.toLowerCase().includes("idea");
 
-  const label = internal ? "SMUCT Only" : "All Universities";
+  const label = internal ? "SMUCT Only" : isIdea ? "College Only" : "All Universities";
 
   return (
     <Badge
@@ -42,6 +45,8 @@ export function EligibilityBadge({
       title={
         internal
           ? `This competition is restricted to ${SMUCT_INSTITUTION} students only.`
+          : isIdea
+          ? "This competition accepts students from any college."
           : "This competition accepts students from any university."
       }
     >
@@ -55,7 +60,7 @@ export function EligibilityBadge({
       </span>
       {withHint && (
         <span className="ml-1.5 text-[10px] font-sans font-medium opacity-80 hidden sm:inline">
-          · Eligibility: {normalized}
+          · Eligibility: {isIdea ? "College Only" : normalized}
         </span>
       )}
     </Badge>

@@ -153,7 +153,7 @@ function CompetitionsListContent() {
                   : "bg-neutral-900/40 text-neutral-400 hover:bg-neutral-800/40 border border-neutral-850"
               }`}
             >
-              INTER-UNI
+              INTER-UNI / College
             </button>
             <button
               onClick={() => setCategoryFilter("internal")}
@@ -242,7 +242,11 @@ function CompetitionsListContent() {
                             {comp.name}
                           </h3>
                           <Badge variant="accent" className="text-sm font-mono shrink-0 uppercase">
-                            {comp.eligibility?.toLowerCase() === "both" || comp.eligibility?.toLowerCase() === "external" ? "INTER-UNI" : comp.eligibility}
+                            {comp.name?.toLowerCase().includes("idea") || comp.id === "dfec0659-6308-42e3-aaf6-dfdc85eb2cfa"
+                              ? "College Only"
+                              : comp.eligibility?.toLowerCase() === "both" || comp.eligibility?.toLowerCase() === "external"
+                              ? "INTER-UNI"
+                              : comp.eligibility}
                           </Badge>
                         </div>
                       </Link>

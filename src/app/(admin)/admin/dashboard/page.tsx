@@ -111,8 +111,6 @@ export default function AdminDashboardPage() {
   const [loading, setLoading] = React.useState(true);
   const [stats, setStats] = React.useState({
     totalUsers: 0,
-    verifiedUsers: 0,
-    pendingUsers: 0,
     totalTeams: 0,
     totalRevenue: 0,
     pendingPayments: 0,
@@ -134,22 +132,12 @@ export default function AdminDashboardPage() {
         setLoading(true);
         setErrorMsg(null);
 
-        const { data: profiles, error: profileErr } = await supabase
-          .from("profiles")
-          .select("id, profile_complete");
-        if (profileErr) throw profileErr;
+        const { count: memberCount, error: memberErr } = await supabase
+          .from("team_members")
+          .select("*", { count: "exact", head: true });
+        if (memberErr) throw memberErr;
 
-        let total = 0, verified = 0, pending = 0;
-        if (profiles) {
-          total = profiles.length;
-          profiles.forEach((p) => {
-            if (p.profile_complete) {
-              verified++;
-            } else {
-              pending++;
-            }
-          });
-        }
+        const total = memberCount || 0;
 
         const { count: teamCount, error: teamErr } = await supabase
           .from("teams")
@@ -268,8 +256,6 @@ export default function AdminDashboardPage() {
 
         setStats({
           totalUsers: total,
-          verifiedUsers: verified,
-          pendingUsers: pending,
           totalTeams: teamCount || 0,
           totalRevenue: revSum,
           pendingPayments: pendingPayCount || 0,
@@ -328,8 +314,8 @@ export default function AdminDashboardPage() {
           <div className="h-4 bg-neutral-900/40 w-80 rounded-md" />
         </div>
         {/* Stats skeleton */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-          {[...Array(4)].map((_, i) => (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          {[...Array(3)].map((_, i) => (
             <div key={i} className="h-24 bg-neutral-800/40 rounded-xl border border-neutral-800/60 animate-pulse" />
           ))}
         </div>
@@ -375,10 +361,7 @@ export default function AdminDashboardPage() {
     );
   }
 
-  const verificationPercent =
-    stats.totalUsers > 0
-      ? Math.round((stats.verifiedUsers / stats.totalUsers) * 100)
-      : 0;
+  // verificationPercent removed
 
   // Filter audit logs by search string
   const filteredAuditLogs = auditLogs.filter((log) => {
@@ -427,13 +410,12 @@ export default function AdminDashboardPage() {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <DashboardStats
           stats={{
             totalUsers: stats.totalUsers,
             totalTeams: stats.totalTeams,
             totalRevenue: stats.totalRevenue,
-            verificationRate: verificationPercent,
           }}
         />
       </div>
@@ -557,8 +539,6 @@ export default function AdminDashboardPage() {
               {[
                 { label: "Total Participants", value: stats.totalUsers, icon: Users },
                 { label: "Teams Formed", value: stats.totalTeams, icon: Trophy },
-                { label: "Completed Profiles", value: stats.verifiedUsers, icon: UserCheck },
-                { label: "Incomplete Profiles", value: stats.pendingUsers, icon: Clock },
               ].map(({ label, value, icon: Icon }) => (
                 <div
                   key={label}

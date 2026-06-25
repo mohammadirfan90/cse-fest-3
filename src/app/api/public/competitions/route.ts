@@ -40,6 +40,7 @@ interface CompetitionDb {
   show_in_hero: boolean | null;
   short_name: string | null;
   hero_capacity: number | null;
+  slug?: string;
 }
 
 function mapCompetition(c: CompetitionDb) {
@@ -85,6 +86,7 @@ function mapCompetition(c: CompetitionDb) {
     heroCapacity: c.hero_capacity ?? 80,
     registrationStart: c.registration_start,
     registrationEnd: c.registration_end,
+    slug: c.slug || "",
     // Add camelCase fallback names to make transitions 100% safe
     short_description: c.short_description || "",
     prize_pool: c.prize_pool || "TBD",

@@ -1,25 +1,19 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { createClient } from "@/lib/supabase/server";
+import { createServerClient } from "@supabase/ssr";
 
 /**
  * Supabase auth code → session exchange.
  *
- * exchangeCodeForSession() writes the chunked auth cookies
- * (sb-<ref>-auth-token.0 + .1, plus -code-verifier on first sign-in) into
- * the `next/headers` server-side cookie store via the SSR client's setAll.
- *
- * The previous implementation returned a bare NextResponse.redirect(URL)
- * which did NOT propagate those cookies to the browser. The browser would
- * only receive them on the FOLLOWING request — which immediately flowed
- * back through the proxy, called getUser(), triggered a token refresh,
- * and re-emitted the cookies. That loop is what doubled the Set-Cookie
- * traffic on the homepage and pushed response headers past Nginx's
- * proxy_buffer_size ceiling.
- *
- * The fix: read every cookie the SSR client wrote and attach it to the
- * 302 response, so the browser receives the new session in a single
- * round-trip.
+ * IMPORTANT: We build our own SSR client here rather than using the shared
+ * createClient() helper. The shared helper reads x-forwarded-proto via
+ * next/headers, but that header is not reliably populated inside Route
+ * Handlers — only the raw `request` object carries it. Building the client
+ * here lets us pass the correct `secure` flag (derived from x-forwarded-proto
+ * on the request), which ensures the PKCE code-verifier cookie — stored by
+ * the browser with the __Host- prefix under HTTPS — is found and read
+ * correctly by the server during exchangeCodeForSession(). Without this,
+ * the exchange fails and returns auth_failed.
  */
 export async function GET(request: Request) {
   const host =
@@ -30,20 +24,47 @@ export async function GET(request: Request) {
     request.headers.get("x-forwarded-proto") ??
     "http";
 
+  const isSecure = proto === "https";
+
   const { searchParams } = new URL(request.url);
 
   const code = searchParams.get("code");
   const next = searchParams.get("next") ?? "/dashboard";
 
   if (code) {
-    const supabase = await createClient();
+    const cookieStore = await cookies();
 
-    const { error } =
-      await supabase.auth.exchangeCodeForSession(code);
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() {
+            return cookieStore.getAll();
+          },
+          setAll(cookiesToSet) {
+            try {
+              cookiesToSet.forEach(({ name, value, options }) =>
+                cookieStore.set(name, value, {
+                  ...options,
+                  secure: isSecure,
+                })
+              );
+            } catch {
+              // Ignored in Server Components
+            }
+          },
+        },
+        cookieOptions: {
+          secure: isSecure,
+        },
+      }
+    );
+
+    const { error } = await supabase.auth.exchangeCodeForSession(code);
 
     if (!error) {
       // Forward the freshly-issued Supabase cookies onto the 302 response.
-      const cookieStore = await cookies();
       const redirect = NextResponse.redirect(`${proto}://${host}${next}`);
 
       for (const cookie of cookieStore.getAll()) {
@@ -51,17 +72,13 @@ export async function GET(request: Request) {
           redirect.cookies.set({
             name: cookie.name,
             value: cookie.value,
-            // next/headers strips these; the defaults below match what
-            // the SSR client requested via setAll options.
             path: "/",
             sameSite: "lax",
             httpOnly: cookie.name.includes("auth-token"),
-            secure: proto === "https",
+            secure: isSecure,
           });
         } catch {
-          // Some cookies (e.g. set by other route handlers earlier in the
-          // same request) may not be settable on a Response object. Skip
-          // them rather than failing the whole sign-in.
+          // Skip cookies that can't be set on a Response object.
         }
       }
 

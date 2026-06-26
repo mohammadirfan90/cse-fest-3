@@ -84,9 +84,25 @@ export async function GET(request: Request) {
 
       return redirect;
     }
+
+    // DEBUG: expose exact Supabase error so we can diagnose — REMOVE AFTER FIX
+    console.error("[auth/callback] exchangeCodeForSession failed:", {
+      error_code: error?.code,
+      error_status: error?.status,
+      error_message: error?.message,
+      code_present: !!code,
+      cookies: cookieStore.getAll().map((c) => c.name),
+      proto,
+      host,
+      isSecure,
+    });
+
+    return NextResponse.redirect(
+      `${proto}://${host}/login?error=auth_failed&reason=${encodeURIComponent(error?.message ?? "unknown")}&code=${encodeURIComponent(error?.code ?? "none")}`
+    );
   }
 
   return NextResponse.redirect(
-    `${proto}://${host}/login?error=auth_failed`
+    `${proto}://${host}/login?error=auth_failed&reason=no_code`
   );
 }

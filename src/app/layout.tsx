@@ -24,7 +24,7 @@ const geistMono = Geist_Mono({
 });
 
 const SITE_URL =
-  process.env.NEXT_PUBLIC_SITE_URL ?? "https://csefest2026.smuct.edu.bd";
+  process.env.NEXT_PUBLIC_SITE_URL ?? "https://csefest.smuct.ac.bd";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),

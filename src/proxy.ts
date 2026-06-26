@@ -1,26 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 
-/**
- * Public-route prefixes that do NOT require a Supabase round-trip.
- *
- * Why this list exists:
- *   The previous implementation called `supabase.auth.getUser()` on every
- *   non-API request, including GET /. `getUser()` validates the JWT against
- *   Supabase Auth and refreshes the access token when it is within ~60s of
- *   expiry. On a refresh, Supabase SSR re-emits the chunked auth cookies
- *   (sb-<ref>-auth-token.0 + .1, ~4.5 KB each) via `setAll`. Combined with
- *   Nginx's default `proxy_buffer_size` (4k / 8k) the response header block
- *   exceeds the buffer and Nginx returns "upstream sent too big header
- *   while reading response header from upstream" (502).
- *
- *   The fix has two parts:
- *     1. Nginx raises `proxy_buffer_size` / `proxy_buffers` (see nginx/csefest.conf)
- *     2. The proxy here skips the Supabase round-trip entirely for public
- *        marketing routes and uses `getSession()` (cookie-only) elsewhere,
- *        only calling `getUser()` when a server-validated identity is
- *        actually required for an authorization decision.
- */
 const PUBLIC_ROUTE_PREFIXES = [
   "/competitions",
   "/schedule",
@@ -188,4 +168,3 @@ export const config = {
     "/((?!api|_next/static|_next/image|favicon.ico|auth/callback|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };
-

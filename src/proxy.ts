@@ -52,6 +52,9 @@ export async function proxy(request: NextRequest) {
     return response;
   }
 
+  const proto = request.headers.get("x-forwarded-proto") || request.nextUrl.protocol.replace(":", "") || "http";
+  const isSecure = proto === "https";
+
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -68,9 +71,15 @@ export async function proxy(request: NextRequest) {
             request,
           });
           cookiesToSet.forEach(({ name, value, options }) =>
-            response.cookies.set(name, value, options)
+            response.cookies.set(name, value, {
+              ...options,
+              secure: isSecure,
+            })
           );
         },
+      },
+      cookieOptions: {
+        secure: isSecure,
       },
     }
   );

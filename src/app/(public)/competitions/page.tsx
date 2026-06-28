@@ -256,17 +256,17 @@ function CompetitionsListContent() {
                       <div className="mt-auto space-y-4">
                         <div className="border-y border-neutral-850 divide-y divide-neutral-850/50">
                           <Link href={`/competitions/${comp.id}`} className="flex justify-between items-center py-2.5 block hover:text-neutral-200 transition-colors">
-                            <span className="text-sm font-bold text-neutral-500 uppercase font-sans">Prize Pool</span>
+                            <span className="text-sm font-bold text-neutral-400 uppercase font-sans">Prize Pool</span>
                             <span className="font-mono text-secondary dark:text-white text-sm font-extrabold">{comp.prizePool}</span>
                           </Link>
                           <Link href={`/competitions/${comp.id}`} className="flex justify-between items-start py-2.5 block hover:text-neutral-200 transition-colors">
-                            <span className="text-sm font-bold text-neutral-500 uppercase font-sans">Entry Fee</span>
+                            <span className="text-sm font-bold text-neutral-400 uppercase font-sans">Entry Fee</span>
                             <div className="text-right">
-                              <span className="font-mono text-neutral-200 text-sm font-extrabold">
+                              <span className="font-mono text-neutral-100 text-sm font-extrabold">
                                 {comp.entryFee === 0 ? "Free" : `${comp.entryFee} BDT`}
                               </span>
                               {comp.isFeePerPerson && (
-                                <span className="block text-[10px] text-neutral-500 font-sans mt-0.5 font-medium">per person</span>
+                                <span className="block text-xs uppercase tracking-wider text-neutral-400 mt-1 font-semibold">PER PERSON</span>
                               )}
                             </div>
                           </Link>

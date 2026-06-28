@@ -191,17 +191,19 @@ export function FeaturedCompetitions() {
                 <div className="mt-auto space-y-5">
                   <div className="border-y border-neutral-200/50 dark:border-neutral-800/60 divide-y divide-neutral-250/20 dark:divide-neutral-800/50">
                     <Link href={`/competitions/${comp.id}`} className="flex justify-between items-center py-3.5 font-mono block hover:text-neutral-600 dark:hover:text-neutral-200 transition-colors">
-                      <span className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-widest">Grand Prize Pool</span>
+                      <span className="text-xs font-bold text-neutral-400 uppercase tracking-widest">Grand Prize Pool</span>
                       <span className="text-[#8B5CF6] dark:text-[#A78BFA] text-xl font-black font-heading">{comp.prizePool}</span>
                     </Link>
                     <Link href={`/competitions/${comp.id}`} className="flex justify-between items-start py-3.5 font-mono block hover:text-neutral-600 dark:hover:text-neutral-200 transition-colors">
-                      <span className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-widest mt-0.5">Entry Fee</span>
+                      <span className="text-xs font-bold text-neutral-400 uppercase tracking-widest mt-0.5">Entry Fee</span>
                       <div className="text-right">
-                        <span className="text-neutral-800 dark:text-neutral-200 font-bold text-base">
+                        <span className="text-neutral-100 font-bold text-base">
                           {comp.entryFee === 0 ? "Free" : `${comp.entryFee} BDT`}
                         </span>
                         {comp.isFeePerPerson && (
-                          <span className="block text-[10px] text-neutral-400 dark:text-neutral-500 mt-0.5 font-sans font-medium">per person</span>
+                          <span className="block text-xs uppercase tracking-wider text-neutral-400 mt-1 font-semibold">
+                            PER PERSON
+                          </span>
                         )}
                       </div>
                     </Link>

@@ -493,7 +493,7 @@ export default function CompetitionDetailPage() {
                     <CreditCard className="h-4 w-4 text-[#22D3EE]" />
                   </div>
                   <div>
-                    <div className="text-xs uppercase tracking-widest text-neutral-400 font-mono font-bold">
+                    <div className="text-xs uppercase tracking-widest text-neutral-600 dark:text-neutral-405 font-mono font-bold">
                       Entry Fee
                     </div>
                     <div className="text-[#111827] dark:text-neutral-200 font-semibold text-sm font-sans">
@@ -503,7 +503,9 @@ export default function CompetitionDetailPage() {
                         <>
                           <span>{competition.entryFee} BDT</span>
                           {competition.isFeePerPerson && (
-                            <span className="block text-[10px] text-neutral-400 dark:text-neutral-500 font-medium mt-0.5">per person</span>
+                            <span className="block text-xs uppercase tracking-wider text-neutral-600 dark:text-neutral-400 mt-1 font-semibold">
+                              PER PERSON
+                            </span>
                           )}
                         </>
                       )}
@@ -519,7 +521,7 @@ export default function CompetitionDetailPage() {
                     <Users className="h-4 w-4 text-[#8B5CF6]" />
                   </div>
                   <div>
-                    <div className="text-xs uppercase tracking-widest text-neutral-400 font-mono font-bold">
+                    <div className="text-xs uppercase tracking-widest text-neutral-600 dark:text-neutral-405 font-mono font-bold">
                       Team Size
                     </div>
                     <div className="text-[#111827] dark:text-neutral-200 font-semibold text-sm font-sans">
@@ -536,7 +538,7 @@ export default function CompetitionDetailPage() {
                     <Shield className="h-4 w-4 text-[#22D3EE]" />
                   </div>
                   <div>
-                    <div className="text-xs uppercase tracking-widest text-neutral-400 font-mono font-bold">
+                    <div className="text-xs uppercase tracking-widest text-neutral-600 dark:text-neutral-405 font-mono font-bold">
                       Eligibility
                     </div>
                     <div className="text-[#111827] dark:text-neutral-200 font-semibold text-sm capitalize font-sans">

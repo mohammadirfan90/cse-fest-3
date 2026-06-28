@@ -23,9 +23,10 @@ interface EnrichedPayment {
   reviewed_at: string | null;
   reviewed_by: string | null;
   teams: { id: string; name: string } | null;
-  competitions: { id: string; name: string; type: string; entry_fee: number } | null;
+  competitions: { id: string; name: string; type: string; entry_fee: number; is_fee_per_person: boolean } | null;
   team_score: number | null;
   team_rank: number | null;
+  member_count: number;
 }
 
 // GET: Fetch all payments for admin review
@@ -66,7 +67,7 @@ export async function GET(req: Request) {
     // 3. Query payments with team and competition details
     let query = supabase
       .from("payments")
-      .select("*, teams(id, name), competitions(id, name, type, entry_fee)")
+      .select("*, teams(id, name), competitions(id, name, type, entry_fee, is_fee_per_person)")
       .order("created_at", { ascending: false });
 
     if (statusFilter) {
@@ -84,6 +85,7 @@ export async function GET(req: Request) {
     const teamIds = (payments || []).map((p) => p.team_id);
     let scores: { team_id: string; competition_id: string; score: number }[] = [];
     let rankings: { team_id: string; rank_position: number }[] = [];
+    let memberCounts: Record<string, number> = {};
 
     if (teamIds.length > 0) {
       const { data: scoresData } = await supabase
@@ -97,6 +99,19 @@ export async function GET(req: Request) {
         .select("team_id, rank_position")
         .in("team_id", teamIds);
       rankings = (rankingsData || []) as { team_id: string; rank_position: number }[];
+
+      // Count accepted team members
+      const { data: membersData } = await supabase
+        .from("team_members")
+        .select("team_id")
+        .in("team_id", teamIds)
+        .eq("invitation_status", "accepted");
+
+      if (membersData) {
+        membersData.forEach((m) => {
+          memberCounts[m.team_id] = (memberCounts[m.team_id] || 0) + 1;
+        });
+      }
     }
 
     const enriched: EnrichedPayment[] = (payments || []).map((p) => {
@@ -118,9 +133,10 @@ export async function GET(req: Request) {
         reviewed_at: p.reviewed_at,
         reviewed_by: p.reviewed_by,
         teams: p.teams as { id: string; name: string } | null,
-        competitions: p.competitions as { id: string; name: string; type: string; entry_fee: number } | null,
+        competitions: p.competitions as { id: string; name: string; type: string; entry_fee: number; is_fee_per_person: boolean } | null,
         team_score: matchedScore ? matchedScore.score : null,
         team_rank: matchedRank ? matchedRank.rank_position : null,
+        member_count: memberCounts[p.team_id] || 1,
       };
     });
 

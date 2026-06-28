@@ -23,6 +23,8 @@ interface Competition {
   shortDescription: string;
   teamSize: string;
   fee: string;
+  entryFee?: number;
+  isFeePerPerson?: boolean;
   eligibility: string;
   prizePool: string;
   coverImageUrl?: string;
@@ -252,10 +254,23 @@ function CompetitionsListContent() {
                       </Link>
 
                       <div className="mt-auto space-y-4">
-                        <Link href={`/competitions/${comp.id}`} className="flex justify-between items-center py-3 border-y border-neutral-850 block hover:text-neutral-200 transition-colors">
-                          <span className="text-sm font-bold text-neutral-500 uppercase font-sans">Prize Pool</span>
-                          <span className="font-mono text-secondary dark:text-white text-sm font-extrabold">{comp.prizePool}</span>
-                        </Link>
+                        <div className="border-y border-neutral-850 divide-y divide-neutral-850/50">
+                          <Link href={`/competitions/${comp.id}`} className="flex justify-between items-center py-2.5 block hover:text-neutral-200 transition-colors">
+                            <span className="text-sm font-bold text-neutral-500 uppercase font-sans">Prize Pool</span>
+                            <span className="font-mono text-secondary dark:text-white text-sm font-extrabold">{comp.prizePool}</span>
+                          </Link>
+                          <Link href={`/competitions/${comp.id}`} className="flex justify-between items-start py-2.5 block hover:text-neutral-200 transition-colors">
+                            <span className="text-sm font-bold text-neutral-500 uppercase font-sans">Entry Fee</span>
+                            <div className="text-right">
+                              <span className="font-mono text-neutral-200 text-sm font-extrabold">
+                                {comp.entryFee === 0 ? "Free" : `${comp.entryFee} BDT`}
+                              </span>
+                              {comp.isFeePerPerson && (
+                                <span className="block text-[10px] text-neutral-500 font-sans mt-0.5 font-medium">per person</span>
+                              )}
+                            </div>
+                          </Link>
+                        </div>
                         <div className="flex gap-3">
                           {comp.status === "registration_closed" ? (
                             <Button

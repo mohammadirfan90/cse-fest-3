@@ -51,6 +51,8 @@ interface Competition {
   description: string;
   teamSize: string;
   fee: string;
+  entryFee?: number;
+  isFeePerPerson?: boolean;
   eligibility: string;
   prizePool: string;
   championPrize: string;
@@ -495,7 +497,16 @@ export default function CompetitionDetailPage() {
                       Entry Fee
                     </div>
                     <div className="text-[#111827] dark:text-neutral-200 font-semibold text-sm font-sans">
-                      {competition.fee}
+                      {competition.entryFee === 0 ? (
+                        "Free"
+                      ) : (
+                        <>
+                          <span>{competition.entryFee} BDT</span>
+                          {competition.isFeePerPerson && (
+                            <span className="block text-[10px] text-neutral-400 dark:text-neutral-500 font-medium mt-0.5">per person</span>
+                          )}
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>

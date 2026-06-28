@@ -123,7 +123,7 @@ export async function POST(req: Request) {
     // 3. Authorize (Must be accepted member of the team)
     const { data: teamRecord, error: teamQueryErr } = await supabase
       .from("teams")
-      .select("id, name, status, competitions(id, name, entry_fee, eligibility, payment_instructions, rounds_count, preliminary_published)")
+      .select("id, name, status, competitions(id, name, entry_fee, is_fee_per_person, eligibility, payment_instructions, rounds_count, preliminary_published)")
       .eq("id", team_id)
       .single();
 
@@ -153,6 +153,7 @@ export async function POST(req: Request) {
       id: string;
       name: string;
       entry_fee: number;
+      is_fee_per_person: boolean | null;
       eligibility: string;
       payment_instructions: string | null;
       rounds_count: number;
@@ -170,6 +171,30 @@ export async function POST(req: Request) {
     if (comp.entry_fee <= 0) {
       return NextResponse.json(
         { success: false, message: "This competition has no entry fee. Payment not required." },
+        { status: 400 }
+      );
+    }
+
+    // Calculate expected fee (per-person or flat-rate per team)
+    let expectedAmount = Number(comp.entry_fee);
+    if (comp.is_fee_per_person) {
+      const { count: memberCount, error: countErr } = await supabase
+        .from("team_members")
+        .select("id", { count: "exact", head: true })
+        .eq("team_id", team_id)
+        .eq("invitation_status", "accepted");
+
+      if (countErr) {
+        throw new Error(`Failed to calculate team size: ${countErr.message}`);
+      }
+
+      const acceptedCount = memberCount || 1;
+      expectedAmount = Number(comp.entry_fee) * acceptedCount;
+    }
+
+    if (amount !== expectedAmount) {
+      return NextResponse.json(
+        { success: false, message: `Payment amount mismatch. Expected ${expectedAmount} BDT.` },
         { status: 400 }
       );
     }

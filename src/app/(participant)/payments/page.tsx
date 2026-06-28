@@ -23,11 +23,13 @@ interface UserTeam {
   id: string;
   name: string;
   status: string;
+  member_count?: number;
   competitions: {
     id: string;
     name: string;
     type: string;
     entry_fee: number;
+    is_fee_per_person?: boolean;
     eligibility: string;
     payment_instructions: string | null;
     rounds_count: number;
@@ -138,12 +140,37 @@ export default function PaymentsPage() {
           const ids = memberships.map((m) => m.team_id);
           const { data: teamData, error } = await supabase
             .from("teams")
-            .select("id, name, status, competitions(id, name, type, entry_fee, eligibility, payment_instructions, rounds_count, preliminary_published)")
+            .select(`
+              id, 
+              name, 
+              status, 
+              competitions(
+                id, 
+                name, 
+                type, 
+                entry_fee, 
+                is_fee_per_person, 
+                eligibility, 
+                payment_instructions, 
+                rounds_count, 
+                preliminary_published
+              ),
+              team_members(id, invitation_status)
+            `)
             .in("id", ids);
 
           if (error) throw error;
-          const formattedTeams = (teamData || []) as unknown as UserTeam[];
-          setTeams(formattedTeams);
+          const formattedTeams = (teamData || []).map((t) => {
+            const acceptedMembers = t.team_members?.filter((m: any) => m.invitation_status === "accepted") || [];
+            return {
+              id: t.id,
+              name: t.name,
+              status: t.status,
+              member_count: acceptedMembers.length || 1,
+              competitions: t.competitions,
+            };
+          });
+          setTeams(formattedTeams as unknown as UserTeam[]);
 
           if (formattedTeams.length > 0) {
             setSelectedTeamId(formattedTeams[0].id);
@@ -222,10 +249,9 @@ export default function PaymentsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           team_id: selectedTeamId,
-          amount: activeTeam.competitions.entry_fee,
+          amount: entryFee,
           transaction_id: transactionId.trim(),
           method,
-
         }),
       });
 
@@ -285,7 +311,10 @@ export default function PaymentsPage() {
 
   const activeTeam = teams.find((t) => t.id === selectedTeamId);
   const comp = activeTeam?.competitions;
-  const entryFee = comp?.entry_fee || 0;
+  const memberCount = activeTeam?.member_count || 1;
+  const entryFee = comp?.is_fee_per_person
+    ? (comp?.entry_fee || 0) * memberCount
+    : (comp?.entry_fee || 0);
 
   // Find the latest payment record
   const latestPayment = payments.length > 0 ? payments[0] : null;
@@ -513,7 +542,11 @@ export default function PaymentsPage() {
                         Required Registration Fee
                       </label>
                       <div className="h-10 flex items-center bg-neutral-950 border border-neutral-800 px-3.5 rounded-lg text-neutral-100 font-mono font-bold text-sm">
-                        {entryFee} BDT
+                        {comp?.is_fee_per_person ? (
+                          <span>{comp.entry_fee} BDT x {memberCount} member{memberCount > 1 ? "s" : ""} = {entryFee} BDT</span>
+                        ) : (
+                          <span>{entryFee} BDT</span>
+                        )}
                       </div>
                     </div>
                     <Input
@@ -622,14 +655,30 @@ export default function PaymentsPage() {
                     {selectedMethodObj.instructions}
                   </p>
                   <div className="pt-2.5 border-t border-neutral-850/40 font-mono text-sm text-neutral-500">
-                    Send exact fee: <strong className="text-neutral-300">{entryFee} BDT</strong>
+                    {comp?.is_fee_per_person ? (
+                      <div>
+                        Send fee: <strong className="text-neutral-300">{comp.entry_fee} BDT</strong> x <strong className="text-neutral-300">{memberCount} member{memberCount > 1 ? "s" : ""}</strong> = <strong className="text-neutral-200">{entryFee} BDT</strong>
+                      </div>
+                    ) : (
+                      <div>
+                        Send exact fee: <strong className="text-neutral-300">{entryFee} BDT</strong>
+                      </div>
+                    )}
                   </div>
                 </div>
               ) : (
                 <div className="space-y-3 leading-relaxed text-neutral-400">
                   <h4 className="font-semibold text-neutral-350">Step-by-Step Guide:</h4>
                   <ol className="list-decimal pl-4 space-y-2">
-                    <li>Send the exact entry fee amount (<span className="text-neutral-200 font-bold font-mono">{entryFee} BDT</span>) to the selected account number above.</li>
+                    <li>Send the exact entry fee amount (
+                      {comp?.is_fee_per_person ? (
+                        <span className="text-neutral-200 font-bold font-mono">
+                          {comp.entry_fee} BDT x {memberCount} member{memberCount > 1 ? "s" : ""} = {entryFee} BDT
+                        </span>
+                      ) : (
+                        <span className="text-neutral-200 font-bold font-mono">{entryFee} BDT</span>
+                      )}
+                    ) to the selected account number above.</li>
                     <li>Use your <span className="text-neutral-200 font-mono font-semibold">Team Name</span> as reference.</li>
                     <li>Copy the <span className="text-neutral-200 font-bold font-mono">Transaction ID (TXID)</span> from the SMS confirmation.</li>
                     <li>Take a screenshot of the confirmation statement as proof.</li>

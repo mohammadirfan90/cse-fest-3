@@ -106,6 +106,21 @@ async function verifyLeaderAndDeadline(supabase: SupabaseClient, teamId: string,
     };
   }
 
+  // Block modifications if payment is pending or approved
+  const { data: activePayments } = await supabase
+    .from("payments")
+    .select("status")
+    .eq("team_id", teamId)
+    .in("status", ["pending", "approved"]);
+
+  if (activePayments && activePayments.length > 0) {
+    return {
+      error: true,
+      status: 400,
+      message: "This action is locked because a payment has already been submitted or approved for this team.",
+    };
+  }
+
   return { error: false, team };
 }
 
@@ -147,6 +162,21 @@ async function verifyMembershipAndDeadline(supabase: SupabaseClient, teamId: str
       error: true,
       status: 400,
       message: "The registration deadline for this competition has passed. No modifications are allowed.",
+    };
+  }
+
+  // Block modifications if payment is pending or approved
+  const { data: activePayments } = await supabase
+    .from("payments")
+    .select("status")
+    .eq("team_id", teamId)
+    .in("status", ["pending", "approved"]);
+
+  if (activePayments && activePayments.length > 0) {
+    return {
+      error: true,
+      status: 400,
+      message: "This action is locked because a payment has already been submitted or approved for this team.",
     };
   }
 
@@ -794,6 +824,20 @@ export async function POST(req: Request) {
         );
       }
 
+      // Block modifications if payment is pending or approved
+      const { data: activePayments } = await supabase
+        .from("payments")
+        .select("status")
+        .eq("team_id", team_id)
+        .in("status", ["pending", "approved"]);
+
+      if (activePayments && activePayments.length > 0) {
+        return NextResponse.json(
+          { success: false, message: "Roster modifications are locked because a payment has already been submitted or approved for this team." },
+          { status: 400 }
+        );
+      }
+
       // Check current accepted roster size limit
       const { count: memberCount } = await supabase
         .from("team_members")
@@ -888,6 +932,20 @@ export async function POST(req: Request) {
 
       if (!memberRecord) {
         return NextResponse.json({ success: false, message: "Invitation not found." }, { status: 404 });
+      }
+
+      // Block modifications if payment is pending or approved
+      const { data: activePayments } = await supabase
+        .from("payments")
+        .select("status")
+        .eq("team_id", memberRecord.team_id)
+        .in("status", ["pending", "approved"]);
+
+      if (activePayments && activePayments.length > 0) {
+        return NextResponse.json(
+          { success: false, message: "Roster modifications are locked because a payment has already been submitted or approved for this team." },
+          { status: 400 }
+        );
       }
 
       // Check deadline

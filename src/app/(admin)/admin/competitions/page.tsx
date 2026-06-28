@@ -39,6 +39,7 @@ type Competition = {
   submission_start: string;
   submission_end: string;
   entry_fee: number;
+  is_fee_per_person?: boolean;
   payment_instructions: string;
   rulebook_url: string;
   prize_pool: string;
@@ -68,6 +69,7 @@ const defaultCompState: Competition = {
   submission_start: "",
   submission_end: "",
   entry_fee: 0,
+  is_fee_per_person: false,
   payment_instructions: "",
   rulebook_url: "",
   prize_pool: "",
@@ -158,6 +160,7 @@ export default function AdminCompetitionsPage() {
       short_name: comp.short_name || "",
       hero_capacity: comp.hero_capacity ?? 80,
       rounds_count: comp.rounds_count ?? 1,
+      is_fee_per_person: comp.is_fee_per_person ?? false,
     });
     setShowForm(true);
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -389,15 +392,29 @@ export default function AdminCompetitionsPage() {
                       <option value="external">External only</option>
                     </select>
                   </div>
-                  <Input
-                    label="Entry Fee (BDT)"
-                    type="number"
-                    min="0"
-                    value={formData.entry_fee}
-                    onChange={(e) => setFormData({ ...formData, entry_fee: parseFloat(e.target.value) || 0 })}
-                    disabled={formLoading}
-                    required
-                  />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <Input
+                      label="Entry Fee (BDT)"
+                      type="number"
+                      min="0"
+                      value={formData.entry_fee}
+                      onChange={(e) => setFormData({ ...formData, entry_fee: parseFloat(e.target.value) || 0 })}
+                      disabled={formLoading}
+                      required
+                    />
+                    <div className="flex flex-col space-y-1.5 justify-end pb-1">
+                      <label className="relative flex items-center gap-3 p-3 rounded border border-neutral-850 bg-neutral-950/40 hover:bg-neutral-900/50 cursor-pointer select-none transition-all duration-200 text-xs font-mono uppercase tracking-wider text-neutral-350">
+                        <input
+                          type="checkbox"
+                          checked={formData.is_fee_per_person || false}
+                          onChange={(e) => setFormData({ ...formData, is_fee_per_person: e.target.checked })}
+                          disabled={formLoading}
+                          className="rounded border-neutral-750 bg-neutral-950 text-neutral-300 focus:ring-neutral-800 h-4 w-4 cursor-pointer"
+                        />
+                        <span>Fee is Per-Person</span>
+                      </label>
+                    </div>
+                  </div>
                   <div className="flex flex-col space-y-1.5 w-full">
                     <label className="text-sm font-medium text-neutral-300 font-sans select-none">Rounds Count</label>
                     <select
@@ -679,7 +696,7 @@ export default function AdminCompetitionsPage() {
                       </div>
                       <div className="flex items-center gap-2">
                         <DollarSign className="h-4 w-4 text-neutral-500 shrink-0" />
-                        <span>Fee: <span className="font-semibold text-neutral-200 font-mono">{comp.entry_fee} BDT</span></span>
+                        <span>Fee: <span className="font-semibold text-neutral-200 font-mono">{comp.entry_fee} BDT{comp.is_fee_per_person ? " / person" : ""}</span></span>
                       </div>
                       <div className="flex items-center gap-2">
                         <Info className="h-4 w-4 text-neutral-500 shrink-0" />

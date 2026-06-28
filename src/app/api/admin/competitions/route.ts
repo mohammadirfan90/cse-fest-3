@@ -19,6 +19,7 @@ const competitionValidationSchema = z.object({
   submission_start: z.string().min(1, "Submission start is required"),
   submission_end: z.string().min(1, "Submission end is required"),
   entry_fee: z.number().min(0, "Entry fee cannot be negative").default(0),
+  is_fee_per_person: z.boolean().default(false),
   payment_instructions: z.string().optional().nullable(),
   rulebook_url: z.string().optional().nullable(),
   prize_pool: z.string().optional().nullable(),

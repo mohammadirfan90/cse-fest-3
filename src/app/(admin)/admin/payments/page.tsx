@@ -42,9 +42,11 @@ interface PaymentItem {
     name: string;
     type: string;
     entry_fee: number;
+    is_fee_per_person?: boolean;
   } | null;
   team_score: number | null;
   team_rank: number | null;
+  member_count?: number;
 }
 
 interface PaymentGateway {
@@ -550,7 +552,9 @@ export default function AdminPaymentsPage() {
         <div className="space-y-4">
           {filteredPayments.map((p, idx) => {
             const isPending = p.status === "pending";
-            const expectedFee = p.competitions?.entry_fee || 0;
+            const expectedFee = p.competitions?.is_fee_per_person
+              ? (p.competitions?.entry_fee || 0) * (p.member_count || 1)
+              : (p.competitions?.entry_fee || 0);
             const amountMatches = p.amount === expectedFee;
 
             return (
@@ -602,6 +606,11 @@ export default function AdminPaymentsPage() {
                             <p className={`font-semibold font-mono ${amountMatches ? "text-neutral-200" : "text-error"}`}>
                               {p.amount} BDT
                             </p>
+                            {p.competitions?.is_fee_per_person && (
+                              <p className="text-[10px] text-neutral-400 font-sans mt-0.5">
+                                ({p.competitions.entry_fee} BDT x {p.member_count || 1} member{p.member_count && p.member_count > 1 ? "s" : ""})
+                              </p>
+                            )}
                           </div>
                           <div className="p-2 rounded bg-neutral-950 border border-neutral-850 space-y-0.5">
                             <p className="text-neutral-600 text-sm uppercase tracking-widest font-mono">Method</p>

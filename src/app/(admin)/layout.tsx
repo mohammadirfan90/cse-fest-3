@@ -23,6 +23,7 @@ import {
   ChevronRight,
   Search,
   FileArchive,
+  Users,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
@@ -126,7 +127,7 @@ export default function AdminLayout({
 
   const menuItems = [
     { label: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
-    
+    { label: "Registrations", href: "/admin/registrations", icon: Users },
     { label: "Competitions", href: "/admin/competitions", icon: Trophy },
     { label: "Submissions", href: "/admin/submissions", icon: Send },
     { label: "Payments", href: "/admin/payments", icon: CreditCard },

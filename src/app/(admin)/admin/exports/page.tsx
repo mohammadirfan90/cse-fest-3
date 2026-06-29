@@ -8,8 +8,6 @@ import {
   Layers, 
   FileSpreadsheet, 
   CreditCard, 
-  Trophy, 
-  Send,
   Loader2, 
   CheckCircle2, 
   AlertCircle, 
@@ -88,25 +86,11 @@ const EXPORT_TYPES_CONFIG = [
     badge: "Structured",
   },
   {
-    id: "submissions",
-    title: "Submissions",
-    description: "Submission metadata, file links (PDFs/Google Docs), score values, status, and reviewer info.",
-    icon: Send,
-    color: "from-amber-500/10 to-amber-500/20 border-amber-500/30 text-amber-500",
-  },
-  {
     id: "payments",
     title: "Payments Log",
     description: "Full transaction record containing Bkash/Nagad transactions, amounts, verification status, and timestamps.",
     icon: CreditCard,
     color: "from-emerald-500/10 to-emerald-500/20 border-emerald-500/30 text-emerald-500",
-  },
-  {
-    id: "rankings",
-    title: "Leaderboard Rankings",
-    description: "Active leaderboard rankings, total scores, final validation statuses, and public visibility options.",
-    icon: Trophy,
-    color: "from-rose-500/10 to-rose-500/20 border-rose-500/30 text-rose-500",
   },
   {
     id: "teams",
@@ -275,54 +259,59 @@ export default function AdminExportsPage() {
 
       {/* Main Form Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Left Columns - Form Configuration */}
-        <div className="lg:col-span-2 space-y-6">
-          <Card className="bg-sidebar border-sidebar-border overflow-hidden">
-            <CardHeader className="border-b border-sidebar-border/40 pb-4">
-              <CardTitle className="text-sm font-semibold tracking-wider uppercase font-mono text-muted-foreground flex items-center gap-2">
-                <span>1. Select Export Type</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {EXPORT_TYPES_CONFIG.map((opt) => {
-                  const Icon = opt.icon;
-                  const isSelected = exportType === opt.id;
-                  return (
-                    <button
-                      key={opt.id}
-                      onClick={() => setExportType(opt.id)}
-                      className={`text-left p-4 rounded-lg border transition-all duration-200 cursor-pointer flex flex-col justify-between relative group overflow-hidden ${
-                        isSelected
-                          ? "bg-sidebar-accent border-primary ring-1 ring-primary"
-                          : "bg-background border-sidebar-border hover:border-sidebar-border/80 hover:bg-sidebar-accent/50"
-                      }`}
-                    >
-                      <div className="flex justify-between items-start w-full">
-                        <div className={`p-2 rounded-md bg-gradient-to-br ${opt.color} mb-3 group-hover:scale-105 transition-transform duration-200`}>
-                          <Icon className="h-5 w-5" />
+        {/* Left Columns - Card 1 (Select Export Type) */}
+        <div className="lg:col-span-2 flex">
+          <Card className="bg-sidebar border-sidebar-border overflow-hidden w-full flex flex-col justify-between">
+            <div>
+              <CardHeader className="border-b border-sidebar-border/40 pb-4">
+                <CardTitle className="text-sm font-semibold tracking-wider uppercase font-mono text-muted-foreground flex items-center gap-2">
+                  <span>1. Select Export Type</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {EXPORT_TYPES_CONFIG.map((opt) => {
+                    const Icon = opt.icon;
+                    const isSelected = exportType === opt.id;
+                    return (
+                      <button
+                        key={opt.id}
+                        onClick={() => setExportType(opt.id)}
+                        className={`text-left p-4 rounded-lg border transition-all duration-250 cursor-pointer flex flex-col justify-between relative group overflow-hidden hover:scale-[1.02] hover:shadow-md ${
+                          isSelected
+                            ? "bg-sidebar-accent border-primary ring-1 ring-primary shadow-sm"
+                            : "bg-background border-sidebar-border hover:border-sidebar-border/80 hover:bg-sidebar-accent/50"
+                        }`}
+                      >
+                        <div className="flex justify-between items-start w-full">
+                          <div className={`p-2 rounded-md bg-gradient-to-br ${opt.color} mb-3 group-hover:scale-105 transition-transform duration-250`}>
+                            <Icon className="h-5 w-5" />
+                          </div>
+                          {opt.badge && (
+                            <span className="text-sm uppercase font-mono font-bold tracking-wider px-2 py-0.5 rounded-full bg-primary/10 text-primary">
+                              {opt.badge}
+                            </span>
+                          )}
                         </div>
-                        {opt.badge && (
-                          <span className="text-sm uppercase font-mono font-bold tracking-wider px-2 py-0.5 rounded-full bg-primary/10 text-primary">
-                            {opt.badge}
-                          </span>
-                        )}
-                      </div>
-                      <div>
-                        <h3 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
-                          {opt.title}
-                        </h3>
-                        <p className="text-xs text-muted-foreground mt-1 line-clamp-2 leading-relaxed">
-                          {opt.description}
-                        </p>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </CardContent>
+                        <div>
+                          <h3 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
+                            {opt.title}
+                          </h3>
+                          <p className="text-xs text-muted-foreground mt-1 line-clamp-2 leading-relaxed">
+                            {opt.description}
+                          </p>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </div>
           </Card>
+        </div>
 
+        {/* Right Column - Status & Action */}
+        <div className="flex flex-col gap-6 lg:col-span-1">
           {/* Segment Filter Selection */}
           <Card className="bg-sidebar border-sidebar-border">
             <CardHeader className="border-b border-sidebar-border/40 pb-4">
@@ -331,12 +320,12 @@ export default function AdminExportsPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="p-6">
-              <div className="space-y-2 max-w-md">
+              <div className="space-y-2">
                 <label className="text-sm font-bold text-muted-foreground uppercase tracking-widest font-mono">
                   Competition Filter
                 </label>
                 <Select value={competitionId} onValueChange={setCompetitionId}>
-                  <SelectTrigger className="bg-background border-sidebar-border">
+                  <SelectTrigger className="bg-background border-sidebar-border w-full">
                     <SelectValue placeholder="All Competitions" />
                   </SelectTrigger>
                   <SelectContent className="bg-sidebar border-sidebar-border">
@@ -350,16 +339,14 @@ export default function AdminExportsPage() {
                 </Select>
                 <p className="text-sm text-muted-foreground flex items-center gap-1.5 mt-2">
                   <Info className="h-3 w-3 shrink-0" />
-                  <span>Only reports support filtering (e.g. Participants or Submissions). Others will ignore filter.</span>
+                  <span>Filters the selected export data by the chosen competition.</span>
                 </p>
               </div>
             </CardContent>
           </Card>
-        </div>
 
-        {/* Right Column - Status & Action */}
-        <div className="space-y-6">
-          <Card className="bg-sidebar border-sidebar-border h-full flex flex-col justify-between overflow-hidden relative">
+          {/* Export Overview */}
+          <Card className="bg-sidebar border-sidebar-border flex-1 flex flex-col justify-between overflow-hidden relative min-h-[350px]">
             <div className="absolute top-[-10%] right-[-10%] w-[40%] h-[40%] bg-primary/5 rounded-full blur-3xl pointer-events-none" />
             <div>
               <CardHeader className="border-b border-sidebar-border/40 pb-4">
@@ -418,7 +405,7 @@ export default function AdminExportsPage() {
               </CardContent>
             </div>
 
-            <CardFooter className="p-6 border-t border-sidebar-border/40 bg-sidebar-accent/30">
+            <CardFooter className="p-6 border-t border-sidebar-border/40 bg-sidebar-accent/30 mt-auto">
               <Button
                 onClick={handleDownload}
                 disabled={loading || previewLoading || totalRows === 0}
@@ -452,8 +439,8 @@ export default function AdminExportsPage() {
             </div>
           </CardHeader>
           <CardContent className="p-0">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
+            <div className="overflow-x-auto w-full scrollbar-thin scrollbar-thumb-sidebar-border">
+              <table className="w-full min-w-[1000px] text-left border-collapse table-auto">
                 <thead>
                   <tr className="bg-sidebar-accent/50 border-b border-sidebar-border">
                     {previewHeaders.map((header, idx) => (

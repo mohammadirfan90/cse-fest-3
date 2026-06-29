@@ -5,28 +5,22 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   Users,
-  Trophy,
   FileText,
   Video,
   ExternalLink,
-  Calendar,
   Crown,
   AlertCircle,
   Plus,
-  Compass,
-  ArrowRight,
   LogOut,
   Mail,
   Phone,
   Bookmark,
-  CheckCircle,
   Clock,
-  HelpCircle,
   GraduationCap
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import Image from "next/image";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
@@ -39,6 +33,7 @@ const COMPETITION_IMAGES: Record<string, string> = {
   "idea-showcase": "/idea-showcase-logo.png",
 };
 import { createClient } from "@/lib/supabase/client";
+import RegistrationsList from "@/components/admin/RegistrationsList";
 
 interface Member {
   id: string;
@@ -78,7 +73,27 @@ interface Team {
     description?: string | null;
   } | null;
   members: Member[];
-  submission?: any | null; // loaded client-side per team
+  submission?: DashboardSubmission | null; // loaded client-side per team
+}
+
+interface DashboardSubmission {
+  id: string;
+  title: string;
+  youtube_demo_url?: string | null;
+  notes?: string | null;
+  submitted_at: string;
+}
+
+interface DashboardCompetition {
+  id: string;
+  name: string;
+  coverImageUrl?: string | null;
+  shortName?: string | null;
+  teamSize?: string | null;
+  shortDescription?: string | null;
+  fee?: string | null;
+  status?: string | null;
+  rulebookUrl?: string | null;
 }
 
 const containerVariants = {
@@ -95,10 +110,11 @@ export default function DashboardPage() {
   const router = useRouter();
   const [loading, setLoading] = React.useState(true);
   const [teams, setTeams] = React.useState<Team[]>([]);
-  const [userEmail, setUserEmail] = React.useState<string | null>(null);
   const [userName, setUserName] = React.useState<string | null>(null);
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
-  const [allCompetitions, setAllCompetitions] = React.useState<any[]>([]);
+  const [userRole, setUserRole] = React.useState<string>("participant");
+  const [activeTab, setActiveTab] = React.useState<"my_registrations" | "all_registrations">("my_registrations");
+  const [allCompetitions, setAllCompetitions] = React.useState<DashboardCompetition[]>([]);
 
   const supabase = createClient();
 
@@ -114,8 +130,17 @@ export default function DashboardPage() {
         return;
       }
 
-      setUserEmail(user.email ?? null);
       setUserName(user.user_metadata?.full_name ?? user.user_metadata?.name ?? "Innovator");
+
+      // Fetch user role
+      const { data: userData } = await supabase
+        .from("users")
+        .select("role")
+        .eq("id", user.id)
+        .single();
+      
+      const role = userData?.role || "participant";
+      setUserRole(role);
 
       // Fetch teams and rosters
       const res = await fetch("/api/teams");
@@ -152,16 +177,19 @@ export default function DashboardPage() {
       if (compData.success) {
         setAllCompetitions(compData.data || []);
       }
-    } catch (err: any) {
-      console.error("Dashboard error:", err);
-      setErrorMsg(err.message || "An error occurred while loading dashboard data.");
-    } finally {
-      setLoading(false);
-    }
+      } catch (err: unknown) {
+        console.error("Dashboard error:", err);
+        const errorMessage = err instanceof Error ? err.message : "An error occurred while loading dashboard data.";
+        setErrorMsg(errorMessage);
+      } finally {
+        setLoading(false);
+      }
   }, [supabase, router]);
 
   React.useEffect(() => {
-    loadData();
+    Promise.resolve().then(() => {
+      loadData();
+    });
   }, [loadData]);
 
   // Log out
@@ -265,12 +293,48 @@ export default function DashboardPage() {
         </motion.div>
       )}
 
-      {/* Main Registrations Section */}
-      <motion.div variants={itemVariants} className="space-y-6">
-        <div className="flex items-center gap-2">
-          <Bookmark className="h-5 w-5 text-primary" />
-          <h2 className="text-lg font-heading font-extrabold text-neutral-100">My Registrations</h2>
+      {/* Tab Switcher for coordinator role */}
+      {userRole === "coordinator" && (
+        <div className="flex border-b border-neutral-900 pb-px mb-6">
+          <button
+            onClick={() => setActiveTab("my_registrations")}
+            className={`px-6 py-3 text-sm font-mono font-bold uppercase tracking-wider border-b-2 transition-all cursor-pointer ${
+              activeTab === "my_registrations"
+                ? "border-primary text-primary"
+                : "border-transparent text-neutral-400 hover:text-neutral-200"
+            }`}
+          >
+            My Registrations
+          </button>
+          <button
+            onClick={() => setActiveTab("all_registrations")}
+            className={`px-6 py-3 text-sm font-mono font-bold uppercase tracking-wider border-b-2 transition-all cursor-pointer ${
+              activeTab === "all_registrations"
+                ? "border-primary text-primary"
+                : "border-transparent text-neutral-400 hover:text-neutral-200"
+            }`}
+          >
+            All Team Registrations
+          </button>
         </div>
+      )}
+
+      {/* Main Content Area */}
+      {userRole === "coordinator" && activeTab === "all_registrations" ? (
+        <motion.div variants={itemVariants} className="space-y-6">
+          <div className="flex items-center gap-2">
+            <Bookmark className="h-5 w-5 text-primary" />
+            <h2 className="text-lg font-heading font-extrabold text-neutral-100">All Team Registrations</h2>
+          </div>
+          <RegistrationsList />
+        </motion.div>
+      ) : (
+        /* Main Registrations Section */
+        <motion.div variants={itemVariants} className="space-y-6">
+          <div className="flex items-center gap-2">
+            <Bookmark className="h-5 w-5 text-primary" />
+            <h2 className="text-lg font-heading font-extrabold text-neutral-100">My Registrations</h2>
+          </div>
 
         {teams.length > 0 ? (
           <div className="space-y-8">
@@ -481,7 +545,7 @@ export default function DashboardPage() {
                 const coverImage =
                   comp.coverImageUrl ||
                   COMPETITION_IMAGES[comp.id] ||
-                  COMPETITION_IMAGES[comp.shortName?.toLowerCase()] ||
+                  (comp.shortName ? COMPETITION_IMAGES[comp.shortName.toLowerCase()] : "") ||
                   "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?q=80&w=600";
 
                 return (
@@ -565,6 +629,7 @@ export default function DashboardPage() {
           </div>
         )}
       </motion.div>
+      )}
     </motion.div>
   );
 }

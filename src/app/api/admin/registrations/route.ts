@@ -45,9 +45,9 @@ export async function GET() {
       .eq("id", user.id)
       .single();
 
-    if (!userRecord || userRecord.role !== "admin") {
+    if (!userRecord || (userRecord.role !== "admin" && userRecord.role !== "coordinator")) {
       return NextResponse.json(
-        { success: false, message: "Forbidden. Admin only." },
+        { success: false, message: "Forbidden. Authorized access only." },
         { status: 403 }
       );
     }

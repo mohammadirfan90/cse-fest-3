@@ -293,7 +293,7 @@ export default function RegistrationsList() {
         <CardHeader className="border-b border-sidebar-border/40 pb-4">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <CardTitle className="text-sm font-semibold tracking-wider uppercase font-mono text-muted-foreground flex items-center gap-2">
-              <span>Roster Listing</span>
+              <span>Team Listing</span>
               <span className="text-xs bg-sidebar-accent px-2 py-0.5 rounded-full text-foreground tracking-normal font-sans">
                 {filteredRegistrations.length} team{filteredRegistrations.length !== 1 ? "s" : ""} found
               </span>
@@ -337,7 +337,7 @@ export default function RegistrationsList() {
                   <th className="p-3 text-xs font-mono font-bold text-muted-foreground">Team Details</th>
                   <th className="p-3 text-xs font-mono font-bold text-muted-foreground">Competition Segment</th>
                   <th className="p-3 text-xs font-mono font-bold text-muted-foreground">Team Leader</th>
-                  <th className="p-3 text-xs font-mono font-bold text-muted-foreground">Roster Size</th>
+                  <th className="p-3 text-xs font-mono font-bold text-muted-foreground">Team Size</th>
                   <th className="p-3 text-xs font-mono font-bold text-muted-foreground">Institution</th>
                   <th className="p-3 text-xs font-mono font-bold text-muted-foreground">Status / Payment</th>
                   <th className="p-3 text-xs font-mono font-bold text-muted-foreground text-center">Actions</th>
@@ -359,7 +359,6 @@ export default function RegistrationsList() {
                       <td className="p-3">
                         <div>
                           <div className="font-semibold text-foreground text-sm">{reg.name}</div>
-                          <div className="text-[10px] text-muted-foreground font-mono mt-0.5">{reg.id}</div>
                         </div>
                       </td>
 
@@ -407,7 +406,7 @@ export default function RegistrationsList() {
                           onClick={() => setSelectedTeam(reg)}
                           className="text-xs py-1 px-3 border border-sidebar-border bg-sidebar hover:bg-sidebar-accent cursor-pointer"
                         >
-                          View Roster
+                          View Team
                         </Button>
                       </td>
                     </tr>
@@ -466,7 +465,7 @@ export default function RegistrationsList() {
                 </button>
               </div>
 
-              {/* Roster Listing details */}
+              {/* Team Listing details */}
               <div className="space-y-4 max-h-[380px] overflow-y-auto pr-1">
                 {/* Team Info grid */}
                 <div className="grid grid-cols-2 gap-4 p-3.5 rounded-lg bg-background border border-sidebar-border/40 text-xs">
@@ -483,7 +482,7 @@ export default function RegistrationsList() {
                 {/* Member Listing */}
                 <div className="space-y-3">
                   <h4 className="text-xs font-bold font-mono text-muted-foreground uppercase tracking-widest">
-                    Roster Members ({selectedTeam.members.length})
+                    Team Members ({selectedTeam.members.length})
                   </h4>
                   
                   <div className="divide-y divide-sidebar-border/20 border border-sidebar-border rounded-lg bg-background overflow-hidden">

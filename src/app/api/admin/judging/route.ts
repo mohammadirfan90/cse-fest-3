@@ -69,7 +69,7 @@ export async function GET(req: Request) {
       .from("teams")
       .select("id, name, status, created_at, submissions(title, submitted_at)")
       .eq("competition_id", competitionId)
-      .in("status", ["submitted", "judging_ready", "finalist", "selected"]);
+      .in("status", ["submitted", "registered", "judging_ready", "finalist", "selected"]);
 
     if (teamsErr) throw teamsErr;
 

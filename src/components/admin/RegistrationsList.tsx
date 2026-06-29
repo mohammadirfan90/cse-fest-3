@@ -164,19 +164,16 @@ export default function RegistrationsList() {
   };
 
   const getStatusBadge = (reg: Registration) => {
-    if (reg.payment?.status === "approved" || reg.status === "registered" || reg.status === "finalist") {
-      return <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20">Approved / Registered</Badge>;
+    if (reg.status === "selected") {
+      return <Badge className="bg-amber-500/10 text-amber-400 border-amber-500/20 font-semibold font-mono">Primary Selected / Payment Pending</Badge>;
     }
-    if (reg.payment?.status === "pending") {
-      return <Badge className="bg-amber-500/10 text-amber-400 border-amber-500/20">Pending Review</Badge>;
+    if (reg.status === "finalist") {
+      return <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20 font-semibold font-mono">Selected</Badge>;
     }
-    if (reg.payment?.status === "resubmission_required") {
-      return <Badge className="bg-orange-500/10 text-orange-400 border-orange-500/20">Resubmit Payment</Badge>;
+    if (reg.status === "submitted" || reg.status === "registered") {
+      return <Badge className="bg-blue-500/10 text-blue-400 border-blue-500/20 font-semibold font-mono">Registered / Submitted</Badge>;
     }
-    if (reg.payment?.status === "rejected") {
-      return <Badge className="bg-rose-500/10 text-rose-400 border-rose-500/20">Rejected</Badge>;
-    }
-    return <Badge className="bg-neutral-800 text-neutral-400 border-neutral-700">Forming / Unpaid</Badge>;
+    return <Badge className="bg-neutral-800 text-neutral-400 border-neutral-700 font-semibold font-mono">Forming / Unpaid</Badge>;
   };
 
   return (

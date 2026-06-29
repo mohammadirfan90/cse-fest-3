@@ -85,7 +85,7 @@ export async function GET(req: Request) {
     const teamIds = (payments || []).map((p) => p.team_id);
     let scores: { team_id: string; competition_id: string; score: number }[] = [];
     let rankings: { team_id: string; rank_position: number }[] = [];
-    let memberCounts: Record<string, number> = {};
+    const memberCounts: Record<string, number> = {};
 
     if (teamIds.length > 0) {
       const { data: scoresData } = await supabase
@@ -127,6 +127,7 @@ export async function GET(req: Request) {
         amount: p.amount,
         transaction_id: p.transaction_id,
         screenshot_url: p.screenshot_url,
+        sender_number: p.sender_number,
         method: p.method,
         status: p.status,
         created_at: p.created_at,
@@ -233,7 +234,7 @@ export async function POST(req: Request) {
     // Payment resubmission_required or rejected -> Team status remains unchanged (either selected or forming)
     let teamStatus = null;
     if (status === "approved") {
-      teamStatus = "registered";
+      teamStatus = "finalist";
 
       const { error: teamUpdateErr } = await supabase
         .from("teams")

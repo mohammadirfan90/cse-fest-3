@@ -16,7 +16,11 @@ import {
   Phone,
   Bookmark,
   Clock,
-  GraduationCap
+  GraduationCap,
+  CreditCard,
+  Send,
+  CheckCircle,
+  Copy
 } from "lucide-react";
 import { motion } from "framer-motion";
 import Image from "next/image";
@@ -71,9 +75,13 @@ interface Team {
     rulebook_url?: string | null;
     template_link?: string | null;
     description?: string | null;
+    entry_fee?: number;
+    is_fee_per_person?: boolean;
+    submission_required?: boolean;
   } | null;
   members: Member[];
   submission?: DashboardSubmission | null; // loaded client-side per team
+  payment?: DashboardPayment | null; // loaded client-side per team
 }
 
 interface DashboardSubmission {
@@ -82,6 +90,16 @@ interface DashboardSubmission {
   youtube_demo_url?: string | null;
   notes?: string | null;
   submitted_at: string;
+}
+
+interface DashboardPayment {
+  id: string;
+  amount: number;
+  transaction_id: string;
+  sender_number?: string | null;
+  method: string;
+  status: string;
+  created_at: string;
 }
 
 interface DashboardCompetition {
@@ -106,6 +124,231 @@ const itemVariants = {
   show: { opacity: 1, y: 0, transition: { duration: 0.35, ease: "easeOut" } },
 } as const;
 
+interface TeamPaymentFormProps {
+  team: Team;
+  bkashNumber: string;
+  onSuccess: () => void;
+}
+
+function TeamPaymentForm({ team, bkashNumber, onSuccess }: TeamPaymentFormProps) {
+  const [senderNumber, setSenderNumber] = React.useState("");
+  const [transactionId, setTransactionId] = React.useState("");
+  const [submitting, setSubmitting] = React.useState(false);
+  const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = React.useState<string | null>(null);
+  const [copied, setCopied] = React.useState(false);
+
+  const comp = team.competitions;
+  const acceptedMembers = team.members.filter((m) => m.invitation_status === "accepted").length || 1;
+  const entryFee = comp?.entry_fee || 0;
+  
+  const baseFee = comp?.is_fee_per_person ? entryFee * acceptedMembers : entryFee;
+  const bkashCharge = baseFee * 0.0185;
+  const totalAmount = Number((baseFee + bkashCharge).toFixed(2));
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(bkashNumber);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!senderNumber.trim()) {
+      setErrorMsg("Sender bKash number is required.");
+      return;
+    }
+    if (!transactionId.trim()) {
+      setErrorMsg("Transaction ID is required.");
+      return;
+    }
+    
+    setSubmitting(true);
+    setErrorMsg(null);
+    setSuccessMsg(null);
+
+    try {
+      const res = await fetch("/api/payments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          team_id: team.id,
+          amount: baseFee,
+          transaction_id: transactionId.trim(),
+          method: "bkash",
+          sender_number: senderNumber.trim(),
+        }),
+      });
+
+      const data = await res.json();
+      if (!data.success) {
+        throw new Error(data.message || "Failed to submit payment details.");
+      }
+
+      setSuccessMsg("Payment details successfully submitted! Organizers will verify it shortly.");
+      onSuccess();
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : "Failed to submit payment.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const payment = team.payment;
+
+  if (payment?.status === "approved" || team.status === "finalist") {
+    return (
+      <div className="p-5 rounded-xl border border-success/20 bg-success/5 space-y-4">
+        <div className="flex items-center gap-2 text-success font-heading font-bold text-sm">
+          <CheckCircle className="h-4 w-4" />
+          <span>Payment Verified & Selected</span>
+        </div>
+        <div className="text-xs text-neutral-400 space-y-1.5 font-mono">
+          <div><span className="text-neutral-500">Method:</span> bKash Personal</div>
+          <div><span className="text-neutral-500">Sender:</span> {payment?.sender_number || "Verified"}</div>
+          <div><span className="text-neutral-500">TxID:</span> {payment?.transaction_id || "Verified"}</div>
+          <div><span className="text-neutral-500">Amount Paid:</span> {payment?.amount || totalAmount} BDT</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (payment?.status === "pending") {
+    return (
+      <div className="p-5 rounded-xl border border-warning/20 bg-warning/5 space-y-4">
+        <div className="flex items-center gap-2 text-warning font-heading font-bold text-sm">
+          <Clock className="h-4 w-4 animate-pulse" />
+          <span>Payment Review Pending</span>
+        </div>
+        <p className="text-xs text-neutral-400 font-sans leading-relaxed">
+          Your payment is currently being reviewed by organizers. You will receive an in-app notification once verified.
+        </p>
+        <div className="text-xs text-neutral-400 space-y-1.5 font-mono border-t border-neutral-900 pt-3">
+          <div><span className="text-neutral-500">Sender:</span> {payment.sender_number}</div>
+          <div><span className="text-neutral-500">TxID:</span> {payment.transaction_id}</div>
+          <div><span className="text-neutral-500">Amount:</span> {payment.amount} BDT</div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-5 rounded-xl border border-neutral-850 bg-neutral-950/60 space-y-4">
+      <div className="flex items-center gap-2 text-primary font-heading font-bold text-sm uppercase tracking-wider">
+        <CreditCard className="h-4 w-4" />
+        <span>bKash Payment Form</span>
+      </div>
+
+      {payment?.status === "resubmission_required" && (
+        <div className="p-3 rounded bg-orange-500/10 border border-orange-500/20 text-orange-400 text-xs flex items-start gap-2">
+          <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+          <div>
+            <span className="font-semibold block">Resubmission Required:</span>
+            Your previous payment proof was rejected by the reviewer. Please double check details and submit again.
+          </div>
+        </div>
+      )}
+
+      {entryFee <= 0 ? (
+        <p className="text-xs text-neutral-500 font-sans">
+          This competition has no entry fee. No payment required.
+        </p>
+      ) : (
+        <div className="space-y-4">
+          {/* Amount Calculation */}
+          <div className="bg-neutral-900/60 p-3 rounded-lg border border-neutral-850 space-y-2 text-xs">
+            <div className="flex justify-between text-neutral-400">
+              <span>Base Fee ({comp?.is_fee_per_person ? `${entryFee} BDT x ${acceptedMembers} member${acceptedMembers > 1 ? "s" : ""}` : "Flat Team Fee"}):</span>
+              <span className="font-mono">{baseFee} BDT</span>
+            </div>
+            <div className="flex justify-between text-neutral-400">
+              <span>bKash Cash-Out Charge (1.85%):</span>
+              <span className="font-mono">+{bkashCharge.toFixed(2)} BDT</span>
+            </div>
+            <div className="flex justify-between text-neutral-100 font-bold border-t border-neutral-850 pt-2 text-sm">
+              <span>Total Amount to Pay:</span>
+              <span className="text-primary font-mono">{totalAmount} BDT</span>
+            </div>
+          </div>
+
+          {/* Payment Details */}
+          <div className="p-3 rounded-lg bg-neutral-900 border border-neutral-850 space-y-2">
+            <p className="text-[11px] text-neutral-400 font-sans leading-relaxed">
+              Please send the <strong>exact Total Amount</strong> above via "Send Money" to this bKash Personal Number:
+            </p>
+            <div className="flex items-center justify-between gap-2 bg-neutral-950 p-2 rounded border border-neutral-850">
+              <span className="font-mono font-bold text-neutral-250 select-all">{bkashNumber}</span>
+              <button
+                type="button"
+                onClick={handleCopy}
+                className="text-neutral-500 hover:text-neutral-200 transition-colors cursor-pointer"
+              >
+                {copied ? <span className="text-[10px] text-success font-bold font-mono">Copied</span> : <Copy className="h-3.5 w-3.5" />}
+              </button>
+            </div>
+          </div>
+
+          {/* Form inputs */}
+          <form onSubmit={handleSubmit} className="space-y-3">
+            <div className="space-y-1">
+              <label className="text-[11px] font-mono uppercase tracking-wider text-neutral-500 block">
+                bKash Sender Number
+              </label>
+              <input
+                type="text"
+                placeholder="e.g. 017XXXXXXXX"
+                value={senderNumber}
+                onChange={(e) => setSenderNumber(e.target.value)}
+                className="w-full bg-neutral-900 border border-neutral-850 hover:border-neutral-750 focus:border-primary focus:ring-1 focus:ring-primary rounded-md p-2 text-xs font-mono outline-none text-neutral-200 placeholder-neutral-600 transition-colors"
+                disabled={submitting}
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-[11px] font-mono uppercase tracking-wider text-neutral-500 block">
+                Transaction ID (TxID)
+              </label>
+              <input
+                type="text"
+                placeholder="e.g. A1B2C3D4E5"
+                value={transactionId}
+                onChange={(e) => setTransactionId(e.target.value)}
+                className="w-full bg-neutral-900 border border-neutral-850 hover:border-neutral-750 focus:border-primary focus:ring-1 focus:ring-primary rounded-md p-2 text-xs font-mono outline-none text-neutral-200 placeholder-neutral-600 transition-colors"
+                disabled={submitting}
+              />
+            </div>
+
+            {errorMsg && (
+              <div className="text-xxs text-error font-semibold flex items-center gap-1">
+                <AlertCircle className="h-3 w-3 shrink-0" />
+                <span>{errorMsg}</span>
+              </div>
+            )}
+
+            {successMsg && (
+              <div className="text-xxs text-success font-semibold flex items-center gap-1">
+                <CheckCircle className="h-3 w-3 shrink-0" />
+                <span>{successMsg}</span>
+              </div>
+            )}
+
+            <Button
+              type="submit"
+              variant="primary"
+              className="w-full text-xs font-semibold py-2 rounded-md flex items-center justify-center gap-1.5"
+              disabled={submitting}
+              isLoading={submitting}
+            >
+              <Send className="h-3 w-3" />
+              <span>Submit Payment Proof</span>
+            </Button>
+          </form>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function DashboardPage() {
   const router = useRouter();
   const [loading, setLoading] = React.useState(true);
@@ -115,6 +358,7 @@ export default function DashboardPage() {
   const [userRole, setUserRole] = React.useState<string>("participant");
   const [activeTab, setActiveTab] = React.useState<"my_registrations" | "all_registrations">("my_registrations");
   const [allCompetitions, setAllCompetitions] = React.useState<DashboardCompetition[]>([]);
+  const [bkashNumber, setBkashNumber] = React.useState("+880 1711-223344");
 
   const supabase = createClient();
 
@@ -152,30 +396,54 @@ export default function DashboardPage() {
 
       const activeTeams: Team[] = resData.data || [];
 
-      // Fetch submissions client-side for each team
-      const teamsWithSubmissions = await Promise.all(
+      // Fetch submissions and payments client-side for each team
+      const teamsWithDetails = await Promise.all(
         activeTeams.map(async (team) => {
+          let submission = null;
+          let payment = null;
           try {
             const subRes = await fetch(`/api/submissions?team_id=${team.id}`);
             const subData = await subRes.json();
-            return {
-              ...team,
-              submission: subData.success && subData.data ? subData.data : null,
-            };
+            submission = subData.success && subData.data ? subData.data : null;
           } catch (err) {
             console.error(`Failed to load submission for team ${team.id}:`, err);
-            return { ...team, submission: null };
           }
+          try {
+            const payRes = await fetch(`/api/payments?team_id=${team.id}`);
+            const payData = await payRes.json();
+            payment = payData.success && payData.data && payData.data.length > 0
+              ? payData.data[0]
+              : null;
+          } catch (err) {
+            console.error(`Failed to load payment for team ${team.id}:`, err);
+          }
+          return {
+            ...team,
+            submission,
+            payment,
+          };
         })
       );
 
-      setTeams(teamsWithSubmissions);
+      setTeams(teamsWithDetails);
 
       // Fetch all competitions
       const compRes = await fetch("/api/public/competitions");
       const compData = await compRes.json();
       if (compData.success) {
         setAllCompetitions(compData.data || []);
+      }
+
+      // Fetch dynamic bKash number
+      try {
+        const pmRes = await fetch("/api/payment-methods");
+        const pmData = await pmRes.json();
+        if (pmData.success && pmData.data) {
+          const bkashMethod = pmData.data.find((m: any) => m.name === "bkash");
+          if (bkashMethod) setBkashNumber(bkashMethod.number);
+        }
+      } catch (err) {
+        console.error("Failed to load dynamic bKash number:", err);
       }
       } catch (err: unknown) {
         console.error("Dashboard error:", err);
@@ -200,23 +468,36 @@ export default function DashboardPage() {
   };
 
   const getTeamStatusBadge = (status: string) => {
-    const isSuccess = status === "selected" || status === "finalist";
-    const isDanger = status === "rejected";
-    const isWarning = status === "pending" || status === "forming";
-    const isInfo = status === "submitted" || status === "registered";
-
-    const variant = isSuccess
-      ? "success"
-      : isDanger
-      ? "error"
-      : isWarning
-      ? "warning"
-      : isInfo
-      ? "primary"
-      : "neutral";
-
+    if (status === "selected") {
+      return (
+        <Badge variant="warning" className="text-xxs font-mono font-bold tracking-wider py-0.5 px-2.5">
+          Primary Selected / Payment Pending
+        </Badge>
+      );
+    }
+    if (status === "finalist") {
+      return (
+        <Badge variant="success" className="text-xxs font-mono font-bold tracking-wider py-0.5 px-2.5">
+          Selected
+        </Badge>
+      );
+    }
+    if (status === "submitted" || status === "registered") {
+      return (
+        <Badge variant="primary" className="text-xxs font-mono font-bold tracking-wider py-0.5 px-2.5">
+          Registered / Submitted
+        </Badge>
+      );
+    }
+    if (status === "forming") {
+      return (
+        <Badge variant="neutral" className="text-xxs font-mono font-bold tracking-wider py-0.5 px-2.5">
+          Forming / Unpaid
+        </Badge>
+      );
+    }
     return (
-      <Badge variant={variant} className="capitalize text-xxs font-mono font-bold tracking-wider py-0.5 px-2.5">
+      <Badge variant="neutral" className="text-xxs font-mono font-bold tracking-wider py-0.5 px-2.5">
         {status}
       </Badge>
     );
@@ -523,6 +804,16 @@ export default function DashboardPage() {
                           ) : (
                             <div className="p-6 text-center border border-dashed border-neutral-850 rounded-xl bg-neutral-950/20 text-neutral-500 text-xs">
                               No project proposal submitted for this team.
+                            </div>
+                          )}
+
+                          {comp?.entry_fee && comp.entry_fee > 0 && (team.status === "selected" || team.status === "finalist" || team.payment) && (
+                            <div className="pt-4">
+                              <TeamPaymentForm
+                                team={team}
+                                bkashNumber={bkashNumber}
+                                onSuccess={loadData}
+                              />
                             </div>
                           )}
                         </div>

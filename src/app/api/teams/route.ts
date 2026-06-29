@@ -241,7 +241,7 @@ export async function GET(req: Request) {
     const teamIds = memberRecords.map((m) => m.team_id);
     const { data: teams, error } = await supabase
       .from("teams")
-      .select("*, competitions(name, type, min_members, max_members, eligibility, registration_end, submission_end, rulebook_url, template_link, description)")
+      .select("*, competitions(name, type, min_members, max_members, eligibility, registration_end, submission_end, rulebook_url, template_link, description, entry_fee, is_fee_per_person, submission_required)")
       .in("id", teamIds);
 
     if (error) throw new Error(error.message);
@@ -670,11 +670,11 @@ export async function POST(req: Request) {
             throw new Error(`Failed to update team submission state: ${teamStatusUpdateError.message}`);
           }
         } else {
-          // If no submission is required and none is provided, mark status as 'registered'
+          // If no submission is required and none is provided, mark status as 'submitted'
           const { error: teamStatusUpdateError } = await supabase
             .from("teams")
             .update({
-              status: "registered",
+              status: "submitted",
               updated_at: new Date().toISOString(),
             })
             .eq("id", team.id);

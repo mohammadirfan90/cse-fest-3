@@ -8,6 +8,7 @@ const paymentSubmissionSchema = z.object({
   amount: z.number().positive("Amount must be a positive number"),
   transaction_id: z.string().min(6, "Transaction ID must be at least 6 characters"),
   method: z.string().min(2, "Payment method is required"),
+  sender_number: z.string().min(10, "Sender bKash number is required"),
 });
 
 // GET: Fetch payment history/status for a team
@@ -118,7 +119,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const { team_id, amount, transaction_id, method } = parseResult.data;
+    const { team_id, amount, transaction_id, method, sender_number } = parseResult.data;
 
     // 3. Authorize (Must be accepted member of the team)
     const { data: teamRecord, error: teamQueryErr } = await supabase
@@ -277,6 +278,7 @@ export async function POST(req: Request) {
         transaction_id,
         screenshot_url: "",
         method,
+        sender_number,
         status: "pending",
       });
 

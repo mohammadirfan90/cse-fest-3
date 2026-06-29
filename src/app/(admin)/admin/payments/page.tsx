@@ -28,6 +28,7 @@ interface PaymentItem {
   amount: number;
   transaction_id: string;
   screenshot_url: string;
+  sender_number?: string | null;
   method: string;
   status: "pending" | "approved" | "rejected" | "resubmission_required";
   created_at: string;
@@ -596,10 +597,14 @@ export default function AdminPaymentsPage() {
                           </h3>
                         </div>
 
-                        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 text-xs font-sans">
+                        <div className="grid grid-cols-2 sm:grid-cols-6 gap-3 text-xs font-sans">
                           <div className="p-2 rounded bg-neutral-950 border border-neutral-850 space-y-0.5">
                             <p className="text-neutral-600 text-sm uppercase tracking-widest font-mono">Transaction ID</p>
                             <p className="text-neutral-200 font-mono font-semibold">{p.transaction_id}</p>
+                          </div>
+                          <div className="p-2 rounded bg-neutral-950 border border-neutral-850 space-y-0.5">
+                            <p className="text-neutral-600 text-sm uppercase tracking-widest font-mono">Sender Number</p>
+                            <p className="text-neutral-200 font-mono font-semibold">{p.sender_number || "—"}</p>
                           </div>
                           <div className="p-2 rounded bg-neutral-950 border border-neutral-850 space-y-0.5">
                             <p className="text-neutral-600 text-sm uppercase tracking-widest font-mono">Amount</p>

@@ -54,7 +54,7 @@ export async function POST(req: Request) {
     // 4. Load competition details
     const { data: compRecord } = await supabase
       .from("competitions")
-      .select("id, name, preliminary_published, final_published")
+      .select("id, name, submission_required, preliminary_published, final_published")
       .eq("id", competition_id)
       .single();
     if (!compRecord) {
@@ -130,10 +130,11 @@ export async function POST(req: Request) {
 
       if (deselectedTeams && deselectedTeams.length > 0) {
         const deselectedIds = deselectedTeams.map((t) => t.id);
+        const revertStatus = compRecord.submission_required ? "submitted" : "registered";
         await supabase
           .from("teams")
           .update({
-            status: "judging_ready",
+            status: revertStatus,
             updated_at: new Date().toISOString(),
           })
           .in("id", deselectedIds);

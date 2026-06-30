@@ -86,6 +86,7 @@ export const SEMESTER_OPTIONS: ReadonlyArray<string> = [
   "10th",
   "11th",
   "12th",
+  "Alumni"
 ];
 
 /**

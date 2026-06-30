@@ -111,10 +111,19 @@ export async function POST(req: Request) {
       );
     }
 
+    // 1c. Retrieve user role
+    const { data: userRecord } = await supabase
+      .from("users")
+      .select("role")
+      .eq("id", user.id)
+      .single();
+
+    const isAdmin = userRecord?.role === "admin";
+
     // 2. Parse Multipart form data
     const formData = await req.formData();
     const { searchParams } = new URL(req.url);
-    const skipTimeWindowCheck = searchParams.get("skipTimeWindowCheck") === "true";
+    const skipTimeWindowCheck = isAdmin && searchParams.get("skipTimeWindowCheck") === "true";
 
     // 3. Delegate to submission service
     const result = await submitOrUpdateProposal(supabase, user.id, formData, {

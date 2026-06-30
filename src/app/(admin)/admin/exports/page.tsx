@@ -233,7 +233,7 @@ export default function AdminExportsPage() {
   };
 
   return (
-    <div className="space-y-8 max-w-6xl mx-auto pb-12 font-sans relative">
+    <div className="space-y-8 max-w-6xl mx-auto pb-12 font-sans relative w-full min-w-0">
       <AnimatePresence>
         {toastState && (
           <Toast
@@ -430,7 +430,7 @@ export default function AdminExportsPage() {
 
       {/* Row Previews Grid (if data rows exist) */}
       {previewRows.length > 0 && (
-        <Card className="bg-sidebar border-sidebar-border overflow-hidden">
+        <Card className="bg-sidebar border-sidebar-border overflow-hidden w-full min-w-0">
           <CardHeader className="border-b border-sidebar-border/40 pb-4 flex flex-row items-center justify-between">
             <div>
               <CardTitle className="text-sm font-semibold tracking-wider uppercase font-mono text-muted-foreground">

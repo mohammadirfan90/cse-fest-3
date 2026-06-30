@@ -13,7 +13,12 @@ import {
   Phone,
   School,
   X,
-  AlertCircle
+  AlertCircle,
+  Pencil,
+  Trash2,
+  Plus,
+  Check,
+  Loader2
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -72,7 +77,52 @@ export default function RegistrationsList() {
   // Modal state
   const [selectedTeam, setSelectedTeam] = useState<Registration | null>(null);
 
-  // Load Registrations Data
+  // Mutation and edit states
+  const [submittingAction, setSubmittingAction] = useState(false);
+  const [modalError, setModalError] = useState<string | null>(null);
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [editName, setEditName] = useState("");
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  
+  // Add Member Form state
+  const [isAddingMember, setIsAddingMember] = useState(false);
+  const [newMemberForm, setNewMemberForm] = useState({
+    full_name: "",
+    email: "",
+    phone: "",
+    gender: "Male",
+    university: "",
+    department: "",
+    semester: "",
+    student_id: "",
+    tshirt_size: "M",
+  });
+
+  // Reusable refresh function
+  const refreshData = async (activeTeamId?: string) => {
+    setErrorMsg(null);
+    try {
+      const res = await fetch("/api/admin/registrations");
+      const json = await res.json();
+      if (!json.success) throw new Error(json.message ?? "Failed to refresh registrations.");
+      
+      setRegistrations(json.data.registrations || []);
+      if (activeTeamId) {
+        const updated = (json.data.registrations || []).find((r: Registration) => r.id === activeTeamId);
+        if (updated) {
+          setSelectedTeam(updated);
+        } else {
+          setSelectedTeam(null);
+        }
+      }
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "An unexpected error occurred.";
+      setErrorMsg(message);
+    }
+  };
+
+  // Load Registrations Data on mount
   useEffect(() => {
     let active = true;
     async function loadData() {
@@ -101,6 +151,179 @@ export default function RegistrationsList() {
       active = false;
     };
   }, []);
+
+  const handleOpenModal = (reg: Registration) => {
+    setSelectedTeam(reg);
+    setIsEditingName(false);
+    setEditName(reg.name);
+    setIsAddingMember(false);
+    setDeleteConfirmOpen(false);
+    setDeleteConfirmText("");
+    setModalError(null);
+    setNewMemberForm({
+      full_name: "",
+      email: "",
+      phone: "",
+      gender: "Male",
+      university: reg.leader?.university || "",
+      department: "",
+      semester: "",
+      student_id: "",
+      tshirt_size: "M",
+    });
+  };
+
+  // Save edited Team Name
+  const handleSaveName = async () => {
+    if (!selectedTeam) return;
+    if (!editName.trim() || editName.trim().length < 3) {
+      setModalError("Team Name must be at least 3 characters.");
+      return;
+    }
+    if (editName.trim() === selectedTeam.name) {
+      setIsEditingName(false);
+      return;
+    }
+
+    setSubmittingAction(true);
+    setModalError(null);
+    try {
+      const res = await fetch(`/api/admin/teams/${selectedTeam.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: editName.trim() }),
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.message || "Failed to update team name.");
+      
+      setIsEditingName(false);
+      await refreshData(selectedTeam.id);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to update name.";
+      setModalError(msg);
+    } finally {
+      setSubmittingAction(false);
+    }
+  };
+
+  // Change Team Status
+  const handleStatusChange = async (newStatus: string) => {
+    if (!selectedTeam) return;
+    
+    setSubmittingAction(true);
+    setModalError(null);
+    try {
+      const res = await fetch(`/api/admin/teams/${selectedTeam.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.message || "Failed to update team status.");
+      
+      await refreshData(selectedTeam.id);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to update status.";
+      setModalError(msg);
+    } finally {
+      setSubmittingAction(false);
+    }
+  };
+
+  // Remove member from team
+  const handleRemoveMember = async (memberId: string, memberName: string) => {
+    if (!selectedTeam) return;
+    if (!confirm(`Are you sure you want to remove ${memberName} from this team?`)) return;
+
+    setSubmittingAction(true);
+    setModalError(null);
+    try {
+      const res = await fetch(`/api/admin/teams/${selectedTeam.id}?action=remove_member`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ member_id: memberId }),
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.message || "Failed to remove member.");
+      
+      await refreshData(selectedTeam.id);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to remove member.";
+      setModalError(msg);
+    } finally {
+      setSubmittingAction(false);
+    }
+  };
+
+  // Save new member to team
+  const handleSaveMember = async () => {
+    if (!selectedTeam) return;
+    
+    // Validations
+    if (!newMemberForm.full_name.trim()) return setModalError("Full Name is required.");
+    if (!newMemberForm.email.trim()) return setModalError("Email is required.");
+    if (!newMemberForm.phone.trim()) return setModalError("Phone number is required.");
+    if (!newMemberForm.university.trim()) return setModalError("University is required.");
+    if (!newMemberForm.department.trim()) return setModalError("Department is required.");
+    if (!newMemberForm.semester.trim()) return setModalError("Semester is required.");
+    if (!newMemberForm.student_id.trim()) return setModalError("Student ID is required.");
+
+    setSubmittingAction(true);
+    setModalError(null);
+    try {
+      const res = await fetch(`/api/admin/teams/${selectedTeam.id}?action=add_member`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newMemberForm),
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.message || "Failed to add teammate.");
+      
+      setIsAddingMember(false);
+      // Reset form fields
+      setNewMemberForm({
+        full_name: "",
+        email: "",
+        phone: "",
+        gender: "Male",
+        university: selectedTeam.leader?.university || "",
+        department: "",
+        semester: "",
+        student_id: "",
+        tshirt_size: "M",
+      });
+      await refreshData(selectedTeam.id);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to add teammate.";
+      setModalError(msg);
+    } finally {
+      setSubmittingAction(false);
+    }
+  };
+
+  // Hard Delete Team
+  const handleConfirmDeleteTeam = async () => {
+    if (!selectedTeam) return;
+    if (deleteConfirmText !== "DELETE") return;
+
+    setSubmittingAction(true);
+    setModalError(null);
+    try {
+      const res = await fetch(`/api/admin/teams/${selectedTeam.id}`, {
+        method: "DELETE",
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.message || "Failed to delete team.");
+      
+      setSelectedTeam(null);
+      await refreshData();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to delete team.";
+      setModalError(msg);
+    } finally {
+      setSubmittingAction(false);
+    }
+  };
 
   // Compute Overall Stats
   const totalTeamsCount = registrations.length;
@@ -403,7 +626,7 @@ export default function RegistrationsList() {
                       <td className="p-3 text-center">
                         <Button
                           variant="secondary"
-                          onClick={() => setSelectedTeam(reg)}
+                          onClick={() => handleOpenModal(reg)}
                           className="text-xs py-1 px-3 border border-sidebar-border bg-sidebar hover:bg-sidebar-accent cursor-pointer"
                         >
                           View Team
@@ -437,7 +660,9 @@ export default function RegistrationsList() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={() => setSelectedTeam(null)}
+              onClick={() => {
+                if (!submittingAction) setSelectedTeam(null);
+              }}
               className="fixed inset-0 bg-black/60 backdrop-blur-sm"
             />
 
@@ -451,22 +676,70 @@ export default function RegistrationsList() {
             >
               {/* Header */}
               <div className="flex justify-between items-start border-b border-sidebar-border pb-4">
-                <div>
-                  <h3 className="text-lg font-bold text-foreground font-heading">{selectedTeam.name}</h3>
+                <div className="flex-1 mr-4">
+                  {isEditingName ? (
+                    <div className="flex items-center gap-2 mt-1">
+                      <input
+                        type="text"
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        className="px-2 py-1 h-8 rounded border border-sidebar-border bg-background text-sm text-foreground focus:border-primary outline-none"
+                        placeholder="Team Name"
+                        disabled={submittingAction}
+                      />
+                      <button
+                        onClick={handleSaveName}
+                        disabled={submittingAction}
+                        className="p-1.5 rounded hover:bg-emerald-500/20 text-emerald-400 disabled:opacity-50 cursor-pointer"
+                        title="Save Team Name"
+                      >
+                        <Check className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={() => {
+                          setIsEditingName(false);
+                          setEditName(selectedTeam.name);
+                        }}
+                        disabled={submittingAction}
+                        className="p-1.5 rounded hover:bg-rose-500/20 text-rose-400 cursor-pointer"
+                        title="Cancel"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-lg font-bold text-foreground font-heading">{selectedTeam.name}</h3>
+                      <button
+                        onClick={() => {
+                          setIsEditingName(true);
+                          setEditName(selectedTeam.name);
+                        }}
+                        disabled={submittingAction}
+                        className="p-1 text-muted-foreground hover:text-foreground cursor-pointer rounded hover:bg-sidebar-accent"
+                        title="Edit Team Name"
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  )}
                   <p className="text-xs text-primary font-mono font-bold mt-1 uppercase tracking-wider">
                     {selectedTeam.competitionName}
                   </p>
                 </div>
                 <button
-                  onClick={() => setSelectedTeam(null)}
-                  className="text-muted-foreground hover:text-foreground cursor-pointer transition-colors p-1 rounded-md hover:bg-sidebar-accent"
+                  onClick={() => {
+                    if (!submittingAction) setSelectedTeam(null);
+                  }}
+                  disabled={submittingAction}
+                  className="text-muted-foreground hover:text-foreground cursor-pointer transition-colors p-1 rounded-md hover:bg-sidebar-accent disabled:opacity-50"
                 >
                   <X className="h-5 w-5" />
                 </button>
               </div>
 
               {/* Team Listing details */}
-              <div className="space-y-4 max-h-[380px] overflow-y-auto pr-1">
+              <div className="space-y-4 max-h-[380px] overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-sidebar-border">
                 {/* Team Info grid */}
                 <div className="grid grid-cols-2 gap-4 p-3.5 rounded-lg bg-background border border-sidebar-border/40 text-xs">
                   <div>
@@ -475,9 +748,31 @@ export default function RegistrationsList() {
                   </div>
                   <div>
                     <span className="text-muted-foreground block font-mono uppercase tracking-widest text-[9px] mb-0.5">Team Status</span>
-                    <span className="text-foreground capitalize text-sm font-semibold">{selectedTeam.status}</span>
+                    <div className="mt-0.5">
+                      <select
+                        value={selectedTeam.status}
+                        onChange={(e) => handleStatusChange(e.target.value)}
+                        disabled={submittingAction}
+                        className="h-8 px-2 rounded border border-sidebar-border bg-sidebar text-xs text-foreground focus:border-primary outline-none cursor-pointer font-semibold disabled:opacity-50"
+                      >
+                        <option value="forming">Forming</option>
+                        <option value="registered">Registered</option>
+                        <option value="submitted">Submitted</option>
+                        <option value="selected">Selected</option>
+                        <option value="rejected">Rejected</option>
+                        <option value="finalist">Finalist</option>
+                      </select>
+                    </div>
                   </div>
                 </div>
+
+                {/* Modal Level Error Display */}
+                {modalError && (
+                  <div className="p-3 text-xs rounded bg-rose-500/10 border border-rose-500/20 text-rose-400 flex items-start gap-2">
+                    <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                    <div>{modalError}</div>
+                  </div>
+                )}
 
                 {/* Member Listing */}
                 <div className="space-y-3">
@@ -515,19 +810,188 @@ export default function RegistrationsList() {
                           </div>
                         </div>
 
-                        {/* Contact details */}
-                        <div className="flex flex-col sm:items-end text-xs text-muted-foreground gap-1">
-                          <div className="flex items-center gap-1">
-                            <Mail className="h-3 w-3 shrink-0 text-muted-foreground" />
-                            <span className="font-mono">{member.email}</span>
+                        {/* Contact details & action */}
+                        <div className="flex items-center gap-4">
+                          <div className="flex flex-col sm:items-end text-xs text-muted-foreground gap-1">
+                            <div className="flex items-center gap-1">
+                              <Mail className="h-3 w-3 shrink-0 text-muted-foreground" />
+                              <span className="font-mono">{member.email}</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <Phone className="h-3 w-3 shrink-0 text-muted-foreground" />
+                              <span className="font-mono">{member.phone}</span>
+                            </div>
                           </div>
-                          <div className="flex items-center gap-1">
-                            <Phone className="h-3 w-3 shrink-0 text-muted-foreground" />
-                            <span className="font-mono">{member.phone}</span>
-                          </div>
+
+                          {/* Delete Member Button */}
+                          {member.role !== "leader" && (
+                            <button
+                              onClick={() => handleRemoveMember(member.id, member.name)}
+                              disabled={submittingAction}
+                              className="p-1.5 rounded hover:bg-rose-500/20 text-rose-400 hover:text-rose-300 cursor-pointer disabled:opacity-50 transition-colors"
+                              title={`Remove ${member.name}`}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          )}
                         </div>
                       </div>
                     ))}
+                  </div>
+
+                  {/* Add Teammate Inline Form */}
+                  <div className="mt-2">
+                    {!isAddingMember ? (
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        onClick={() => setIsAddingMember(true)}
+                        disabled={submittingAction}
+                        className="text-xs flex items-center gap-1.5 border border-dashed border-sidebar-border hover:bg-sidebar-accent w-full justify-center py-2 h-9 cursor-pointer"
+                      >
+                        <Plus className="h-3.5 w-3.5" />
+                        <span>Add Teammate</span>
+                      </Button>
+                    ) : (
+                      <div className="border border-sidebar-border rounded-lg bg-background p-4 space-y-3">
+                        <div className="flex justify-between items-center pb-2 border-b border-sidebar-border">
+                          <h5 className="text-xs font-bold font-mono text-foreground uppercase tracking-widest">
+                            New Teammate Details
+                          </h5>
+                          <button
+                            type="button"
+                            onClick={() => setIsAddingMember(false)}
+                            className="text-muted-foreground hover:text-foreground p-0.5 rounded hover:bg-sidebar-accent cursor-pointer"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                          <div className="space-y-1">
+                            <label className="text-muted-foreground font-semibold">Full Name</label>
+                            <input
+                              type="text"
+                              value={newMemberForm.full_name}
+                              onChange={(e) => setNewMemberForm({ ...newMemberForm, full_name: e.target.value })}
+                              className="w-full h-8 px-2 rounded border border-sidebar-border bg-sidebar text-foreground focus:border-primary outline-none"
+                              disabled={submittingAction}
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-muted-foreground font-semibold">Email Address</label>
+                            <input
+                              type="email"
+                              value={newMemberForm.email}
+                              onChange={(e) => setNewMemberForm({ ...newMemberForm, email: e.target.value })}
+                              className="w-full h-8 px-2 rounded border border-sidebar-border bg-sidebar text-foreground focus:border-primary outline-none"
+                              disabled={submittingAction}
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-muted-foreground font-semibold">Phone Number</label>
+                            <input
+                              type="text"
+                              value={newMemberForm.phone}
+                              onChange={(e) => setNewMemberForm({ ...newMemberForm, phone: e.target.value })}
+                              className="w-full h-8 px-2 rounded border border-sidebar-border bg-sidebar text-foreground focus:border-primary outline-none"
+                              disabled={submittingAction}
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-muted-foreground font-semibold">Gender</label>
+                            <select
+                              value={newMemberForm.gender}
+                              onChange={(e) => setNewMemberForm({ ...newMemberForm, gender: e.target.value })}
+                              className="w-full h-8 px-2 rounded border border-sidebar-border bg-sidebar text-foreground focus:border-primary outline-none cursor-pointer"
+                              disabled={submittingAction}
+                            >
+                              <option value="Male">Male</option>
+                              <option value="Female">Female</option>
+                              <option value="Other">Other</option>
+                            </select>
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-muted-foreground font-semibold">University</label>
+                            <input
+                              type="text"
+                              value={newMemberForm.university}
+                              onChange={(e) => setNewMemberForm({ ...newMemberForm, university: e.target.value })}
+                              className="w-full h-8 px-2 rounded border border-sidebar-border bg-sidebar text-foreground focus:border-primary outline-none"
+                              disabled={submittingAction}
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-muted-foreground font-semibold">Department</label>
+                            <input
+                              type="text"
+                              value={newMemberForm.department}
+                              onChange={(e) => setNewMemberForm({ ...newMemberForm, department: e.target.value })}
+                              className="w-full h-8 px-2 rounded border border-sidebar-border bg-sidebar text-foreground focus:border-primary outline-none"
+                              placeholder="e.g. CSE"
+                              disabled={submittingAction}
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-muted-foreground font-semibold">Semester</label>
+                            <input
+                              type="text"
+                              value={newMemberForm.semester}
+                              onChange={(e) => setNewMemberForm({ ...newMemberForm, semester: e.target.value })}
+                              className="w-full h-8 px-2 rounded border border-sidebar-border bg-sidebar text-foreground focus:border-primary outline-none"
+                              placeholder="e.g. 8th"
+                              disabled={submittingAction}
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-muted-foreground font-semibold">Student ID</label>
+                            <input
+                              type="text"
+                              value={newMemberForm.student_id}
+                              onChange={(e) => setNewMemberForm({ ...newMemberForm, student_id: e.target.value })}
+                              className="w-full h-8 px-2 rounded border border-sidebar-border bg-sidebar text-foreground focus:border-primary outline-none"
+                              disabled={submittingAction}
+                            />
+                          </div>
+                          <div className="space-y-1 sm:col-span-2 font-mono">
+                            <label className="text-muted-foreground font-semibold">T-Shirt Size</label>
+                            <select
+                              value={newMemberForm.tshirt_size}
+                              onChange={(e) => setNewMemberForm({ ...newMemberForm, tshirt_size: e.target.value })}
+                              className="w-full h-8 px-2 rounded border border-sidebar-border bg-sidebar text-foreground focus:border-primary outline-none cursor-pointer"
+                              disabled={submittingAction}
+                            >
+                              <option value="S">Small (S)</option>
+                              <option value="M">Medium (M)</option>
+                              <option value="L">Large (L)</option>
+                              <option value="XL">Extra Large (XL)</option>
+                              <option value="XXL">Double Extra Large (XXL)</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        <div className="flex justify-end gap-2 pt-2 border-t border-sidebar-border">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            onClick={() => setIsAddingMember(false)}
+                            className="text-xs px-3 h-8 cursor-pointer"
+                            disabled={submittingAction}
+                          >
+                            Cancel
+                          </Button>
+                          <Button
+                            type="button"
+                            onClick={handleSaveMember}
+                            disabled={submittingAction}
+                            className="text-xs px-4 h-8 flex items-center gap-1.5 cursor-pointer"
+                          >
+                            {submittingAction && <Loader2 className="h-3 w-3 animate-spin" />}
+                            Save Member
+                          </Button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -553,13 +1017,69 @@ export default function RegistrationsList() {
                     </div>
                   </div>
                 )}
+
+                {/* Team Dangerous Actions confirmation step */}
+                {deleteConfirmOpen && (
+                  <div className="p-4 rounded bg-rose-500/10 border border-rose-500/20 text-xs space-y-3">
+                    <div>
+                      <p className="font-bold text-rose-400 font-mono uppercase tracking-widest text-[10px]">Warning: Dangerous Action</p>
+                      <p className="text-muted-foreground mt-0.5">
+                        You are about to delete team <strong className="text-foreground">{selectedTeam.name}</strong>.
+                        This will delete all members, submissions, and payments from the database and disk.
+                      </p>
+                      <p className="mt-2 text-rose-400/90 font-semibold font-mono">
+                        Type DELETE to confirm.
+                      </p>
+                    </div>
+                    <div className="flex gap-2 items-center">
+                      <input
+                        type="text"
+                        value={deleteConfirmText}
+                        onChange={(e) => setDeleteConfirmText(e.target.value)}
+                        placeholder="Type DELETE"
+                        className="px-2 py-1 rounded border border-rose-500/30 bg-sidebar text-foreground text-xs focus:border-rose-500 outline-none flex-1 max-w-[150px] h-8"
+                        disabled={submittingAction}
+                      />
+                      <Button
+                        variant="destructive"
+                        onClick={handleConfirmDeleteTeam}
+                        disabled={deleteConfirmText !== "DELETE" || submittingAction}
+                        className="text-xs h-8 flex items-center gap-1.5 bg-rose-600 hover:bg-rose-700 font-bold cursor-pointer disabled:opacity-50"
+                      >
+                        {submittingAction && <Loader2 className="h-3 w-3 animate-spin" />}
+                        Confirm Delete
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        onClick={() => setDeleteConfirmOpen(false)}
+                        disabled={submittingAction}
+                        className="text-xs h-8 border border-sidebar-border cursor-pointer"
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Footer */}
-              <div className="flex justify-end border-t border-sidebar-border pt-4">
+              <div className="flex justify-between border-t border-sidebar-border pt-4 items-center">
+                <div>
+                  {!deleteConfirmOpen && (
+                    <Button
+                      variant="ghost"
+                      onClick={() => setDeleteConfirmOpen(true)}
+                      disabled={submittingAction}
+                      className="text-xs text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 cursor-pointer"
+                    >
+                      Delete Team
+                    </Button>
+                  )}
+                </div>
                 <Button
                   onClick={() => setSelectedTeam(null)}
-                  className="px-5 py-2 font-semibold text-xs"
+                  disabled={submittingAction}
+                  className="px-5 py-2 font-semibold text-xs cursor-pointer"
                 >
                   Close View
                 </Button>

@@ -50,11 +50,15 @@ const securityHeaders = [
       "media-src 'self'",
       "frame-src 'self' https://www.google.com",
       "frame-ancestors 'none'",
+      "form-action 'self'",
     ].join("; "),
   },
 ];
 
 const nextConfig: NextConfig = {
+  // Remove X-Powered-By Next.js header
+  poweredByHeader: false,
+
   // ─── Security Headers ────────────────────────────────────────────────────────
   async headers() {
     return [

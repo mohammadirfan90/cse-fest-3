@@ -26,7 +26,7 @@ const adminRemoveMemberSchema = z.object({
 });
 
 // Helper for Auth & Role verification
-async function verifyAdminOrCoordinator() {
+async function verifyAdmin() {
   const supabase = await createClient();
 
   const {
@@ -43,7 +43,7 @@ async function verifyAdminOrCoordinator() {
     .eq("id", user.id)
     .single();
 
-  if (!userRecord || (userRecord.role !== "admin" && userRecord.role !== "coordinator")) {
+  if (!userRecord || userRecord.role !== "admin") {
     return {
       error: true,
       response: NextResponse.json({ success: false, message: "Forbidden. Authorized access only." }, { status: 403 }),
@@ -62,7 +62,7 @@ export async function DELETE(
 ) {
   try {
     const { id: teamId } = await params;
-    const authCheck = await verifyAdminOrCoordinator();
+    const authCheck = await verifyAdmin();
     if (authCheck.error || !authCheck.user) return authCheck.response || NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 });
     const { user, supabase } = authCheck;
 
@@ -123,7 +123,7 @@ export async function PATCH(
 ) {
   try {
     const { id: teamId } = await params;
-    const authCheck = await verifyAdminOrCoordinator();
+    const authCheck = await verifyAdmin();
     if (authCheck.error || !authCheck.user) return authCheck.response || NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 });
     const { user, supabase } = authCheck;
 
@@ -207,7 +207,7 @@ export async function POST(
 ) {
   try {
     const { id: teamId } = await params;
-    const authCheck = await verifyAdminOrCoordinator();
+    const authCheck = await verifyAdmin();
     if (authCheck.error || !authCheck.user) return authCheck.response || NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 });
     const { user, supabase } = authCheck;
 

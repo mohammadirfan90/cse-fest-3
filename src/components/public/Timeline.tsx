@@ -41,7 +41,7 @@ export function Timeline() {
         description: "",
       },
       {
-        date: "2 July",
+        date: "5 July",
         title: "Registration Deadline",
         description: "",
       },

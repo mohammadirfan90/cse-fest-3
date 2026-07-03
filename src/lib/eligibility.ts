@@ -51,7 +51,11 @@ export function isOpen(eligibility: unknown): boolean {
 export function isSmuctInstitution(value: string | null | undefined): boolean {
   if (!value) return false;
   const lower = value.trim().toLowerCase();
-  return lower.includes("smuct") || lower.includes("shanto-mariam");
+  return (
+    lower.includes("smuct") ||
+    lower.includes("shanto-mariam") ||
+    lower.includes("shanto mariam")
+  );
 }
 
 /**

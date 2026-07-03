@@ -11,7 +11,11 @@ interface RawMember {
   full_name: string | null;
   email: string | null;
   phone: string | null;
+  gender: string | null;
   university: string | null;
+  department: string | null;
+  semester: string | null;
+  student_id: string | null;
   tshirt_size: string | null;
 }
 
@@ -82,7 +86,7 @@ export async function GET() {
     const teamIds = (teams ?? []).map((t) => t.id);
     const { data: membersList, error: membersError } = await supabase
       .from("v_team_members")
-      .select("member_id, team_id, user_id, role, invitation_status, joined_at, full_name, email, phone, university, tshirt_size")
+      .select("member_id, team_id, user_id, role, invitation_status, joined_at, full_name, email, phone, gender, university, department, semester, student_id, tshirt_size")
       .in("team_id", teamIds);
 
     if (membersError) throw membersError;
@@ -96,11 +100,15 @@ export async function GET() {
         return {
           id: m.member_id,
           userId: m.user_id,
-          name: m.full_name || "N/A",
-          email: m.email || "N/A",
-          phone: m.phone || "N/A",
-          university: m.university || "N/A",
-          tshirtSize: m.tshirt_size || "N/A",
+          name: m.full_name || "",
+          email: m.email || "",
+          phone: m.phone || "",
+          gender: m.gender || "Male",
+          university: m.university || "",
+          department: m.department || "",
+          semester: m.semester || "",
+          studentId: m.student_id || "",
+          tshirtSize: m.tshirt_size || "M",
           role: m.role as "leader" | "member",
           invitationStatus: m.invitation_status,
         };

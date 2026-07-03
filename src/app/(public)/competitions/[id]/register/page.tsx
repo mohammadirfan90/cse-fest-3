@@ -516,7 +516,7 @@ export default function CompetitionRegisterPage() {
               phone: profile.phone || "",
               university: leaderUniversity,
               department: profile.department || "",
-              semester: SEMESTER_PLACEHOLDER,
+              semester: profile.semester || SEMESTER_PLACEHOLDER,
               student_id: profile.student_id || "",
               tshirt_size: profile.tshirt_size || "",
             };

@@ -31,7 +31,11 @@ interface Member {
   name: string;
   email: string;
   phone: string;
+  gender: string;
   university: string;
+  department: string;
+  semester: string;
+  studentId: string;
   tshirtSize: string;
   role: "leader" | "member";
   invitationStatus: string;
@@ -88,6 +92,21 @@ export default function RegistrationsList() {
   // Add Member Form state
   const [isAddingMember, setIsAddingMember] = useState(false);
   const [newMemberForm, setNewMemberForm] = useState({
+    full_name: "",
+    email: "",
+    phone: "",
+    gender: "Male",
+    university: "",
+    department: "",
+    semester: "",
+    student_id: "",
+    tshirt_size: "M",
+  });
+
+  // Edit Member state
+  const [editingMemberId, setEditingMemberId] = useState<string | null>(null);
+  const [editMemberForm, setEditMemberForm] = useState({
+    member_id: "",
     full_name: "",
     email: "",
     phone: "",
@@ -157,6 +176,7 @@ export default function RegistrationsList() {
     setIsEditingName(false);
     setEditName(reg.name);
     setIsAddingMember(false);
+    setEditingMemberId(null);
     setDeleteConfirmOpen(false);
     setDeleteConfirmText("");
     setModalError(null);
@@ -295,6 +315,41 @@ export default function RegistrationsList() {
       await refreshData(selectedTeam.id);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to add teammate.";
+      setModalError(msg);
+    } finally {
+      setSubmittingAction(false);
+    }
+  };
+
+  // Save edited member details
+  const handleSaveEditMember = async () => {
+    if (!selectedTeam) return;
+    if (!editingMemberId) return;
+
+    // Validations
+    if (!editMemberForm.full_name.trim()) return setModalError("Full Name is required.");
+    if (!editMemberForm.email.trim()) return setModalError("Email is required.");
+    if (!editMemberForm.phone.trim()) return setModalError("Phone number is required.");
+    if (!editMemberForm.university.trim()) return setModalError("University is required.");
+    if (!editMemberForm.department.trim()) return setModalError("Department is required.");
+    if (!editMemberForm.semester.trim()) return setModalError("Semester is required.");
+    if (!editMemberForm.student_id.trim()) return setModalError("Student ID is required.");
+
+    setSubmittingAction(true);
+    setModalError(null);
+    try {
+      const res = await fetch(`/api/admin/teams/${selectedTeam.id}?action=edit_member`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(editMemberForm),
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.message || "Failed to update member details.");
+
+      setEditingMemberId(null);
+      await refreshData(selectedTeam.id);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to update member details.";
       setModalError(msg);
     } finally {
       setSubmittingAction(false);
@@ -781,62 +836,245 @@ export default function RegistrationsList() {
                   </h4>
                   
                   <div className="divide-y divide-sidebar-border/20 border border-sidebar-border rounded-lg bg-background overflow-hidden">
-                    {selectedTeam.members.map((member) => (
-                      <div key={member.id} className="p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-sm">
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2 font-medium text-foreground">
-                            <span>{member.name}</span>
-                            <Badge
-                              variant={member.role === "leader" ? "primary" : "secondary"}
-                              className={`text-[9px] font-mono uppercase px-1.5 py-0.5 ${
-                                member.role === "leader"
-                                  ? "bg-primary text-primary-foreground font-bold"
-                                  : "bg-sidebar-accent text-foreground"
-                              }`}
-                            >
-                              {member.role === "leader" ? "Leader" : "Member"}
-                            </Badge>
+                    {selectedTeam.members.map((member) => {
+                      if (editingMemberId === member.id) {
+                        return (
+                          <div key={member.id} className="p-4 bg-sidebar-accent/10 space-y-3">
+                            <div className="flex justify-between items-center">
+                              <span className="text-xs font-bold font-mono text-primary uppercase tracking-wider">
+                                Edit {member.role === "leader" ? "Leader" : "Member"} Details
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => setEditingMemberId(null)}
+                                className="text-muted-foreground hover:text-foreground p-0.5 rounded hover:bg-sidebar-accent cursor-pointer"
+                              >
+                                <X className="h-4 w-4" />
+                              </button>
+                            </div>
                             
-                            {member.invitationStatus !== "accepted" && (
-                              <Badge className="bg-amber-500/10 text-amber-400 border-amber-500/20 text-[9px]">
-                                {member.invitationStatus}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                              <div className="space-y-1">
+                                <label className="text-muted-foreground font-semibold">Full Name</label>
+                                <input
+                                  type="text"
+                                  value={editMemberForm.full_name}
+                                  onChange={(e) => setEditMemberForm({ ...editMemberForm, full_name: e.target.value })}
+                                  className="w-full h-8 px-2 rounded border border-sidebar-border bg-sidebar text-foreground focus:border-primary outline-none"
+                                  disabled={submittingAction}
+                                />
+                              </div>
+                              <div className="space-y-1">
+                                <label className="text-muted-foreground font-semibold">Email Address</label>
+                                <input
+                                  type="email"
+                                  value={editMemberForm.email}
+                                  onChange={(e) => setEditMemberForm({ ...editMemberForm, email: e.target.value })}
+                                  className="w-full h-8 px-2 rounded border border-sidebar-border bg-sidebar text-foreground focus:border-primary outline-none"
+                                  disabled={submittingAction}
+                                />
+                              </div>
+                              <div className="space-y-1">
+                                <label className="text-muted-foreground font-semibold">Phone Number</label>
+                                <input
+                                  type="text"
+                                  value={editMemberForm.phone}
+                                  onChange={(e) => setEditMemberForm({ ...editMemberForm, phone: e.target.value })}
+                                  className="w-full h-8 px-2 rounded border border-sidebar-border bg-sidebar text-foreground focus:border-primary outline-none"
+                                  disabled={submittingAction}
+                                />
+                              </div>
+                              <div className="space-y-1">
+                                <label className="text-muted-foreground font-semibold">Gender</label>
+                                <select
+                                  value={editMemberForm.gender}
+                                  onChange={(e) => setEditMemberForm({ ...editMemberForm, gender: e.target.value })}
+                                  className="w-full h-8 px-2 rounded border border-sidebar-border bg-sidebar text-foreground focus:border-primary outline-none cursor-pointer"
+                                  disabled={submittingAction}
+                                >
+                                  <option value="Male">Male</option>
+                                  <option value="Female">Female</option>
+                                  <option value="Other">Other</option>
+                                </select>
+                              </div>
+                              <div className="space-y-1">
+                                <label className="text-muted-foreground font-semibold">University</label>
+                                <input
+                                  type="text"
+                                  value={editMemberForm.university}
+                                  onChange={(e) => setEditMemberForm({ ...editMemberForm, university: e.target.value })}
+                                  className="w-full h-8 px-2 rounded border border-sidebar-border bg-sidebar text-foreground focus:border-primary outline-none"
+                                  disabled={submittingAction}
+                                />
+                              </div>
+                              <div className="space-y-1">
+                                <label className="text-muted-foreground font-semibold">Department</label>
+                                <input
+                                  type="text"
+                                  value={editMemberForm.department}
+                                  onChange={(e) => setEditMemberForm({ ...editMemberForm, department: e.target.value })}
+                                  className="w-full h-8 px-2 rounded border border-sidebar-border bg-sidebar text-foreground focus:border-primary outline-none"
+                                  disabled={submittingAction}
+                                />
+                              </div>
+                              <div className="space-y-1">
+                                <label className="text-muted-foreground font-semibold">Semester</label>
+                                <input
+                                  type="text"
+                                  value={editMemberForm.semester}
+                                  onChange={(e) => setEditMemberForm({ ...editMemberForm, semester: e.target.value })}
+                                  className="w-full h-8 px-2 rounded border border-sidebar-border bg-sidebar text-foreground focus:border-primary outline-none"
+                                  disabled={submittingAction}
+                                />
+                              </div>
+                              <div className="space-y-1">
+                                <label className="text-muted-foreground font-semibold">Student ID</label>
+                                <input
+                                  type="text"
+                                  value={editMemberForm.student_id}
+                                  onChange={(e) => setEditMemberForm({ ...editMemberForm, student_id: e.target.value })}
+                                  className="w-full h-8 px-2 rounded border border-sidebar-border bg-sidebar text-foreground focus:border-primary outline-none"
+                                  disabled={submittingAction}
+                                />
+                              </div>
+                              <div className="space-y-1 sm:col-span-2 font-mono">
+                                <label className="text-muted-foreground font-semibold">T-Shirt Size</label>
+                                <select
+                                  value={editMemberForm.tshirt_size}
+                                  onChange={(e) => setEditMemberForm({ ...editMemberForm, tshirt_size: e.target.value })}
+                                  className="w-full h-8 px-2 rounded border border-sidebar-border bg-sidebar text-foreground focus:border-primary outline-none cursor-pointer"
+                                  disabled={submittingAction}
+                                >
+                                  <option value="S">Small (S)</option>
+                                  <option value="M">Medium (M)</option>
+                                  <option value="L">Large (L)</option>
+                                  <option value="XL">Extra Large (XL)</option>
+                                  <option value="XXL">Double Extra Large (XXL)</option>
+                                </select>
+                              </div>
+                            </div>
+                            
+                            <div className="flex justify-end gap-2 pt-2 border-t border-sidebar-border">
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                onClick={() => setEditingMemberId(null)}
+                                className="text-xs px-3 h-8 cursor-pointer"
+                                disabled={submittingAction}
+                              >
+                                Cancel
+                              </Button>
+                              <Button
+                                type="button"
+                                onClick={handleSaveEditMember}
+                                disabled={submittingAction}
+                                className="text-xs px-4 h-8 flex items-center gap-1.5 cursor-pointer"
+                              >
+                                {submittingAction && <Loader2 className="h-3 w-3 animate-spin" />}
+                                Save Changes
+                              </Button>
+                            </div>
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <div key={member.id} className="p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-sm">
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2 font-medium text-foreground">
+                              <span>{member.name}</span>
+                              <Badge
+                                variant={member.role === "leader" ? "primary" : "secondary"}
+                                className={`text-[9px] font-mono uppercase px-1.5 py-0.5 ${
+                                  member.role === "leader"
+                                    ? "bg-primary text-primary-foreground font-bold"
+                                    : "bg-sidebar-accent text-foreground"
+                                }`}
+                              >
+                                {member.role === "leader" ? "Leader" : "Member"}
                               </Badge>
-                            )}
+                              
+                              {member.invitationStatus !== "accepted" && (
+                                <Badge className="bg-amber-500/10 text-amber-400 border-amber-500/20 text-[9px]">
+                                  {member.invitationStatus}
+                                </Badge>
+                              )}
+                            </div>
+                            
+                            <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground mt-1">
+                              <div className="flex items-center gap-1">
+                                <School className="h-3.5 w-3.5 shrink-0" />
+                                <span>{member.university}</span>
+                              </div>
+                              {member.department && (
+                                <div>Dept: <span className="text-foreground font-semibold">{member.department}</span></div>
+                              )}
+                              {member.semester && (
+                                <div>Sem: <span className="text-foreground font-semibold">{member.semester}</span></div>
+                              )}
+                              {member.studentId && (
+                                <div>ID: <span className="text-foreground font-mono font-semibold">{member.studentId}</span></div>
+                              )}
+                              {member.tshirtSize && (
+                                <div>T-Shirt: <span className="text-foreground font-mono font-semibold">{member.tshirtSize}</span></div>
+                              )}
+                            </div>
                           </div>
-                          
-                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                            <School className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                            <span>{member.university}</span>
+
+                          {/* Contact details & action */}
+                          <div className="flex items-center gap-4">
+                            <div className="flex flex-col sm:items-end text-xs text-muted-foreground gap-1">
+                              <div className="flex items-center gap-1">
+                                <Mail className="h-3 w-3 shrink-0 text-muted-foreground" />
+                                <span className="font-mono">{member.email}</span>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <Phone className="h-3 w-3 shrink-0 text-muted-foreground" />
+                                <span className="font-mono">{member.phone}</span>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-1">
+                              {/* Edit Member Button */}
+                              <button
+                                onClick={() => {
+                                  setEditingMemberId(member.id);
+                                  setEditMemberForm({
+                                    member_id: member.id,
+                                    full_name: member.name,
+                                    email: member.email,
+                                    phone: member.phone,
+                                    gender: member.gender || "Male",
+                                    university: member.university,
+                                    department: member.department,
+                                    semester: member.semester,
+                                    student_id: member.studentId,
+                                    tshirt_size: member.tshirtSize,
+                                  });
+                                }}
+                                disabled={submittingAction}
+                                className="p-1.5 rounded hover:bg-sidebar-accent text-muted-foreground hover:text-foreground cursor-pointer disabled:opacity-50 transition-colors"
+                                title={`Edit ${member.name}`}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </button>
+
+                              {/* Delete Member Button */}
+                              {member.role !== "leader" && (
+                                <button
+                                  onClick={() => handleRemoveMember(member.id, member.name)}
+                                  disabled={submittingAction}
+                                  className="p-1.5 rounded hover:bg-rose-500/20 text-rose-400 hover:text-rose-300 cursor-pointer disabled:opacity-50 transition-colors"
+                                  title={`Remove ${member.name}`}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </button>
+                              )}
+                            </div>
                           </div>
                         </div>
-
-                        {/* Contact details & action */}
-                        <div className="flex items-center gap-4">
-                          <div className="flex flex-col sm:items-end text-xs text-muted-foreground gap-1">
-                            <div className="flex items-center gap-1">
-                              <Mail className="h-3 w-3 shrink-0 text-muted-foreground" />
-                              <span className="font-mono">{member.email}</span>
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <Phone className="h-3 w-3 shrink-0 text-muted-foreground" />
-                              <span className="font-mono">{member.phone}</span>
-                            </div>
-                          </div>
-
-                          {/* Delete Member Button */}
-                          {member.role !== "leader" && (
-                            <button
-                              onClick={() => handleRemoveMember(member.id, member.name)}
-                              disabled={submittingAction}
-                              className="p-1.5 rounded hover:bg-rose-500/20 text-rose-400 hover:text-rose-300 cursor-pointer disabled:opacity-50 transition-colors"
-                              title={`Remove ${member.name}`}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
 
                   {/* Add Teammate Inline Form */}

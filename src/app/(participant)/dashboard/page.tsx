@@ -78,6 +78,8 @@ interface Team {
     entry_fee?: number;
     is_fee_per_person?: boolean;
     submission_required?: boolean;
+    preliminary_published?: boolean;
+    final_published?: boolean;
   } | null;
   members: Member[];
   submission?: DashboardSubmission | null; // loaded client-side per team
@@ -143,8 +145,8 @@ function TeamPaymentForm({ team, bkashNumber, onSuccess }: TeamPaymentFormProps)
   const entryFee = comp?.entry_fee || 0;
   
   const baseFee = comp?.is_fee_per_person ? entryFee * acceptedMembers : entryFee;
-  const bkashCharge = baseFee * 0.0185;
-  const totalAmount = Number((baseFee + bkashCharge).toFixed(2));
+  const bkashCharge = baseFee <= 0 ? 0 : Math.ceil(baseFee / 500) * 10;
+  const totalAmount = baseFee + bkashCharge;
 
   const handleCopy = () => {
     navigator.clipboard.writeText(bkashNumber);
@@ -262,8 +264,8 @@ function TeamPaymentForm({ team, bkashNumber, onSuccess }: TeamPaymentFormProps)
               <span className="font-mono">{baseFee} BDT</span>
             </div>
             <div className="flex justify-between text-neutral-400">
-              <span>bKash Cash-Out Charge (1.85%):</span>
-              <span className="font-mono">+{bkashCharge.toFixed(2)} BDT</span>
+              <span>bKash Charge:</span>
+              <span className="font-mono">+{bkashCharge} BDT</span>
             </div>
             <div className="flex justify-between text-neutral-100 font-bold border-t border-neutral-850 pt-2 text-sm">
               <span>Total Amount to Pay:</span>
@@ -467,40 +469,45 @@ export default function DashboardPage() {
     router.refresh();
   };
 
-  const getTeamStatusBadge = (status: string) => {
-    if (status === "selected") {
+  const getTeamStatusBadge = (team: Team) => {
+    const status = team.status;
+    const comp = team.competitions;
+    const finalPublished = comp?.final_published ?? false;
+
+    if (!finalPublished) {
+      if (status === "selected") {
+        return (
+          <Badge variant="warning" className="text-xxs font-mono font-bold tracking-wider py-0.5 px-2.5">
+            Primary Selected / Payment Pending
+          </Badge>
+        );
+      }
+      if (status === "finalist") {
+        return (
+          <Badge variant="success" className="text-xxs font-mono font-bold tracking-wider py-0.5 px-2.5">
+            Selected
+          </Badge>
+        );
+      }
+      return null;
+    } else {
+      if (status === "finalist") {
+        return (
+          <Badge variant="success" className="text-xxs font-mono font-bold tracking-wider py-0.5 px-2.5">
+            Selected
+          </Badge>
+        );
+      }
       return (
-        <Badge variant="warning" className="text-xxs font-mono font-bold tracking-wider py-0.5 px-2.5">
-          Primary Selected / Payment Pending
+        <Badge className="bg-rose-500/10 text-rose-400 border border-rose-500/20 text-xxs font-mono font-bold tracking-wider py-0.5 px-2.5">
+          Not Selected
         </Badge>
       );
     }
-    if (status === "finalist") {
-      return (
-        <Badge variant="success" className="text-xxs font-mono font-bold tracking-wider py-0.5 px-2.5">
-          Selected
-        </Badge>
-      );
-    }
-    if (status === "submitted" || status === "registered") {
-      return (
-        <Badge variant="primary" className="text-xxs font-mono font-bold tracking-wider py-0.5 px-2.5">
-          Registered / Submitted
-        </Badge>
-      );
-    }
-    if (status === "forming") {
-      return (
-        <Badge variant="neutral" className="text-xxs font-mono font-bold tracking-wider py-0.5 px-2.5">
-          Forming / Unpaid
-        </Badge>
-      );
-    }
-    return (
-      <Badge variant="neutral" className="text-xxs font-mono font-bold tracking-wider py-0.5 px-2.5">
-        {status}
-      </Badge>
-    );
+  };
+
+  const shouldShowStatusLabel = (team: Team) => {
+    return !!team.competitions?.final_published || ["selected", "finalist"].includes(team.status);
   };
 
   if (loading) {
@@ -662,10 +669,12 @@ export default function DashboardPage() {
                             {comp?.description || "Exhibition competition details."}
                           </p>
                         </div>
-                        <div className="flex flex-col items-end gap-1.5">
-                          <span className="text-sm font-mono text-neutral-500 uppercase tracking-wider">Registration Status</span>
-                          {getTeamStatusBadge(team.status)}
-                        </div>
+                        {shouldShowStatusLabel(team) && (
+                          <div className="flex flex-col items-end gap-1.5">
+                            <span className="text-sm font-mono text-neutral-500 uppercase tracking-wider">Registration Status</span>
+                            {getTeamStatusBadge(team)}
+                          </div>
+                        )}
                       </div>
 
                       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

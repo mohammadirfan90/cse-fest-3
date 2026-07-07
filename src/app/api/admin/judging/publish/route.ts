@@ -5,7 +5,7 @@ import { logAdminAction } from "@/lib/utils/logger";
 
 const publishSchema = z.object({
   competition_id: z.string().uuid("Invalid competition ID format"),
-  publish_type: z.enum(["preliminary", "final"]),
+  publish_type: z.enum(["preliminary", "final", "unpublish_preliminary", "unpublish_final"]),
   finalist_team_ids: z.array(z.string().uuid()).optional().default([]),
 });
 
@@ -64,7 +64,7 @@ export async function POST(req: Request) {
       );
     }
 
-    // 6. Snapshot current states for audit logging
+    // 5. Snapshot current states for audit logging
     const { data: prevRankings } = await supabase
       .from("rankings")
       .select("*")
@@ -184,7 +184,7 @@ export async function POST(req: Request) {
         success: true,
         message: `Preliminary results published. ${finalist_team_ids.length} teams selected.`,
       });
-    } else {
+    } else if (publish_type === "final") {
       // FINAL PUBLISH:
       // A. Verify preliminary has already been published
       if (!compRecord.preliminary_published) {
@@ -284,6 +284,116 @@ export async function POST(req: Request) {
       return NextResponse.json({
         success: true,
         message: `Final results published. ${finalist_team_ids.length} finalists confirmed.${warningText}`,
+      });
+    } else if (publish_type === "unpublish_preliminary") {
+      // UNPUBLISH PRELIMINARY:
+      // A. Update competition publishing flags (turn off both preliminary and final)
+      const { error: compErr } = await supabase
+        .from("competitions")
+        .update({
+          preliminary_published: false,
+          final_published: false,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", competition_id);
+      if (compErr) {
+        throw new Error(`Failed to unpublish preliminary selection: ${compErr.message}`);
+      }
+
+      // B. Fetch all teams to revert status
+      const { data: compTeams } = await supabase
+        .from("teams")
+        .select("id, status")
+        .eq("competition_id", competition_id);
+
+      if (compTeams && compTeams.length > 0) {
+        const revertStatus = compRecord.submission_required ? "submitted" : "registered";
+        const teamIdsToRevert = compTeams
+          .filter((t) => ["selected", "rejected", "waiting", "finalist"].includes(t.status))
+          .map((t) => t.id);
+
+        if (teamIdsToRevert.length > 0) {
+          const { error: teamRevertErr } = await supabase
+            .from("teams")
+            .update({
+              status: revertStatus,
+              updated_at: new Date().toISOString(),
+            })
+            .in("id", teamIdsToRevert);
+          if (teamRevertErr) {
+            throw new Error(`Failed to revert team statuses: ${teamRevertErr.message}`);
+          }
+        }
+      }
+
+      // C. Clear rankings visibility
+      const { error: rankClearErr } = await supabase
+        .from("rankings")
+        .update({
+          is_public: false,
+          is_finalist: false,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("competition_id", competition_id);
+      if (rankClearErr) {
+        throw new Error(`Failed to clear rankings visibility: ${rankClearErr.message}`);
+      }
+
+      // D. Audit log
+      await logAdminAction(
+        supabase,
+        user.id,
+        "UNPUBLISH_PRELIMINARY",
+        "competitions",
+        competition_id,
+        { rankings: prevRankings ?? [], competition: prevCompetition },
+        {}
+      );
+
+      return NextResponse.json({
+        success: true,
+        message: "Preliminary selection unpublished successfully. All team states reverted.",
+      });
+    } else {
+      // UNPUBLISH FINAL:
+      // A. Update competition publishing flags (turn off final only)
+      const { error: compErr } = await supabase
+        .from("competitions")
+        .update({
+          final_published: false,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", competition_id);
+      if (compErr) {
+        throw new Error(`Failed to unpublish final selection: ${compErr.message}`);
+      }
+
+      // B. Update rankings to clear finalist status
+      const { error: rankClearErr } = await supabase
+        .from("rankings")
+        .update({
+          is_finalist: false,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("competition_id", competition_id);
+      if (rankClearErr) {
+        throw new Error(`Failed to clear finalist rankings: ${rankClearErr.message}`);
+      }
+
+      // C. Audit log
+      await logAdminAction(
+        supabase,
+        user.id,
+        "UNPUBLISH_FINAL",
+        "competitions",
+        competition_id,
+        { rankings: prevRankings ?? [], competition: prevCompetition },
+        {}
+      );
+
+      return NextResponse.json({
+        success: true,
+        message: "Final results unpublished successfully. Final rankings hidden.",
       });
     }
   } catch (err) {

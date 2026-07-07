@@ -72,34 +72,46 @@ Forming → Registered → Submitted → Selected → Finalist
 
 ## 3. Competition Registration
 
-### External Competition (Phase 1 → Phase 2)
+All competitions currently have `rounds_count = 2` configured in the database, meaning they all follow a uniform two-stage publication and payment flow.
+
+### Phase 1: Team Registration & Submission
 ```
-Phase 1 (Free):
-  Verified User → Create/Join Team → Register Team for Competition
-  → Submit Proposal (Google Docs link)
-  → [Submission: Under Review]
-
-Review Stage (Admin):
-  Admin opens submission → evaluates
-  → Select Team: [Status: Selected] + notification sent
-  → Reject Team: [Status: Rejected] + notification sent
-
-Phase 2 (Paid):
-  Selected Team → Pay Entry Fee (bKash/Nagad)
-  → Submit Transaction ID + Screenshot
-  → [Payment: Pending]
-  → Admin verifies payment
-  → [Payment: Approved] → [Status: Finalist]
-  → [Payment: Rejected] → Participant notified → Can resubmit
+Verified User → Create/Join Team
+  → Enter details (Showcase segments require Project Title + Proposal PDF + optional Demo Video)
+  → Register Team
+  → [Team Status: submitted]
 ```
 
-### Internal Competition (Direct Pay)
+### Phase 2: Preliminary Selection (Admin Action)
 ```
-Verified SMUCT User → Create/Join Team → Register for Competition
-→ Pay Entry Fee → Submit Transaction ID + Screenshot
-→ [Payment: Pending] → Admin verifies
-→ [Payment: Approved] → Confirmed Participant
+Admin reviews submissions/teams in Review Dashboard
+  → Triggers "Publish Preliminary" (sets preliminary_published = true on competition)
+  → Selected teams: [Team Status: selected] + in-app notification sent to pay
+  → Deselected teams: [Team Status: submitted] (or "registered") + rankings hidden
 ```
+
+### Phase 3: Payment Verification (Paid Round)
+```
+Selected Team → Pays Entry Fee via bKash/Nagad Personal number
+  → Submits Transaction ID, sender number + Screenshot proof
+  → [Payment Status: pending]
+  → Admin reviews payment manually
+  → Approved payment: [Team Status: finalist] [Payment Status: approved]
+  → Rejected payment: [Payment Status: rejected]
+  → Resubmission requested: [Payment Status: resubmission_required] → team can re-submit
+```
+
+*Note: For two-round competitions, payment forms are locked until a team is selected in Phase 2.*
+
+### Phase 4: Final Selection (Admin Action)
+```
+Admin reviews final scores & leaderboards
+  → Triggers "Publish Final" (sets final_published = true on competition)
+  -- Enforced by DB CHECK constraint: preliminary_published must already be true
+  → Selected finalist teams: [Team Status: finalist] (rankings public, is_finalist = true)
+  → Finalists Confirmed notification sent
+```
+
 
 ---
 

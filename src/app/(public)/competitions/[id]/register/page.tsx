@@ -63,6 +63,8 @@ interface Competition {
   templateLink?: string;
   bannerImageUrl?: string;
   coverImageUrl?: string;
+  status?: string;
+  registrationEnd?: string;
 }
 
 const COMPETITION_IMAGES: Record<string, string> = {
@@ -905,6 +907,40 @@ export default function CompetitionRegisterPage() {
             </Button>
           </Link>
         </div>
+        <Footer />
+      </div>
+    );
+  }
+
+  const isRegClosed = competition && (
+    competition.status === "registration_closed" || 
+    (competition.registrationEnd && new Date() > new Date(competition.registrationEnd))
+  );
+
+  if (isRegClosed) {
+    return (
+      <div className="flex flex-col min-h-screen bg-gradient-to-br from-[#FAF8FF] via-[#F8F9FF] to-[#FCFBFF] dark:from-neutral-950 dark:via-neutral-900 dark:to-neutral-950 text-on-background relative overflow-hidden bg-noise">
+        <Navbar />
+        <main className="grow flex flex-col items-center justify-center py-24 px-4 text-center z-10 relative">
+          <Card variant="glass" className="max-w-md w-full border-error/20 bg-error/5 p-8 space-y-6">
+            <AlertTriangle className="h-12 w-12 text-error mx-auto animate-pulse" />
+            <div className="space-y-2">
+              <h2 className="text-xl font-heading font-bold text-red-400">
+                Registration Closed
+              </h2>
+              <p className="text-sm text-neutral-450 dark:text-neutral-400 font-sans leading-relaxed">
+                Registration for <strong>{competition?.name}</strong> has closed.
+              </p>
+            </div>
+            <div className="pt-2">
+              <Link href={`/competitions/${compId}`}>
+                <Button className="bg-[#8B5CF6] hover:bg-[#7C3AED] text-white font-sans font-bold py-2.5 px-6 rounded-xl">
+                  Back to Details
+                </Button>
+              </Link>
+            </div>
+          </Card>
+        </main>
         <Footer />
       </div>
     );

@@ -9,7 +9,22 @@ const singleScoreSchema = z.object({
   score: z.number().min(0, "Score cannot be negative").max(100, "Score cannot exceed 100"),
 });
 
-// GET: Fetch judging data (teams, existing scores, rankings) for a competition
+interface TeamItem {
+  id: string;
+  name: string;
+  status: string;
+  created_at: string;
+  submissions: Array<{
+    id: string;
+    title: string;
+    pdf_path: string | null;
+    youtube_demo_url: string | null;
+    notes: string | null;
+    submitted_at: string;
+  }> | null;
+}
+
+// GET: Fetch judging and team selection data for a competition
 export async function GET(req: Request) {
   try {
     const supabase = await createClient();
@@ -50,10 +65,10 @@ export async function GET(req: Request) {
       );
     }
 
-    // 3. Fetch competition details (for criteria configuration)
+    // 3. Fetch competition details
     const { data: competition, error: compErr } = await supabase
       .from("competitions")
-      .select("id, name, type, judging_criteria, finalist_limit")
+      .select("id, name, type, judging_criteria, finalist_limit, preliminary_published, final_published")
       .eq("id", competitionId)
       .single();
 
@@ -64,12 +79,11 @@ export async function GET(req: Request) {
       );
     }
 
-    // 4. Fetch teams in submitted, judging_ready, finalist, or selected status (and their optional project submissions)
+    // 4. Fetch ALL teams in this competition (and their optional project submissions)
     const { data: teams, error: teamsErr } = await supabase
       .from("teams")
-      .select("id, name, status, created_at, submissions(title, submitted_at)")
-      .eq("competition_id", competitionId)
-      .in("status", ["submitted", "registered", "judging_ready", "finalist", "selected"]);
+      .select("id, name, status, created_at, submissions(id, title, pdf_path, youtube_demo_url, notes, submitted_at)")
+      .eq("competition_id", competitionId);
 
     if (teamsErr) throw teamsErr;
 
@@ -91,7 +105,7 @@ export async function GET(req: Request) {
     if (rankingsErr) throw rankingsErr;
 
     // Combine data for frontend view
-    const formattedTeams = (teams || []).map((team) => {
+    const formattedTeams = ((teams ?? []) as unknown as TeamItem[]).map((team) => {
       const teamScores = (allScores || []).filter((s) => s.team_id === team.id);
       const teamRanking = (rankings || []).find((r) => r.team_id === team.id);
       const submission = team.submissions && Array.isArray(team.submissions) && team.submissions.length > 0
@@ -104,7 +118,11 @@ export async function GET(req: Request) {
         status: team.status,
         created_at: team.created_at,
         submission: submission ? {
+          id: submission.id,
           title: submission.title,
+          pdf_path: submission.pdf_path,
+          youtube_demo_url: submission.youtube_demo_url,
+          notes: submission.notes,
           submitted_at: submission.submitted_at,
         } : null,
         scores: teamScores,
@@ -131,10 +149,7 @@ export async function GET(req: Request) {
   }
 }
 
-/**
- * POST: Enter/Save scores for a team and update leaderboard rankings.
- * Delegates to the shared scoringService for upsert, audit logging, and ranking recalculation.
- */
+// POST: Enter/Save scores for a team and update leaderboard rankings.
 export async function POST(req: Request) {
   try {
     const supabase = await createClient();
@@ -181,10 +196,10 @@ export async function POST(req: Request) {
 
     const { team_id, competition_id, score } = parseResult.data;
 
-    // 4. Upsert score + audit log (handled by shared service)
+    // 4. Upsert score + audit log
     await upsertTeamScore(supabase, user.id, team_id, competition_id, score);
 
-    // 5. Recalculate all ranking positions for this competition
+    // 5. Recalculate rankings
     await recalculateRankings(supabase, competition_id);
 
     return NextResponse.json({
@@ -199,5 +214,3 @@ export async function POST(req: Request) {
     );
   }
 }
-
-

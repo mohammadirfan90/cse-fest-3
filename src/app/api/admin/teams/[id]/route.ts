@@ -6,7 +6,7 @@ import { logAdminAction } from "@/lib/utils/logger";
 
 const updateTeamSchema = z.object({
   name: z.string().min(3, "Team Name must be at least 3 characters").optional(),
-  status: z.enum(["forming", "registered", "submitted", "selected", "rejected", "finalist"]).optional(),
+  status: z.enum(["forming", "registered", "submitted", "selected", "rejected", "finalist", "judging_ready", "waiting"]).optional(),
 });
 
 const adminAddMemberSchema = z.object({

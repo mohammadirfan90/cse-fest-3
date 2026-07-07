@@ -54,16 +54,19 @@ Three combined products in one:
 
 ## Core Workflows (Summary)
 
-### External Competition Flow
+All competitions currently follow a uniform two-stage flow (as `rounds_count = 2` is set for all segments in the database):
+
 ```
-Register → Verify Profile → Create Team → Submit Proposal → Review
-→ Selected → Pay Fee → Payment Verified → Finalist
+Register Team (status: submitted) 
+  → Preliminary Selection Published (status: selected) 
+  → Submit Payment Proof (status: pending)
+  → Payment Approved (status: finalist)
+  → Final Selection Published (final_published = true)
 ```
 
-### Internal Competition Flow
-```
-Register → Verify Profile → Register Team → Pay Fee → Verification → Participate
-```
+* **Showcase Segments (`submission_required = true`):** Require project title, proposal PDF, and optional demo video on registration.
+* **Non-Showcase Segments (`submission_required = false`):** Registered directly. However, they must still be selected in the Preliminary Publish round before payment options are unlocked.
+
 
 ---
 

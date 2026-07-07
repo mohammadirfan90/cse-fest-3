@@ -30,6 +30,8 @@ interface Competition {
   coverImageUrl?: string;
   rulebookUrl?: string;
   status?: string;
+  registrationStart?: string;
+  registrationEnd?: string;
 }
 
 interface UserTeam {
@@ -272,7 +274,7 @@ function CompetitionsListContent() {
                           </Link>
                         </div>
                         <div className="flex gap-3">
-                          {comp.status === "registration_closed" ? (
+                          {(comp.status === "registration_closed" || (comp.registrationEnd && new Date() > new Date(comp.registrationEnd))) ? (
                             <Button
                               disabled
                               className="grow bg-neutral-900 text-neutral-500 border border-neutral-850 py-3 h-auto rounded-lg text-sm font-bold font-sans cursor-not-allowed"

@@ -241,7 +241,7 @@ export async function GET(req: Request) {
     const teamIds = memberRecords.map((m) => m.team_id);
     const { data: teams, error } = await supabase
       .from("teams")
-      .select("*, competitions(name, type, min_members, max_members, eligibility, registration_end, submission_end, rulebook_url, template_link, description, entry_fee, is_fee_per_person, submission_required)")
+      .select("*, competitions(name, type, min_members, max_members, eligibility, registration_end, submission_end, rulebook_url, template_link, description, entry_fee, is_fee_per_person, submission_required, preliminary_published, final_published)")
       .in("id", teamIds);
 
     if (error) throw new Error(error.message);

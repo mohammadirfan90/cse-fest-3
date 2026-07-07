@@ -308,7 +308,7 @@ export default function CompetitionDetailPage() {
 
             {/* Buttons in Header */}
             <div className="shrink-0 flex flex-col gap-3 w-full md:w-56 relative z-20">
-              {competition.status === "registration_closed" ? (
+              {(competition.status === "registration_closed" || (competition.registrationEnd && new Date() > new Date(competition.registrationEnd))) ? (
                 <Button
                   disabled
                   className="w-full bg-neutral-900 text-neutral-500 border border-neutral-850 py-4 h-auto rounded-xl font-heading text-base font-black cursor-not-allowed tracking-widest"

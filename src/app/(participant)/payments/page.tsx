@@ -69,6 +69,7 @@ export default function PaymentsPage() {
   const [activeMethods, setActiveMethods] = React.useState<PaymentMethod[]>([]);
   const [methodsLoading, setMethodsLoading] = React.useState(true);
   const [transactionId, setTransactionId] = React.useState("");
+  const [senderNumber, setSenderNumber] = React.useState("");
   const [formLoading, setFormLoading] = React.useState(false);
 
   // Messages
@@ -237,7 +238,21 @@ export default function PaymentsPage() {
     const activeTeam = teams.find((t) => t.id === selectedTeamId);
     if (!activeTeam || !activeTeam.competitions) return;
 
+    const cleanSender = senderNumber.trim();
+    if (!/^\d{11}$/.test(cleanSender)) {
+      setErrorMsg("Sender number must be exactly 11 digits (e.g. 017XXXXXXXX).");
+      return;
+    }
 
+    const cleanTxId = transactionId.trim().toUpperCase();
+    if (!/^[A-Z0-9]{10}$/.test(cleanTxId)) {
+      setErrorMsg("Transaction ID must be exactly 10 uppercase alphanumeric characters without any special characters or symbols.");
+      return;
+    }
+    if (!/[A-Z]/.test(cleanTxId) || !/[0-9]/.test(cleanTxId)) {
+      setErrorMsg("Transaction ID must contain both uppercase letters and numbers (e.g., 6ICOTYGEYS).");
+      return;
+    }
 
     setFormLoading(true);
     setErrorMsg(null);
@@ -250,8 +265,9 @@ export default function PaymentsPage() {
         body: JSON.stringify({
           team_id: selectedTeamId,
           amount: entryFee,
-          transaction_id: transactionId.trim(),
+          transaction_id: cleanTxId,
           method,
+          sender_number: cleanSender,
         }),
       });
 
@@ -262,7 +278,7 @@ export default function PaymentsPage() {
 
       setSuccessMsg(data.message);
       setTransactionId("");
-
+      setSenderNumber("");
 
       // Reload payments list
       const pRes = await fetch(`/api/payments?team_id=${selectedTeamId}`);
@@ -535,25 +551,35 @@ export default function PaymentsPage() {
                     )}
                   </div>
 
-                  {/* Transaction ID & Amount Preview */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="flex flex-col space-y-1.5 justify-end">
-                      <label className="text-sm font-medium text-neutral-300 font-sans">
-                        Required Registration Fee
-                      </label>
-                      <div className="h-10 flex items-center bg-neutral-950 border border-neutral-800 px-3.5 rounded-lg text-neutral-100 font-mono font-bold text-sm">
-                        {comp?.is_fee_per_person ? (
-                          <span>{comp.entry_fee} BDT x {memberCount} member{memberCount > 1 ? "s" : ""} = {entryFee} BDT</span>
-                        ) : (
-                          <span>{entryFee} BDT</span>
-                        )}
-                      </div>
+                  {/* Required Registration Fee */}
+                  <div className="flex flex-col space-y-1.5">
+                    <label className="text-sm font-medium text-neutral-300 font-sans">
+                      Required Registration Fee
+                    </label>
+                    <div className="h-10 flex items-center bg-neutral-950 border border-neutral-800 px-3.5 rounded-lg text-neutral-100 font-mono font-bold text-sm">
+                      {comp?.is_fee_per_person ? (
+                        <span>{comp.entry_fee} BDT x {memberCount} member{memberCount > 1 ? "s" : ""} = {entryFee} BDT</span>
+                      ) : (
+                        <span>{entryFee} BDT</span>
+                      )}
                     </div>
+                  </div>
+
+                  {/* Sender Number & Transaction ID */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <Input
+                      label={`${selectedMethodObj?.display_name || "bKash/Nagad"} Sender Number`}
+                      placeholder="e.g. 017XXXXXXXX"
+                      value={senderNumber}
+                      onChange={(e) => setSenderNumber(e.target.value)}
+                      required
+                      disabled={formLoading}
+                    />
                     <Input
                       label="Transaction ID (TXID)"
                       placeholder="e.g. A1B2C3D4E5"
                       value={transactionId}
-                      onChange={(e) => setTransactionId(e.target.value)}
+                      onChange={(e) => setTransactionId(e.target.value.toUpperCase())}
                       required
                       disabled={formLoading}
                     />

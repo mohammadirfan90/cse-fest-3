@@ -6,9 +6,17 @@ import { checkRateLimit } from "@/lib/utils/rate-limit";
 const paymentSubmissionSchema = z.object({
   team_id: z.string().uuid("Invalid team ID format"),
   amount: z.number().positive("Amount must be a positive number"),
-  transaction_id: z.string().min(6, "Transaction ID must be at least 6 characters"),
+  transaction_id: z
+    .string()
+    .regex(/^[A-Z0-9]{10}$/, "Transaction ID must be exactly 10 uppercase alphanumeric characters without any special characters or symbols")
+    .refine(
+      (val) => /[A-Z]/.test(val) && /[0-9]/.test(val),
+      "Transaction ID must contain both uppercase letters and numbers"
+    ),
   method: z.string().min(2, "Payment method is required"),
-  sender_number: z.string().min(10, "Sender bKash number is required"),
+  sender_number: z
+    .string()
+    .regex(/^\d{11}$/, "Sender number must be exactly 11 digits"),
 });
 
 // GET: Fetch payment history/status for a team

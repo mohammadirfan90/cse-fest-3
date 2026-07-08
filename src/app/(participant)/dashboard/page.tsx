@@ -80,6 +80,7 @@ interface Team {
     submission_required?: boolean;
     preliminary_published?: boolean;
     final_published?: boolean;
+    rounds_count?: number;
   } | null;
   members: Member[];
   submission?: DashboardSubmission | null; // loaded client-side per team
@@ -156,12 +157,20 @@ function TeamPaymentForm({ team, bkashNumber, onSuccess }: TeamPaymentFormProps)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!senderNumber.trim()) {
-      setErrorMsg("Sender bKash number is required.");
+    
+    const cleanSender = senderNumber.trim();
+    if (!/^\d{11}$/.test(cleanSender)) {
+      setErrorMsg("Sender number must be exactly 11 digits (e.g. 017XXXXXXXX).");
       return;
     }
-    if (!transactionId.trim()) {
-      setErrorMsg("Transaction ID is required.");
+
+    const cleanTxId = transactionId.trim().toUpperCase();
+    if (!/^[A-Z0-9]{10}$/.test(cleanTxId)) {
+      setErrorMsg("Transaction ID must be exactly 10 uppercase alphanumeric characters without any special characters or symbols.");
+      return;
+    }
+    if (!/[A-Z]/.test(cleanTxId) || !/[0-9]/.test(cleanTxId)) {
+      setErrorMsg("Transaction ID must contain both uppercase letters and numbers (e.g., 6ICOTYGEYS).");
       return;
     }
     
@@ -176,9 +185,9 @@ function TeamPaymentForm({ team, bkashNumber, onSuccess }: TeamPaymentFormProps)
         body: JSON.stringify({
           team_id: team.id,
           amount: baseFee,
-          transaction_id: transactionId.trim(),
+          transaction_id: cleanTxId,
           method: "bkash",
-          sender_number: senderNumber.trim(),
+          sender_number: cleanSender,
         }),
       });
 
@@ -314,7 +323,7 @@ function TeamPaymentForm({ team, bkashNumber, onSuccess }: TeamPaymentFormProps)
                 type="text"
                 placeholder="e.g. A1B2C3D4E5"
                 value={transactionId}
-                onChange={(e) => setTransactionId(e.target.value)}
+                onChange={(e) => setTransactionId(e.target.value.toUpperCase())}
                 className="w-full bg-neutral-900 border border-neutral-850 hover:border-neutral-750 focus:border-primary focus:ring-1 focus:ring-primary rounded-md p-2 text-xs font-mono outline-none text-neutral-200 placeholder-neutral-600 transition-colors"
                 disabled={submitting}
               />
@@ -816,7 +825,12 @@ export default function DashboardPage() {
                             </div>
                           )}
 
-                          {comp?.entry_fee && comp.entry_fee > 0 && (team.status === "selected" || team.status === "finalist" || team.payment) && (
+                          {comp?.entry_fee && comp.entry_fee > 0 && (
+                            team.payment || (
+                              (team.status === "selected" || team.status === "finalist") &&
+                              (comp.rounds_count !== 2 || comp.preliminary_published)
+                            )
+                          ) && (
                             <div className="pt-4">
                               <TeamPaymentForm
                                 team={team}

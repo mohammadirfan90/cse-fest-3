@@ -31,11 +31,21 @@ export async function proxy(request: NextRequest) {
   if (path.startsWith("/api/") && ["POST", "PUT", "DELETE", "PATCH"].includes(request.method)) {
     const origin = request.headers.get("origin");
     const host = request.headers.get("host");
-    if (origin && !origin.includes(host || "")) {
-      return new NextResponse(
-        JSON.stringify({ success: false, message: "CSRF verification failed: invalid origin source" }),
-        { status: 403, headers: { "Content-Type": "application/json" } }
-      );
+    if (origin) {
+      try {
+        const originUrl = new URL(origin);
+        if (originUrl.host !== host) {
+          return new NextResponse(
+            JSON.stringify({ success: false, message: "CSRF verification failed: invalid origin source" }),
+            { status: 403, headers: { "Content-Type": "application/json" } }
+          );
+        }
+      } catch {
+        return new NextResponse(
+          JSON.stringify({ success: false, message: "CSRF verification failed: malformed origin header" }),
+          { status: 403, headers: { "Content-Type": "application/json" } }
+        );
+      }
     }
   }
 

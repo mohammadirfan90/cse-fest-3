@@ -328,9 +328,11 @@ export default function PaymentsPage() {
   const activeTeam = teams.find((t) => t.id === selectedTeamId);
   const comp = activeTeam?.competitions;
   const memberCount = activeTeam?.member_count || 1;
-  const entryFee = comp?.is_fee_per_person
+  const baseFee = comp?.is_fee_per_person
     ? (comp?.entry_fee || 0) * memberCount
     : (comp?.entry_fee || 0);
+  const methodCharge = baseFee <= 0 ? 0 : Math.ceil(baseFee / 500) * 10;
+  const entryFee = baseFee + methodCharge;
 
   // Find the latest payment record
   const latestPayment = payments.length > 0 ? payments[0] : null;
@@ -558,9 +560,9 @@ export default function PaymentsPage() {
                     </label>
                     <div className="h-10 flex items-center bg-neutral-950 border border-neutral-800 px-3.5 rounded-lg text-neutral-100 font-mono font-bold text-sm">
                       {comp?.is_fee_per_person ? (
-                        <span>{comp.entry_fee} BDT x {memberCount} member{memberCount > 1 ? "s" : ""} = {entryFee} BDT</span>
+                        <span>{comp.entry_fee} BDT x {memberCount} member{memberCount > 1 ? "s" : ""} (+ {methodCharge} BDT gateway charge) = {entryFee} BDT</span>
                       ) : (
-                        <span>{entryFee} BDT</span>
+                        <span>{baseFee} BDT (+ {methodCharge} BDT gateway charge) = {entryFee} BDT</span>
                       )}
                     </div>
                   </div>

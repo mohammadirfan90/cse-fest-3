@@ -201,6 +201,10 @@ export async function POST(req: Request) {
       expectedAmount = Number(comp.entry_fee) * acceptedCount;
     }
 
+    // Add payment gateway charge (2% cash-out fee: 10 BDT per 500 BDT, rounded up)
+    const charge = expectedAmount <= 0 ? 0 : Math.ceil(expectedAmount / 500) * 10;
+    expectedAmount += charge;
+
     if (amount !== expectedAmount) {
       return NextResponse.json(
         { success: false, message: `Payment amount mismatch. Expected ${expectedAmount} BDT.` },

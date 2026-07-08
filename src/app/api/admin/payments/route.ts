@@ -17,6 +17,7 @@ interface EnrichedPayment {
   amount: number;
   transaction_id: string;
   screenshot_url: string;
+  sender_number?: string | null;
   method: string;
   status: "pending" | "approved" | "rejected" | "resubmission_required";
   created_at: string;
@@ -27,6 +28,8 @@ interface EnrichedPayment {
   team_score: number | null;
   team_rank: number | null;
   member_count: number;
+  leader_phone?: string | null;
+  leader_university?: string | null;
 }
 
 // GET: Fetch all payments for admin review
@@ -67,7 +70,7 @@ export async function GET(req: Request) {
     // 3. Query payments with team and competition details
     let query = supabase
       .from("payments")
-      .select("*, teams(id, name), competitions(id, name, type, entry_fee, is_fee_per_person)")
+      .select("*, teams(id, name, leader_id, users:leader_id(email, profiles(phone, university))), competitions(id, name, type, entry_fee, is_fee_per_person)")
       .order("created_at", { ascending: false });
 
     if (statusFilter) {
@@ -120,6 +123,10 @@ export async function GET(req: Request) {
       );
       const matchedRank = rankings.find((r) => r.team_id === p.team_id);
 
+      const rawTeam = p.teams as any;
+      const leaderUser = rawTeam?.users;
+      const leaderProfile = Array.isArray(leaderUser?.profiles) ? leaderUser.profiles[0] : leaderUser?.profiles;
+
       return {
         id: p.id,
         team_id: p.team_id,
@@ -133,11 +140,13 @@ export async function GET(req: Request) {
         created_at: p.created_at,
         reviewed_at: p.reviewed_at,
         reviewed_by: p.reviewed_by,
-        teams: p.teams as { id: string; name: string } | null,
+        teams: rawTeam ? { id: rawTeam.id, name: rawTeam.name } : null,
         competitions: p.competitions as { id: string; name: string; type: string; entry_fee: number; is_fee_per_person: boolean } | null,
         team_score: matchedScore ? matchedScore.score : null,
         team_rank: matchedRank ? matchedRank.rank_position : null,
         member_count: memberCounts[p.team_id] || 1,
+        leader_phone: leaderProfile?.phone || null,
+        leader_university: leaderProfile?.university || null,
       };
     });
 

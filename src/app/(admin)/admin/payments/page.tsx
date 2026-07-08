@@ -14,6 +14,7 @@ import {
   Plus,
   Edit,
   Trash2,
+  Download,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -48,6 +49,8 @@ interface PaymentItem {
   team_score: number | null;
   team_rank: number | null;
   member_count?: number;
+  leader_phone?: string | null;
+  leader_university?: string | null;
 }
 
 interface PaymentGateway {
@@ -400,6 +403,52 @@ export default function AdminPaymentsPage() {
     return txid.includes(search) || teamName.includes(search) || compName.includes(search);
   });
 
+  const handleBulkExport = () => {
+    try {
+      const headers = [
+        "Competition Name",
+        "Team Name",
+        "Sender Number",
+        "Transaction ID",
+        "University Name",
+        "Leader Number"
+      ];
+
+      const rows = filteredPayments.map((p) => [
+        p.competitions?.name || "N/A",
+        p.teams?.name || "N/A",
+        p.sender_number || "N/A",
+        p.transaction_id || "N/A",
+        p.leader_university || "N/A",
+        p.leader_phone || "N/A"
+      ]);
+
+      const BOM = "\uFEFF";
+      const csvContent = BOM + [
+        headers.join(","),
+        ...rows.map(row => 
+          row.map(val => {
+            const escaped = String(val).replace(/"/g, '""');
+            return `"${escaped}"`;
+          }).join(",")
+        )
+      ].join("\n");
+
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute("download", `payments_export_${Date.now()}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (err) {
+      setErrorMsg("Failed to export CSV.");
+      console.error(err);
+    }
+  };
+
   const pendingCount = payments.filter((p) => p.status === "pending").length;
   const totalRevenue = payments
     .filter((p) => p.status === "approved")
@@ -540,6 +589,17 @@ export default function AdminPaymentsPage() {
                   </button>
                 ))}
               </div>
+
+              {/* Bulk Export Button */}
+              <Button
+                variant="secondary"
+                className="text-xs h-9 font-semibold gap-1.5 cursor-pointer hover:bg-neutral-800 transition-colors shrink-0"
+                onClick={handleBulkExport}
+                disabled={filteredPayments.length === 0}
+              >
+                <Download className="h-3.5 w-3.5" />
+                <span>Export Payments CSV</span>
+              </Button>
             </div>
           </div>
 
@@ -553,9 +613,11 @@ export default function AdminPaymentsPage() {
         <div className="space-y-4">
           {filteredPayments.map((p, idx) => {
             const isPending = p.status === "pending";
-            const expectedFee = p.competitions?.is_fee_per_person
+            const baseFee = p.competitions?.is_fee_per_person
               ? (p.competitions?.entry_fee || 0) * (p.member_count || 1)
               : (p.competitions?.entry_fee || 0);
+            const charge = baseFee <= 0 ? 0 : Math.ceil(baseFee / 500) * 10;
+            const expectedFee = baseFee + charge;
             const amountMatches = p.amount === expectedFee;
 
             return (
@@ -611,11 +673,13 @@ export default function AdminPaymentsPage() {
                             <p className={`font-semibold font-mono ${amountMatches ? "text-neutral-200" : "text-error"}`}>
                               {p.amount} BDT
                             </p>
-                            {p.competitions?.is_fee_per_person && (
-                              <p className="text-[10px] text-neutral-400 font-sans mt-0.5">
-                                ({p.competitions.entry_fee} BDT x {p.member_count || 1} member{p.member_count && p.member_count > 1 ? "s" : ""})
-                              </p>
-                            )}
+                            <p className="text-[10px] text-neutral-400 font-sans mt-0.5">
+                              {p.competitions?.is_fee_per_person ? (
+                                <span>({p.competitions.entry_fee} BDT x {p.member_count || 1} + {charge} BDT charge)</span>
+                              ) : (
+                                <span>(Base: {baseFee} BDT + {charge} BDT charge)</span>
+                              )}
+                            </p>
                           </div>
                           <div className="p-2 rounded bg-neutral-950 border border-neutral-850 space-y-0.5">
                             <p className="text-neutral-600 text-sm uppercase tracking-widest font-mono">Method</p>

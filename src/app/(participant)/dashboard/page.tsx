@@ -127,19 +127,31 @@ const itemVariants = {
   show: { opacity: 1, y: 0, transition: { duration: 0.35, ease: "easeOut" } },
 } as const;
 
+interface PaymentMethod {
+  id: string;
+  name: string;
+  display_name: string;
+  number: string;
+  instructions: string | null;
+  active: boolean;
+}
+
 interface TeamPaymentFormProps {
   team: Team;
-  bkashNumber: string;
+  bkashMethod: PaymentMethod | null;
   onSuccess: () => void;
 }
 
-function TeamPaymentForm({ team, bkashNumber, onSuccess }: TeamPaymentFormProps) {
+function TeamPaymentForm({ team, bkashMethod, onSuccess }: TeamPaymentFormProps) {
   const [senderNumber, setSenderNumber] = React.useState("");
   const [transactionId, setTransactionId] = React.useState("");
   const [submitting, setSubmitting] = React.useState(false);
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
   const [successMsg, setSuccessMsg] = React.useState<string | null>(null);
   const [copied, setCopied] = React.useState(false);
+
+  const bkashNumber = bkashMethod?.number || "+880 1711-223344";
+  const bkashDisplayName = bkashMethod?.display_name || "bKash";
 
   const comp = team.competitions;
   const acceptedMembers = team.members.filter((m) => m.invitation_status === "accepted").length || 1;
@@ -184,7 +196,7 @@ function TeamPaymentForm({ team, bkashNumber, onSuccess }: TeamPaymentFormProps)
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           team_id: team.id,
-          amount: baseFee,
+          amount: totalAmount,
           transaction_id: cleanTxId,
           method: "bkash",
           sender_number: cleanSender,
@@ -215,7 +227,7 @@ function TeamPaymentForm({ team, bkashNumber, onSuccess }: TeamPaymentFormProps)
           <span>Payment Verified & Selected</span>
         </div>
         <div className="text-xs text-neutral-400 space-y-1.5 font-mono">
-          <div><span className="text-neutral-500">Method:</span> bKash Personal</div>
+          <div><span className="text-neutral-500">Method:</span> {bkashDisplayName}</div>
           <div><span className="text-neutral-500">Sender:</span> {payment?.sender_number || "Verified"}</div>
           <div><span className="text-neutral-500">TxID:</span> {payment?.transaction_id || "Verified"}</div>
           <div><span className="text-neutral-500">Amount Paid:</span> {payment?.amount || totalAmount} BDT</div>
@@ -247,7 +259,7 @@ function TeamPaymentForm({ team, bkashNumber, onSuccess }: TeamPaymentFormProps)
     <div className="p-5 rounded-xl border border-neutral-850 bg-neutral-950/60 space-y-4">
       <div className="flex items-center gap-2 text-primary font-heading font-bold text-sm uppercase tracking-wider">
         <CreditCard className="h-4 w-4" />
-        <span>bKash Payment Form</span>
+        <span>{bkashDisplayName} Payment Form</span>
       </div>
 
       {payment?.status === "resubmission_required" && (
@@ -273,7 +285,7 @@ function TeamPaymentForm({ team, bkashNumber, onSuccess }: TeamPaymentFormProps)
               <span className="font-mono">{baseFee} BDT</span>
             </div>
             <div className="flex justify-between text-neutral-400">
-              <span>bKash Charge:</span>
+              <span>{bkashDisplayName} Charge:</span>
               <span className="font-mono">+{bkashCharge} BDT</span>
             </div>
             <div className="flex justify-between text-neutral-100 font-bold border-t border-neutral-850 pt-2 text-sm">
@@ -284,9 +296,15 @@ function TeamPaymentForm({ team, bkashNumber, onSuccess }: TeamPaymentFormProps)
 
           {/* Payment Details */}
           <div className="p-3 rounded-lg bg-neutral-900 border border-neutral-850 space-y-2">
-            <p className="text-[11px] text-neutral-400 font-sans leading-relaxed">
-              Please send the <strong>exact Total Amount</strong> above via "Send Money" to this bKash Personal Number:
-            </p>
+            {bkashMethod?.instructions ? (
+              <p className="text-[11px] text-neutral-400 font-sans leading-relaxed whitespace-pre-wrap">
+                {bkashMethod.instructions}
+              </p>
+            ) : (
+              <p className="text-[11px] text-neutral-400 font-sans leading-relaxed">
+                Please send the <strong>exact Total Amount</strong> above via "Send Money" to this {bkashDisplayName} Personal Number:
+              </p>
+            )}
             <div className="flex items-center justify-between gap-2 bg-neutral-950 p-2 rounded border border-neutral-850">
               <span className="font-mono font-bold text-neutral-250 select-all">{bkashNumber}</span>
               <button
@@ -303,7 +321,7 @@ function TeamPaymentForm({ team, bkashNumber, onSuccess }: TeamPaymentFormProps)
           <form onSubmit={handleSubmit} className="space-y-3">
             <div className="space-y-1">
               <label className="text-[11px] font-mono uppercase tracking-wider text-neutral-500 block">
-                bKash Sender Number
+                {bkashDisplayName} Sender Number
               </label>
               <input
                 type="text"
@@ -370,6 +388,7 @@ export default function DashboardPage() {
   const [activeTab, setActiveTab] = React.useState<"my_registrations" | "all_registrations">("my_registrations");
   const [allCompetitions, setAllCompetitions] = React.useState<DashboardCompetition[]>([]);
   const [bkashNumber, setBkashNumber] = React.useState("+880 1711-223344");
+  const [bkashMethod, setBkashMethod] = React.useState<PaymentMethod | null>(null);
 
   const supabase = createClient();
 
@@ -450,8 +469,11 @@ export default function DashboardPage() {
         const pmRes = await fetch("/api/payment-methods");
         const pmData = await pmRes.json();
         if (pmData.success && pmData.data) {
-          const bkashMethod = pmData.data.find((m: any) => m.name === "bkash");
-          if (bkashMethod) setBkashNumber(bkashMethod.number);
+          const bkashMethodObj = pmData.data.find((m: any) => m.name === "bkash");
+          if (bkashMethodObj) {
+            setBkashNumber(bkashMethodObj.number);
+            setBkashMethod(bkashMethodObj);
+          }
         }
       } catch (err) {
         console.error("Failed to load dynamic bKash number:", err);
@@ -834,7 +856,7 @@ export default function DashboardPage() {
                             <div className="pt-4">
                               <TeamPaymentForm
                                 team={team}
-                                bkashNumber={bkashNumber}
+                                bkashMethod={bkashMethod}
                                 onSuccess={loadData}
                               />
                             </div>

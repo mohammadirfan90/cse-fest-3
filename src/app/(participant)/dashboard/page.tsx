@@ -150,7 +150,7 @@ function TeamPaymentForm({ team, bkashMethod, onSuccess }: TeamPaymentFormProps)
   const [successMsg, setSuccessMsg] = React.useState<string | null>(null);
   const [copied, setCopied] = React.useState(false);
 
-  const bkashNumber = bkashMethod?.number || "+880 1711-223344";
+  const bkashNumber = bkashMethod?.number || "+880 1999034829";
   const bkashDisplayName = bkashMethod?.display_name || "bKash";
 
   const comp = team.competitions;
@@ -198,7 +198,7 @@ function TeamPaymentForm({ team, bkashMethod, onSuccess }: TeamPaymentFormProps)
           team_id: team.id,
           amount: totalAmount,
           transaction_id: cleanTxId,
-          method: "bkash",
+          method: bkashMethod?.name || "bkash",
           sender_number: cleanSender,
         }),
       });
@@ -280,17 +280,17 @@ function TeamPaymentForm({ team, bkashMethod, onSuccess }: TeamPaymentFormProps)
         <div className="space-y-4">
           {/* Amount Calculation */}
           <div className="bg-neutral-900/60 p-3 rounded-lg border border-neutral-850 space-y-2 text-xs">
-            <div className="flex justify-between text-neutral-400">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-neutral-400">
               <span>Base Fee ({comp?.is_fee_per_person ? `${entryFee} BDT x ${acceptedMembers} member${acceptedMembers > 1 ? "s" : ""}` : "Flat Team Fee"}):</span>
-              <span className="font-mono">{baseFee} BDT</span>
+              <span className="font-mono whitespace-nowrap">{baseFee} BDT</span>
             </div>
-            <div className="flex justify-between text-neutral-400">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-neutral-400">
               <span>{bkashDisplayName} Charge:</span>
-              <span className="font-mono">+{bkashCharge} BDT</span>
+              <span className="font-mono whitespace-nowrap">+{bkashCharge} BDT</span>
             </div>
-            <div className="flex justify-between text-neutral-100 font-bold border-t border-neutral-850 pt-2 text-sm">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-neutral-100 font-bold border-t border-neutral-850 pt-2 text-sm">
               <span>Total Amount to Pay:</span>
-              <span className="text-primary font-mono">{totalAmount} BDT</span>
+              <span className="text-primary font-mono whitespace-nowrap">{totalAmount} BDT</span>
             </div>
           </div>
 
@@ -302,7 +302,7 @@ function TeamPaymentForm({ team, bkashMethod, onSuccess }: TeamPaymentFormProps)
               </p>
             ) : (
               <p className="text-[11px] text-neutral-400 font-sans leading-relaxed">
-                Please send the <strong>exact Total Amount</strong> above via "Send Money" to this {bkashDisplayName} Personal Number:
+                Please send the <strong>exact Total Amount</strong> above via &quot;Send Money&quot; to this {bkashDisplayName} Personal Number:
               </p>
             )}
             <div className="flex items-center justify-between gap-2 bg-neutral-950 p-2 rounded border border-neutral-850">
@@ -387,7 +387,6 @@ export default function DashboardPage() {
   const [userRole, setUserRole] = React.useState<string>("participant");
   const [activeTab, setActiveTab] = React.useState<"my_registrations" | "all_registrations">("my_registrations");
   const [allCompetitions, setAllCompetitions] = React.useState<DashboardCompetition[]>([]);
-  const [bkashNumber, setBkashNumber] = React.useState("+880 1711-223344");
   const [bkashMethod, setBkashMethod] = React.useState<PaymentMethod | null>(null);
 
   const supabase = createClient();
@@ -469,9 +468,8 @@ export default function DashboardPage() {
         const pmRes = await fetch("/api/payment-methods");
         const pmData = await pmRes.json();
         if (pmData.success && pmData.data) {
-          const bkashMethodObj = pmData.data.find((m: any) => m.name === "bkash");
+          const bkashMethodObj = pmData.data.find((m: PaymentMethod) => m.name.toLowerCase() === "bkash");
           if (bkashMethodObj) {
-            setBkashNumber(bkashMethodObj.number);
             setBkashMethod(bkashMethodObj);
           }
         }

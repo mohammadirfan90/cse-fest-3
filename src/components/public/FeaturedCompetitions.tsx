@@ -214,7 +214,7 @@ export function FeaturedCompetitions() {
                     {(comp.status === "registration_closed" || (comp.registrationEnd && new Date() > new Date(comp.registrationEnd))) ? (
                       <Button
                         disabled
-                        className="grow bg-neutral-200 dark:bg-neutral-900 text-neutral-500 border border-neutral-300 dark:border-neutral-850 py-3.5 h-auto rounded-xl font-heading text-base font-black tracking-widest cursor-not-allowed"
+                        className="grow bg-neutral-900 text-neutral-500 border border-neutral-850 py-3.5 h-auto rounded-xl font-heading text-base font-black tracking-widest cursor-not-allowed"
                       >
                         Registration Closed
                       </Button>

@@ -822,7 +822,7 @@ export default function AdminPaymentsPage() {
 
                 <Input
                   label="Account/Phone Number"
-                  placeholder="e.g. +880 1711-223344"
+                  placeholder="e.g. +880 1999034829"
                   value={methodFormData.number}
                   onChange={(e) => setMethodFormData({ ...methodFormData, number: e.target.value })}
                   disabled={methodFormLoading}

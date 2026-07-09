@@ -216,7 +216,7 @@ export async function POST(req: Request) {
     const { data: activeMethod } = await supabase
       .from("payment_methods")
       .select("id")
-      .eq("name", method)
+      .ilike("name", method)
       .eq("active", true)
       .limit(1)
       .maybeSingle();

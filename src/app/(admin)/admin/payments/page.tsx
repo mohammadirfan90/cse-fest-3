@@ -410,6 +410,7 @@ export default function AdminPaymentsPage() {
         "Team Name",
         "Sender Number",
         "Transaction ID",
+        "Amount",
         "University Name",
         "Leader Number"
       ];
@@ -419,6 +420,7 @@ export default function AdminPaymentsPage() {
         p.teams?.name || "N/A",
         p.sender_number || "N/A",
         p.transaction_id || "N/A",
+        p.amount ?? "N/A",
         p.leader_university || "N/A",
         p.leader_phone || "N/A"
       ]);
@@ -659,7 +661,7 @@ export default function AdminPaymentsPage() {
                           </h3>
                         </div>
 
-                        <div className="grid grid-cols-2 sm:grid-cols-6 gap-3 text-xs font-sans">
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs font-sans">
                           <div className="p-2 rounded bg-neutral-950 border border-neutral-850 space-y-0.5">
                             <p className="text-neutral-600 text-sm uppercase tracking-widest font-mono">Transaction ID</p>
                             <p className="text-neutral-200 font-mono font-semibold">{p.transaction_id}</p>
@@ -684,14 +686,6 @@ export default function AdminPaymentsPage() {
                           <div className="p-2 rounded bg-neutral-950 border border-neutral-850 space-y-0.5">
                             <p className="text-neutral-600 text-sm uppercase tracking-widest font-mono">Method</p>
                             <p className="text-neutral-200 font-medium uppercase font-mono">{p.method}</p>
-                          </div>
-                          <div className="p-2 rounded bg-neutral-950 border border-neutral-850 space-y-0.5">
-                            <p className="text-neutral-600 text-sm uppercase tracking-widest font-mono">Score</p>
-                            <p className="text-neutral-200 font-mono font-semibold">{p.team_score ?? "—"}</p>
-                          </div>
-                          <div className="p-2 rounded bg-neutral-950 border border-neutral-850 space-y-0.5">
-                            <p className="text-neutral-600 text-sm uppercase tracking-widest font-mono">Rank</p>
-                            <p className="text-neutral-200 font-mono font-semibold">{p.team_rank ? `#${p.team_rank}` : "—"}</p>
                           </div>
                         </div>
                       </div>

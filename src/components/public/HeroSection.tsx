@@ -447,7 +447,7 @@ export function HeroSection() {
       </div>
 
       {/* Banner Landscape (Centered) */}
-      <div className="relative w-full max-w-4xl aspect-[1200/630] rounded-2xl overflow-hidden border border-primary/20 bg-neutral-950/40 backdrop-blur-xl shadow-level-4 group transition-all duration-500 hover:border-primary/45 hover:shadow-[0_0_35px_rgba(146,80,255,0.25)] z-10 animate-fade-in">
+      <div className="relative w-full max-w-4xl lg:max-w-6xl aspect-[1200/630] rounded-2xl overflow-hidden border border-primary/20 bg-neutral-950/40 backdrop-blur-xl shadow-level-4 group transition-all duration-500 hover:border-primary/45 hover:shadow-[0_0_35px_rgba(146,80,255,0.25)] z-10 animate-fade-in">
         {/* Ambient aura background */}
         <div className="absolute inset-0 bg-linear-to-tr from-primary/5 via-transparent to-accent/5 opacity-0 group-hover:opacity-100 transition-opacity duration-complex pointer-events-none" />
         
@@ -461,13 +461,13 @@ export function HeroSection() {
 
         {/* Banner Image */}
         <Image
-          src="/webbannerv2.png"
+          src="/webbannerv3.png"
           alt="SMUCT CSE Fest 2026 Banner"
           fill
           priority
           unoptimized
           className="object-cover transition-transform duration-700 group-hover:scale-[1.015]"
-          sizes="(max-width: 768px) 100vw, 800px"
+          sizes="(max-width: 768px) 100vw, 1200px"
         />
       </div>
 

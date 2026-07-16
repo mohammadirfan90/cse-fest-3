@@ -461,7 +461,7 @@ export function HeroSection() {
 
         {/* Banner Image */}
         <Image
-          src="/webbannerv3.png"
+          src="/webbannerv4.png"
           alt="SMUCT CSE Fest 2026 Banner"
           fill
           priority

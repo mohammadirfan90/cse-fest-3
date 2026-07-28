@@ -18,8 +18,8 @@ export async function createClient() {
               cookieStore.set(name, value, options)
             );
           } catch {
-            // This is ignored when called from Server Components
-            // as cookies cannot be set during component rendering.
+            // Ignored when called from Server Components —
+            // cookies cannot be set during component rendering.
           }
         },
       },

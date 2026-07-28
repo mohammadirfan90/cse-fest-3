@@ -12,6 +12,8 @@ interface FileDropzoneProps {
   onChange: (file: File | null) => void;
   helperText?: string;
   disabled?: boolean;
+  /** External validation error (e.g. server or cross-field). Renders below the dropzone. */
+  externalError?: string;
 }
 
 export function FileDropzone({
@@ -23,6 +25,7 @@ export function FileDropzone({
   onChange,
   helperText,
   disabled = false,
+  externalError,
 }: FileDropzoneProps) {
   const [isDragActive, setIsDragActive] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -182,6 +185,13 @@ export function FileDropzone({
         <div className="flex items-center gap-1.5 text-xs text-red-500 mt-1 font-medium bg-red-950/10 border border-red-950/20 p-2 rounded-lg">
           <AlertCircle className="h-4 w-4 shrink-0" />
           <span>{error}</span>
+        </div>
+      )}
+
+      {externalError && !error && (
+        <div className="flex items-center gap-1.5 text-xs text-red-500 mt-1 font-medium bg-red-950/10 border border-red-950/20 p-2 rounded-lg">
+          <AlertCircle className="h-4 w-4 shrink-0" />
+          <span>{externalError}</span>
         </div>
       )}
     </div>

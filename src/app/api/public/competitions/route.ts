@@ -23,8 +23,10 @@ interface CompetitionDb {
   submission_start: string;
   submission_end: string;
   entry_fee: number;
+  is_fee_per_person: boolean | null;
   payment_instructions: string | null;
   submission_required: boolean;
+  is_video_required: boolean;
   template_link: string | null;
   rulebook_url: string | null;
   judging_criteria: unknown;
@@ -39,6 +41,7 @@ interface CompetitionDb {
   show_in_hero: boolean | null;
   short_name: string | null;
   hero_capacity: number | null;
+  slug?: string;
 }
 
 function mapCompetition(c: CompetitionDb) {
@@ -48,7 +51,9 @@ function mapCompetition(c: CompetitionDb) {
     ? `${min} Member${min > 1 ? "s" : ""}` 
     : `${min}–${max} Members`;
 
-  const feeStr = Number(c.entry_fee) === 0 ? "Free" : `${c.entry_fee} BDT`;
+  const feeStr = Number(c.entry_fee) === 0 
+    ? "Free" 
+    : `${c.entry_fee} BDT${c.is_fee_per_person ? " per person" : ""}`;
   return {
     id: c.id,
     name: c.name,
@@ -64,9 +69,11 @@ function mapCompetition(c: CompetitionDb) {
     maxMembers: max,
     teamSize: teamSizeStr,
     entryFee: Number(c.entry_fee),
+    isFeePerPerson: !!c.is_fee_per_person,
     fee: feeStr,
     paymentInstructions: c.payment_instructions || "",
     submissionRequired: c.submission_required,
+    isVideoRequired: c.is_video_required,
     templateLink: c.template_link || "",
     rulebookUrl: c.rulebook_url || "",
     judgingCriteria: c.judging_criteria,
@@ -83,6 +90,7 @@ function mapCompetition(c: CompetitionDb) {
     heroCapacity: c.hero_capacity ?? 80,
     registrationStart: c.registration_start,
     registrationEnd: c.registration_end,
+    slug: c.slug || "",
     // Add camelCase fallback names to make transitions 100% safe
     short_description: c.short_description || "",
     prize_pool: c.prize_pool || "TBD",
@@ -90,6 +98,7 @@ function mapCompetition(c: CompetitionDb) {
     runner_up_prize: c.runner_up_prize || "TBD",
     second_runner_up: c.second_runner_up || "TBD",
     entry_fee: Number(c.entry_fee),
+    is_fee_per_person: !!c.is_fee_per_person,
     show_in_hero: c.show_in_hero ?? false,
     short_name: c.short_name || "",
     hero_capacity: c.hero_capacity ?? 80,

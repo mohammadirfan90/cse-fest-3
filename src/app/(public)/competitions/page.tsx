@@ -23,11 +23,15 @@ interface Competition {
   shortDescription: string;
   teamSize: string;
   fee: string;
+  entryFee?: number;
+  isFeePerPerson?: boolean;
   eligibility: string;
   prizePool: string;
   coverImageUrl?: string;
   rulebookUrl?: string;
   status?: string;
+  registrationStart?: string;
+  registrationEnd?: string;
 }
 
 interface UserTeam {
@@ -153,7 +157,7 @@ function CompetitionsListContent() {
                   : "bg-neutral-900/40 text-neutral-400 hover:bg-neutral-800/40 border border-neutral-850"
               }`}
             >
-              INTER-UNI
+              INTER-UNI / College
             </button>
             <button
               onClick={() => setCategoryFilter("internal")}
@@ -242,18 +246,35 @@ function CompetitionsListContent() {
                             {comp.name}
                           </h3>
                           <Badge variant="accent" className="text-sm font-mono shrink-0 uppercase">
-                            {comp.eligibility?.toLowerCase() === "both" || comp.eligibility?.toLowerCase() === "external" ? "INTER-UNI" : comp.eligibility}
+                            {comp.name?.toLowerCase().includes("idea") || comp.id === "dfec0659-6308-42e3-aaf6-dfdc85eb2cfa"
+                              ? "College Only"
+                              : comp.eligibility?.toLowerCase() === "both" || comp.eligibility?.toLowerCase() === "external"
+                              ? "INTER-UNI"
+                              : comp.eligibility}
                           </Badge>
                         </div>
                       </Link>
 
                       <div className="mt-auto space-y-4">
-                        <Link href={`/competitions/${comp.id}`} className="flex justify-between items-center py-3 border-y border-neutral-850 block hover:text-neutral-200 transition-colors">
-                          <span className="text-sm font-bold text-neutral-500 uppercase font-sans">Prize Pool</span>
-                          <span className="font-mono text-secondary dark:text-white text-sm font-extrabold">{comp.prizePool}</span>
-                        </Link>
+                        <div className="border-y border-neutral-850 divide-y divide-neutral-850/50">
+                          <Link href={`/competitions/${comp.id}`} className="flex justify-between items-center py-2.5 block hover:text-neutral-200 transition-colors">
+                            <span className="text-sm font-bold text-neutral-400 uppercase font-sans">Prize Pool</span>
+                            <span className="font-mono text-secondary dark:text-white text-sm font-extrabold">{comp.prizePool}</span>
+                          </Link>
+                          <Link href={`/competitions/${comp.id}`} className="flex justify-between items-start py-2.5 block hover:text-neutral-200 transition-colors">
+                            <span className="text-sm font-bold text-neutral-400 uppercase font-sans">Entry Fee</span>
+                            <div className="text-right">
+                              <span className="font-mono text-neutral-100 text-sm font-extrabold">
+                                {comp.entryFee === 0 ? "Free" : `${comp.entryFee} BDT`}
+                              </span>
+                              {comp.isFeePerPerson && (
+                                <span className="block text-xs uppercase tracking-wider text-neutral-400 mt-1 font-semibold">PER PERSON</span>
+                              )}
+                            </div>
+                          </Link>
+                        </div>
                         <div className="flex gap-3">
-                          {comp.status === "registration_closed" ? (
+                          {(comp.status === "registration_closed" || (comp.registrationEnd && new Date() > new Date(comp.registrationEnd))) ? (
                             <Button
                               disabled
                               className="grow bg-neutral-900 text-neutral-500 border border-neutral-850 py-3 h-auto rounded-lg text-sm font-bold font-sans cursor-not-allowed"

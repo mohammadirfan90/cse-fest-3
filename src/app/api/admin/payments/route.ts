@@ -17,15 +17,19 @@ interface EnrichedPayment {
   amount: number;
   transaction_id: string;
   screenshot_url: string;
+  sender_number?: string | null;
   method: string;
   status: "pending" | "approved" | "rejected" | "resubmission_required";
   created_at: string;
   reviewed_at: string | null;
   reviewed_by: string | null;
   teams: { id: string; name: string } | null;
-  competitions: { id: string; name: string; type: string; entry_fee: number } | null;
+  competitions: { id: string; name: string; type: string; entry_fee: number; is_fee_per_person: boolean } | null;
   team_score: number | null;
   team_rank: number | null;
+  member_count: number;
+  leader_phone?: string | null;
+  leader_university?: string | null;
 }
 
 // GET: Fetch all payments for admin review
@@ -66,7 +70,7 @@ export async function GET(req: Request) {
     // 3. Query payments with team and competition details
     let query = supabase
       .from("payments")
-      .select("*, teams(id, name), competitions(id, name, type, entry_fee)")
+      .select("*, teams(id, name, leader_id, users:leader_id(email, profiles(phone, university))), competitions(id, name, type, entry_fee, is_fee_per_person)")
       .order("created_at", { ascending: false });
 
     if (statusFilter) {
@@ -84,6 +88,7 @@ export async function GET(req: Request) {
     const teamIds = (payments || []).map((p) => p.team_id);
     let scores: { team_id: string; competition_id: string; score: number }[] = [];
     let rankings: { team_id: string; rank_position: number }[] = [];
+    const memberCounts: Record<string, number> = {};
 
     if (teamIds.length > 0) {
       const { data: scoresData } = await supabase
@@ -97,6 +102,19 @@ export async function GET(req: Request) {
         .select("team_id, rank_position")
         .in("team_id", teamIds);
       rankings = (rankingsData || []) as { team_id: string; rank_position: number }[];
+
+      // Count accepted team members
+      const { data: membersData } = await supabase
+        .from("team_members")
+        .select("team_id")
+        .in("team_id", teamIds)
+        .eq("invitation_status", "accepted");
+
+      if (membersData) {
+        membersData.forEach((m) => {
+          memberCounts[m.team_id] = (memberCounts[m.team_id] || 0) + 1;
+        });
+      }
     }
 
     const enriched: EnrichedPayment[] = (payments || []).map((p) => {
@@ -105,6 +123,10 @@ export async function GET(req: Request) {
       );
       const matchedRank = rankings.find((r) => r.team_id === p.team_id);
 
+      const rawTeam = p.teams as any;
+      const leaderUser = rawTeam?.users;
+      const leaderProfile = Array.isArray(leaderUser?.profiles) ? leaderUser.profiles[0] : leaderUser?.profiles;
+
       return {
         id: p.id,
         team_id: p.team_id,
@@ -112,15 +134,19 @@ export async function GET(req: Request) {
         amount: p.amount,
         transaction_id: p.transaction_id,
         screenshot_url: p.screenshot_url,
+        sender_number: p.sender_number,
         method: p.method,
         status: p.status,
         created_at: p.created_at,
         reviewed_at: p.reviewed_at,
         reviewed_by: p.reviewed_by,
-        teams: p.teams as { id: string; name: string } | null,
-        competitions: p.competitions as { id: string; name: string; type: string; entry_fee: number } | null,
+        teams: rawTeam ? { id: rawTeam.id, name: rawTeam.name } : null,
+        competitions: p.competitions as { id: string; name: string; type: string; entry_fee: number; is_fee_per_person: boolean } | null,
         team_score: matchedScore ? matchedScore.score : null,
         team_rank: matchedRank ? matchedRank.rank_position : null,
+        member_count: memberCounts[p.team_id] || 1,
+        leader_phone: leaderProfile?.phone || null,
+        leader_university: leaderProfile?.university || null,
       };
     });
 
@@ -217,7 +243,7 @@ export async function POST(req: Request) {
     // Payment resubmission_required or rejected -> Team status remains unchanged (either selected or forming)
     let teamStatus = null;
     if (status === "approved") {
-      teamStatus = "registered";
+      teamStatus = "finalist";
 
       const { error: teamUpdateErr } = await supabase
         .from("teams")

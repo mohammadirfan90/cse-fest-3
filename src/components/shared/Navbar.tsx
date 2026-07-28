@@ -11,7 +11,7 @@ import Image from "next/image";
 import { User } from "@supabase/supabase-js";
 
 const NAV_LINKS = [
-  { label: "About", href: "/#about" },
+  { label: "Home", href: "/" },
   { label: "Competitions", href: "/#competitions" },
   { label: "Timeline", href: "/#timeline" },
   { label: "FAQ", href: "/#faq" },
@@ -19,7 +19,7 @@ const NAV_LINKS = [
 ];
 
 // Section IDs to track for active highlight
-const SECTION_IDS = ["about", "competitions", "timeline", "faq", "contact"];
+const SECTION_IDS = ["home", "competitions", "timeline", "faq", "contact"];
 
 export function Navbar() {
   const pathname = usePathname();
@@ -36,7 +36,8 @@ export function Navbar() {
   // uses the canonical `theme` key. The pre-paint script in
   // src/app/(public)/layout.tsx reads from `theme_public` first, so
   // toggling here is in lockstep with what the browser painted.
-  const isPublicRoute = pathname?.startsWith("/competitions") ||
+  const isPublicRoute =
+    pathname?.startsWith("/competitions") ||
     pathname === "/" ||
     pathname === "/schedule" ||
     pathname === "/finalists" ||
@@ -88,7 +89,7 @@ export function Navbar() {
         ([entry]) => {
           if (entry.isIntersecting) setActiveSection(id);
         },
-        { threshold: 0.3, rootMargin: "-80px 0px -60% 0px" }
+        { threshold: 0.3, rootMargin: "-80px 0px -60% 0px" },
       );
       obs.observe(el);
       observers.push(obs);
@@ -107,7 +108,9 @@ export function Navbar() {
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
     });
-    return () => { subscription.unsubscribe(); };
+    return () => {
+      subscription.unsubscribe();
+    };
   }, [supabase]);
 
   const toggleTheme = () => {
@@ -166,7 +169,9 @@ export function Navbar() {
                   key={link.label}
                   href={link.href}
                   className={`relative text-sm font-sans font-medium py-1 transition-colors duration-150 group ${
-                    isActive ? "text-neutral-50" : "text-neutral-400 hover:text-neutral-50"
+                    isActive
+                      ? "text-neutral-50"
+                      : "text-neutral-400 hover:text-neutral-50"
                   }`}
                 >
                   {link.label}
@@ -324,4 +329,3 @@ export function Navbar() {
     </nav>
   );
 }
-

@@ -6,8 +6,17 @@ import { checkRateLimit } from "@/lib/utils/rate-limit";
 const paymentSubmissionSchema = z.object({
   team_id: z.string().uuid("Invalid team ID format"),
   amount: z.number().positive("Amount must be a positive number"),
-  transaction_id: z.string().min(6, "Transaction ID must be at least 6 characters"),
+  transaction_id: z
+    .string()
+    .regex(/^[A-Z0-9]{10}$/, "Transaction ID must be exactly 10 uppercase alphanumeric characters without any special characters or symbols")
+    .refine(
+      (val) => /[A-Z]/.test(val) && /[0-9]/.test(val),
+      "Transaction ID must contain both uppercase letters and numbers"
+    ),
   method: z.string().min(2, "Payment method is required"),
+  sender_number: z
+    .string()
+    .regex(/^\d{11}$/, "Sender number must be exactly 11 digits"),
 });
 
 // GET: Fetch payment history/status for a team
@@ -118,12 +127,12 @@ export async function POST(req: Request) {
       );
     }
 
-    const { team_id, amount, transaction_id, method } = parseResult.data;
+    const { team_id, amount, transaction_id, method, sender_number } = parseResult.data;
 
     // 3. Authorize (Must be accepted member of the team)
     const { data: teamRecord, error: teamQueryErr } = await supabase
       .from("teams")
-      .select("id, name, status, competitions(id, name, entry_fee, eligibility, payment_instructions, rounds_count, preliminary_published)")
+      .select("id, name, status, competitions(id, name, entry_fee, is_fee_per_person, eligibility, payment_instructions, rounds_count, preliminary_published)")
       .eq("id", team_id)
       .single();
 
@@ -153,6 +162,7 @@ export async function POST(req: Request) {
       id: string;
       name: string;
       entry_fee: number;
+      is_fee_per_person: boolean | null;
       eligibility: string;
       payment_instructions: string | null;
       rounds_count: number;
@@ -174,11 +184,39 @@ export async function POST(req: Request) {
       );
     }
 
+    // Calculate expected fee (per-person or flat-rate per team)
+    let expectedAmount = Number(comp.entry_fee);
+    if (comp.is_fee_per_person) {
+      const { count: memberCount, error: countErr } = await supabase
+        .from("team_members")
+        .select("id", { count: "exact", head: true })
+        .eq("team_id", team_id)
+        .eq("invitation_status", "accepted");
+
+      if (countErr) {
+        throw new Error(`Failed to calculate team size: ${countErr.message}`);
+      }
+
+      const acceptedCount = memberCount || 1;
+      expectedAmount = Number(comp.entry_fee) * acceptedCount;
+    }
+
+    // Add payment gateway charge (2% cash-out fee: 10 BDT per 500 BDT, rounded up)
+    const charge = expectedAmount <= 0 ? 0 : Math.ceil(expectedAmount / 500) * 10;
+    expectedAmount += charge;
+
+    if (amount !== expectedAmount) {
+      return NextResponse.json(
+        { success: false, message: `Payment amount mismatch. Expected ${expectedAmount} BDT.` },
+        { status: 400 }
+      );
+    }
+
     // Verify the payment method is active in the database
     const { data: activeMethod } = await supabase
       .from("payment_methods")
       .select("id")
-      .eq("name", method)
+      .ilike("name", method)
       .eq("active", true)
       .limit(1)
       .maybeSingle();
@@ -252,6 +290,7 @@ export async function POST(req: Request) {
         transaction_id,
         screenshot_url: "",
         method,
+        sender_number,
         status: "pending",
       });
 

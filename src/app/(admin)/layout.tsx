@@ -23,6 +23,7 @@ import {
   ChevronRight,
   Search,
   FileArchive,
+  Users,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
@@ -126,7 +127,7 @@ export default function AdminLayout({
 
   const menuItems = [
     { label: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
-    { label: "Verifications", href: "/admin/verifications", icon: UserCheck },
+    { label: "Registrations", href: "/admin/registrations", icon: Users },
     { label: "Competitions", href: "/admin/competitions", icon: Trophy },
     { label: "Submissions", href: "/admin/submissions", icon: Send },
     { label: "Payments", href: "/admin/payments", icon: CreditCard },
@@ -282,12 +283,12 @@ export default function AdminLayout({
 
       {/* Main Content Area */}
       <div
-        className={`flex-1 flex flex-col min-h-screen transition-all duration-300 z-10 ${
+        className={`flex-1 min-w-0 flex flex-col min-h-screen transition-all duration-300 z-10 ${
           isCollapsed ? "lg:pl-20" : "lg:pl-64"
         }`}
       >
         {/* Top Header */}
-        <header className="h-16 border-b border-border bg-background flex items-center justify-between px-8 z-30 sticky top-0">
+        <header className="h-16 border-b border-border bg-background flex items-center justify-between px-4 md:px-8 z-30 sticky top-0">
           <div className="lg:hidden flex items-center gap-3">
             <div className="relative h-10 w-10">
               <Image
@@ -350,7 +351,7 @@ export default function AdminLayout({
         </header>
 
         {/* Inner page content wrapper */}
-        <main className="grow p-8 w-full relative z-10">
+        <main className="grow p-4 md:p-8 w-full min-w-0 relative z-10">
           <AnimatePresence mode="wait">
             <motion.div
               key={pathname}

@@ -71,8 +71,11 @@ export async function writeSubmissionFile(
   fileName: string,
   buffer: Buffer
 ): Promise<string> {
-  const fileExt = path.extname(fileName) || ".pdf";
   const isVideo = isValidVideoSignature(buffer);
+  const userExt = path.extname(fileName).toLowerCase();
+  const fileExt = isVideo
+    ? (userExt === ".webm" || userExt === ".mkv" ? userExt : ".mp4")
+    : ".pdf";
   const standardName = isVideo ? `demo_video${fileExt}` : `proposal_v1${fileExt}`;
 
   const relativePath = `csefest/competitions/${compSlug}/teams/${teamSlug}/${standardName}`;
@@ -96,7 +99,7 @@ export async function deleteSubmissionFile(relativeUrl: string): Promise<void> {
   try {
     const absPath = path.join(SUBMISSIONS_ROOT, relativeUrl);
     // Path traversal protection
-    if (!absPath.startsWith(SUBMISSIONS_ROOT)) {
+    if (!absPath.startsWith(SUBMISSIONS_ROOT + path.sep)) {
       throw new Error("Directory traversal attempt blocked.");
     }
     await fs.unlink(absPath);
@@ -145,7 +148,7 @@ startxref
 
   const absPath = path.join(SUBMISSIONS_ROOT, relativeUrl);
   // Path traversal protection
-  if (!absPath.startsWith(SUBMISSIONS_ROOT)) {
+  if (!absPath.startsWith(SUBMISSIONS_ROOT + path.sep)) {
     return new Response("Forbidden", { status: 403 });
   }
 

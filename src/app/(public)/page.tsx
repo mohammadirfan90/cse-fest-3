@@ -2,16 +2,150 @@
 
 import * as React from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronDown, Sparkles } from "lucide-react";
+import { ChevronDown, Megaphone, Sparkles } from "lucide-react";
 import useSWR from "swr";
 import { Navbar } from "@/components/shared/Navbar";
 import { NewsTicker } from "@/components/public/NewsTicker";
 import { HeroSection } from "@/components/public/HeroSection";
 import { FeaturedCompetitions } from "@/components/public/FeaturedCompetitions";
+import { CompetitionContacts } from "@/components/public/CompetitionContacts";
 import { Timeline } from "@/components/public/Timeline";
 import { Footer } from "@/components/shared/Footer";
 
+const FACEBOOK_EVENT_URL = "https://www.facebook.com/share/1Jc9XUgt5R/";
+
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
+
+function FacebookEventBanner() {
+  const handleClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
+    // Lightweight analytics hook — fires only if a GTM/GA4 dataLayer exists.
+    // No new dependency added; safe to no-op in environments without it.
+    const w = window as unknown as { dataLayer?: Array<Record<string, unknown>> };
+    w.dataLayer?.push({
+      event: "social_click",
+      social_platform: "facebook",
+      social_action: "rsvp_event",
+      social_url: FACEBOOK_EVENT_URL,
+      outbound: true,
+    });
+  };
+
+  return (
+    <section
+      id="facebook-event"
+      aria-labelledby="facebook-event-heading"
+      className="max-w-7xl mx-auto px-4 md:px-16 py-20 border-t border-neutral-850 relative"
+    >
+      <motion.div
+        initial={{ opacity: 0, y: 24 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, margin: "-80px" }}
+        transition={{ duration: 0.5, ease: "easeOut" }}
+        className="relative"
+      >
+        {/* Aurora blobs — match the Hero style, but kept low-opacity so the card
+            stays the focus. Pointer-events-none so clicks still hit the anchor. */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute -inset-8 md:-inset-12 overflow-visible"
+        >
+          <div className="absolute -top-12 -left-10 w-72 h-72 rounded-full bg-primary/30 mix-blend-screen filter blur-3xl opacity-30 dark:opacity-50 animate-blob" />
+          <div
+            className="absolute -bottom-16 -right-10 w-80 h-80 rounded-full bg-tertiary/30 mix-blend-screen filter blur-3xl opacity-25 dark:opacity-40 animate-blob"
+            style={{ animationDelay: "2s" }}
+          />
+          <div
+            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-24 rounded-full bg-secondary/20 mix-blend-screen filter blur-3xl opacity-20 dark:opacity-30 animate-blob"
+            style={{ animationDelay: "4s" }}
+          />
+        </div>
+
+        {/* Holographic conic outline — only on dark, slowly rotating. */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute -inset-px rounded-2xl opacity-0 dark:opacity-100 overflow-hidden"
+        >
+          <div
+            className="absolute inset-[-50%] animate-[fb-spin_8s_linear_infinite]"
+            style={{
+              background:
+                "conic-gradient(from 0deg, transparent 0deg, rgba(99,102,241,0.55) 60deg, transparent 120deg, rgba(236,72,153,0.45) 200deg, transparent 260deg, rgba(34,211,238,0.5) 320deg, transparent 360deg)",
+            }}
+          />
+          <div
+            className="absolute inset-px rounded-2xl"
+            style={{ background: "var(--background, #0a0a0a)" }}
+          />
+        </div>
+
+        <a
+          href={FACEBOOK_EVENT_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={handleClick}
+          data-social="facebook"
+          data-action="rsvp_event"
+          aria-describedby="facebook-event-heading"
+          className="group relative block rounded-2xl border border-glass bg-glass backdrop-blur-md p-8 md:p-12 transition-all duration-300 ease-out will-change-transform hover:-translate-y-0.5 hover:scale-[1.005] hover:border-primary/50 hover:bg-primary/5 hover:shadow-[0_0_0_1px_rgba(99,102,241,0.35),0_20px_60px_-20px_rgba(99,102,241,0.45)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        >
+          {/* Inner radial sheen — picks up on hover via group */}
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+            style={{
+              background:
+                "radial-gradient(800px circle at var(--mx,50%) var(--my,50%), rgba(99,102,241,0.10), transparent 40%)",
+            }}
+          />
+
+          {/* Breathing primary glow — only on dark, only on the resting state. */}
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute -inset-2 rounded-3xl opacity-0 dark:opacity-60 group-hover:opacity-0 transition-opacity duration-300 animate-[fb-pulse_4s_ease-in-out_infinite]"
+            style={{
+              boxShadow: "0 0 60px -10px rgba(99,102,241,0.45)",
+            }}
+          />
+
+          <div className="relative flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+            <div className="space-y-2 max-w-2xl">
+              <p className="text-xs font-mono uppercase tracking-[0.2em] text-primary">
+                <span className="relative inline-block w-2 h-2 rounded-full bg-primary mr-2 align-middle">
+                  <span className="absolute inset-0 rounded-full bg-primary/60 animate-ping" />
+                </span>
+                Stay Connected
+              </p>
+              <h2
+                id="facebook-event-heading"
+                className="font-heading text-2xl md:text-3xl font-extrabold text-neutral-100 tracking-tight"
+              >
+                Join the official{" "}
+                <span className="bg-linear-to-r from-primary via-tertiary to-secondary bg-clip-text text-transparent">
+                  CSE Fest 2026
+                </span>{" "}
+                Facebook event
+              </h2>
+              <p className="text-sm md:text-base text-neutral-400 font-light leading-relaxed">
+                Get reminders, announcements, and live updates straight from the organizers.
+              </p>
+            </div>
+
+            <span className="relative inline-flex items-center justify-center gap-2 self-start md:self-auto whitespace-nowrap rounded-full border border-glass bg-background/40 group-hover:bg-primary/10 group-hover:border-primary/50 group-hover:shadow-[0_0_24px_-6px_rgba(99,102,241,0.6)] transition-all duration-normal px-6 py-3 text-sm font-semibold text-neutral-100">
+              <Megaphone className="h-4 w-4 text-primary group-hover:rotate-12 group-hover:scale-110 transition-transform duration-normal" />
+              Facebook Event
+              <span
+                aria-hidden="true"
+                className="inline-block text-neutral-500 group-hover:text-primary group-hover:translate-x-0.5 transition-all duration-normal"
+              >
+                →
+              </span>
+            </span>
+          </div>
+        </a>
+      </motion.div>
+    </section>
+  );
+}
 
 interface FAQData {
   question: string;
@@ -66,6 +200,9 @@ export default function PublicHomePage() {
 
         {/* Competitions Section */}
         <FeaturedCompetitions />
+
+        {/* Competition Contacts Section */}
+        <CompetitionContacts />
 
         {/* Timeline Section */}
         <Timeline />
@@ -133,6 +270,9 @@ export default function PublicHomePage() {
           </div>
         </section>
       </main>
+
+      {/* Facebook Event Banner */}
+      <FacebookEventBanner />
 
       {/* Footer */}
       <Footer />

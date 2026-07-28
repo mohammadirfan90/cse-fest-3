@@ -7,7 +7,16 @@ import { useRouter, usePathname } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Lock, Mail, ArrowRight, ShieldAlert, Sun, Moon, Menu, X } from "lucide-react";
+import {
+  Lock,
+  Mail,
+  ArrowRight,
+  ShieldAlert,
+  Sun,
+  Moon,
+  Menu,
+  X,
+} from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,7 +30,7 @@ const loginSchema = z.object({
 type LoginFormData = z.infer<typeof loginSchema>;
 
 const NAV_LINKS = [
-  { label: "About", href: "/#about" },
+  { label: "Home", href: "/" },
   { label: "Competitions", href: "/#competitions" },
   { label: "Timeline", href: "/#timeline" },
   { label: "FAQ", href: "/#faq" },
@@ -61,7 +70,7 @@ export default function LoginPage() {
     const prefersDark = saved
       ? saved === "dark"
       : !document.documentElement.classList.contains("light");
-    
+
     if (prefersDark) {
       document.documentElement.classList.add("dark");
       document.documentElement.classList.remove("light");
@@ -92,7 +101,7 @@ export default function LoginPage() {
     try {
       const searchParams = new URLSearchParams(window.location.search);
       const redirectTo = searchParams.get("redirectTo") || "/dashboard";
-      
+
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
@@ -124,7 +133,10 @@ export default function LoginPage() {
       router.push(redirectTo);
       router.refresh();
     } catch (err: unknown) {
-      const errMsg = err instanceof Error ? err.message : "An unexpected error occurred during login.";
+      const errMsg =
+        err instanceof Error
+          ? err.message
+          : "An unexpected error occurred during login.";
       setErrorMsg(errMsg);
     } finally {
       setLoading(false);
@@ -142,7 +154,10 @@ export default function LoginPage() {
       >
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="flex h-16 items-center justify-between">
-            <Link href="/" className="flex items-center group relative h-12 w-12">
+            <Link
+              href="/"
+              className="flex items-center group relative h-12 w-12"
+            >
               <Image
                 src="/festlogo.png"
                 alt="SMUCT CSE Fest '26 Logo"
@@ -170,7 +185,9 @@ export default function LoginPage() {
                     key={link.label}
                     href={link.href}
                     className={`relative text-sm font-sans font-medium py-1 transition-colors duration-150 group ${
-                      isActive ? "text-neutral-50" : "text-neutral-400 hover:text-neutral-50"
+                      isActive
+                        ? "text-neutral-50"
+                        : "text-neutral-400 hover:text-neutral-50"
                     }`}
                   >
                     {link.label}
@@ -297,16 +314,16 @@ export default function LoginPage() {
           <div className="absolute top-[-10%] left-[-10%] w-[45vw] h-[45vw] bg-primary/20 blur-[140px] rounded-full animate-pulse pointer-events-none" />
           <div className="absolute bottom-[-10%] right-[-10%] w-[40vw] h-[40vw] bg-secondary/15 blur-[120px] rounded-full animate-[pulse_4s_ease-in-out_infinite] pointer-events-none" />
           <div className="absolute top-[30%] right-[10%] w-[25vw] h-[25vw] bg-accent/10 blur-[90px] rounded-full animate-[pulse_6s_ease-in-out_infinite] pointer-events-none" />
-          
+
           {/* Tech Grid Pattern */}
           <div className="absolute inset-0 bg-grid-pattern opacity-40 mix-blend-color-dodge pointer-events-none" />
-          
+
           {/* Scan Line Animation */}
           <div className="absolute inset-0 bg-gradient-to-b from-transparent via-primary/5 to-transparent h-1/3 w-full opacity-0 pointer-events-none animate-scan-line" />
-          
+
           {/* Fine Noise Overlay */}
           <div className="absolute inset-0 bg-noise opacity-[0.03] pointer-events-none" />
-          
+
           <div className="relative z-10 w-full px-12 flex flex-col items-center text-center">
             {/* Big Brand Logo */}
             <div className="transform hover:scale-[1.01] transition-transform duration-500">
@@ -345,8 +362,12 @@ export default function LoginPage() {
             {/* Login View */}
             <div className="space-y-6">
               <div className="text-center md:text-left space-y-2">
-                <h1 className="font-heading text-4xl font-extrabold text-neutral-50 leading-tight">Welcome Back</h1>
-                <p className="text-neutral-400 font-sans text-sm">Access the command center of innovation.</p>
+                <h1 className="font-heading text-4xl font-extrabold text-neutral-50 leading-tight">
+                  Welcome Back
+                </h1>
+                <p className="text-neutral-400 font-sans text-sm">
+                  Access the command center of innovation.
+                </p>
               </div>
 
               {/* Login Form */}
@@ -394,7 +415,10 @@ export default function LoginPage() {
                 </div>
 
                 <div className="flex justify-end text-xs font-sans">
-                  <Link href="/forgot-password" className="text-primary hover:underline font-bold">
+                  <Link
+                    href="/forgot-password"
+                    className="text-primary hover:underline font-bold"
+                  >
                     Forgot Password?
                   </Link>
                 </div>
@@ -415,7 +439,9 @@ export default function LoginPage() {
               <div className="space-y-4">
                 <div className="relative flex py-1 items-center">
                   <div className="flex-grow border-t border-neutral-800" />
-                  <span className="flex-shrink mx-3 text-xxs font-mono text-neutral-500 uppercase tracking-widest">Or continue with</span>
+                  <span className="flex-shrink mx-3 text-xxs font-mono text-neutral-500 uppercase tracking-widest">
+                    Or continue with
+                  </span>
                   <div className="flex-grow border-t border-neutral-800" />
                 </div>
 
@@ -449,7 +475,10 @@ export default function LoginPage() {
 
               <div className="text-center text-xs font-sans text-neutral-500 select-none">
                 Don&apos;t have an account?{" "}
-                <Link href="/register" className="text-primary font-bold hover:underline ml-1">
+                <Link
+                  href="/register"
+                  className="text-primary font-bold hover:underline ml-1"
+                >
                   Create Account
                 </Link>
               </div>
@@ -460,4 +489,3 @@ export default function LoginPage() {
     </div>
   );
 }
-

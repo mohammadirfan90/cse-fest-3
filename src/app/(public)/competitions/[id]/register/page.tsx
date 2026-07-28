@@ -17,17 +17,31 @@ import {
   Send,
   Loader2,
   AlertTriangle,
-  LogOut
+  LogOut,
+  Crown,
 } from "lucide-react";
 
 import { Navbar } from "@/components/shared/Navbar";
 import { Footer } from "@/components/shared/Footer";
+import { EligibilityBadge } from "@/components/shared/EligibilityBadge";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { createClient } from "@/lib/supabase/client";
 import { FileDropzone } from "@/components/submissions/FileDropzone";
+import {
+  SMUCT_INSTITUTION,
+  SEMESTER_PLACEHOLDER,
+  SEMESTER_OPTIONS,
+  DEPARTMENT_PLACEHOLDER,
+  ELIGIBILITY_BOTH,
+  isInternal,
+  isSemesterRequiredFor,
+  isSmuctInstitution,
+  normalizeEligibility,
+  type Eligibility,
+} from "@/lib/eligibility";
 import type { User } from "@supabase/supabase-js";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
@@ -38,14 +52,19 @@ interface Competition {
   type: string;
   shortDescription: string;
   fee: string;
+  /** Narrowed via `normalizeEligibility()`; the API may return unknown values. */
   eligibility: string;
   minMembers: number;
   maxMembers: number;
   submissionRequired: boolean;
+  /** When true, the YouTube demo URL field is required (IOT-style). */
+  isVideoRequired: boolean;
   rulebookUrl?: string;
   templateLink?: string;
   bannerImageUrl?: string;
   coverImageUrl?: string;
+  status?: string;
+  registrationEnd?: string;
 }
 
 const COMPETITION_IMAGES: Record<string, string> = {
@@ -76,9 +95,27 @@ const BD_PHONE_REGEX = /^01\d{9}$/;
 const BD_PHONE_HINT =
   "Phone number must be 11 digits and start with 01 (e.g. 01712345678).";
 
+// YouTube URL shape accepted for demo videos. Both `youtube.com/watch?v=`
+// and short `youtu.be/` links resolve to the same videos.
+const YOUTUBE_URL_REGEX =
+  /^(https?:\/\/)?(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)/;
+
 function isValidBdPhone(value: string): boolean {
   const normalized = value.trim().replace(/[\s-]/g, "");
   return BD_PHONE_REGEX.test(normalized);
+}
+
+/** Initial institution value for a new teammate row. */
+function getSeedMemberUniversity(
+  isInternalCompetition: boolean,
+  eligibility: Eligibility,
+  isSmuct: boolean,
+  leaderUniversity: string,
+): string {
+  if (isInternalCompetition) return SMUCT_INSTITUTION;
+  if (eligibility === ELIGIBILITY_BOTH && !isSmuct) return "";
+  if (isSmuct || isSmuctInstitution(leaderUniversity)) return SMUCT_INSTITUTION;
+  return leaderUniversity || "";
 }
 
 export default function CompetitionRegisterPage() {
@@ -88,31 +125,49 @@ export default function CompetitionRegisterPage() {
   const supabase = createClient();
 
   // 1. Fetch competition info
-  const { data: compRes, error: compErr, isLoading: compLoading } = useSWR<{
+  const {
+    data: compRes,
+    error: compErr,
+    isLoading: compLoading,
+  } = useSWR<{
     success: boolean;
     data: Competition;
   }>(compId ? `/api/public/competitions?id=${compId}` : null, fetcher);
 
   const competition = compRes?.success ? compRes.data : null;
 
+  // Narrow the raw eligibility value from the API. `isInternalCompetition`
+  // is the single source of truth for "internal-only" branching across the
+  // page (form, validator, submit gating, eligibility notice).
+  const eligibility: Eligibility = normalizeEligibility(
+    competition?.eligibility,
+  );
+  const isInternalCompetition = isInternal(eligibility);
+
   // 2. Auth states
   const [user, setUser] = React.useState<User | null>(null);
-  const [authLoading, setAuthLoading] = React.useState(true);
-  const [profileLoading, setProfileLoading] = React.useState(false);
-  const [checkingRegistration, setCheckingRegistration] = React.useState(false);
+  // Single source of truth for "initial bootstrap in flight" — covers
+  // session, profile, and existing-registration checks. They were three
+  // separate flags (race-prone, redundant render outputs) before.
+  const [isBootstrapping, setIsBootstrapping] = React.useState(true);
   const [alreadyRegistered, setAlreadyRegistered] = React.useState(false);
 
   // 3. Form Data States
   const [teamName, setTeamName] = React.useState("");
 
-  // Leader Form State (pre-filled later)
+  // Leader Form State (pre-filled later).
+  // `semester` is intentionally pre-populated with the placeholder so the
+  // submit payload always carries a non-null value. The Semester input has
+  // been removed from the UI; this keeps the existing backend contract intact.
   const [leaderForm, setLeaderForm] = React.useState<MemberState>({
     full_name: "",
     email: "",
     phone: "",
+    // Open competitions start empty; internal competitions force SMUCT in the
+    // dedicated effect once competition data is available.
     university: "",
     department: "",
-    semester: "",
+    semester: SEMESTER_PLACEHOLDER,
     student_id: "",
     tshirt_size: "",
   });
@@ -130,41 +185,101 @@ export default function CompetitionRegisterPage() {
   const [formLoading, setFormLoading] = React.useState(false);
   const [uploadProgress, setUploadProgress] = React.useState(0);
   const [formStatus, setFormStatus] = React.useState<
-    "idle" | "updating_profile" | "creating_team" | "adding_members" | "submitting_proposal" | "success"
+    | "idle"
+    | "updating_profile"
+    | "creating_team"
+    | "adding_members"
+    | "submitting_proposal"
+    | "success"
   >("idle");
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
   const [successMsg, setSuccessMsg] = React.useState<string | null>(null);
-  const rosterInitializedRef = React.useRef(false);
   const [isSmuct, setIsSmuct] = React.useState<boolean>(false);
 
+  // Semester is collected per-person. The field is rendered for any member
+  // (leader or teammate) whose institution resolves to SMUCT; everyone else
+  // submits the `SEMESTER_PLACEHOLDER` ("N/A") to satisfy the non-null
+  // backend contract.
+  const leaderNeedsSemester = isSemesterRequiredFor(leaderForm.university);
+  const membersNeedingSemester = members.map((m) =>
+    isSemesterRequiredFor(m.university),
+  );
+  const anySemesterRequired =
+    leaderNeedsSemester || membersNeedingSemester.some(Boolean);
+
+  // Institution field editability rules.
+  //
+  // On `"internal"` competitions the institution is locked to SMUCT for
+  // everyone, so the input stays disabled. On `"both"` competitions the
+  // institution is editable for any non-SMUCT member (since they can pick
+  // their own university), but stays locked to SMUCT for SMUCT-flagged
+  // members (whose institution is forced to the canonical SMUCT name).
+  //
+  // The leader's "is SMUCT?" lives in the `isSmuct` checkbox state and is
+  // surfaced here as a single predicate so the leader input and the
+  // teammate inputs share the exact same rule.
+  const isLeaderUniversityEditable = React.useCallback(() => {
+    if (isInternalCompetition) return false;
+    if (eligibility === ELIGIBILITY_BOTH && isSmuct) return false;
+    return true;
+  }, [isInternalCompetition, eligibility, isSmuct]);
+
+  const isMemberUniversityEditable = React.useCallback(
+    (m: MemberState) => {
+      if (isInternalCompetition) return false;
+      if (eligibility === ELIGIBILITY_BOTH && isSmuctInstitution(m.university))
+        return false;
+      return true;
+    },
+    [isInternalCompetition, eligibility],
+  );
+
   // Validation States
-  const [touchedFields, setTouchedFields] = React.useState<Record<string, boolean>>({});
+  const [touchedFields, setTouchedFields] = React.useState<
+    Record<string, boolean>
+  >({});
   const [submittedOnce, setSubmittedOnce] = React.useState(false);
-  const [submitButtonStatus, setSubmitButtonStatus] = React.useState<"idle" | "loading" | "success" | "failure">("idle");
+  const [submitButtonStatus, setSubmitButtonStatus] = React.useState<
+    "idle" | "loading" | "success" | "failure"
+  >("idle");
 
   const getErrors = React.useCallback(() => {
     const errors: Record<string, string> = {};
 
     // 1. Team Name
     if (!teamName || !teamName.trim()) {
-      errors['teamName'] = "Team Name is required.";
+      errors["teamName"] = "Team Name is required.";
     } else if (teamName.trim().length < 3) {
-      errors['teamName'] = "Team Name must be at least 3 characters long.";
+      errors["teamName"] = "Team Name must be at least 3 characters long.";
     }
 
     // 2. Leader Details
     const l = leaderForm;
-    if (!l.full_name || !l.full_name.trim()) errors['leader_full_name'] = "Full Name is required.";
+    if (!l.full_name || !l.full_name.trim())
+      errors["leader_full_name"] = "Full Name is required.";
     if (!l.phone || !l.phone.trim()) {
-      errors['leader_phone'] = "Phone Number is required.";
+      errors["leader_phone"] = "Phone Number is required.";
     } else if (!isValidBdPhone(l.phone)) {
-      errors['leader_phone'] = BD_PHONE_HINT;
+      errors["leader_phone"] = BD_PHONE_HINT;
     }
-    if (!l.university || !l.university.trim()) errors['leader_university'] = "Institution is required.";
-    if (!l.department || !l.department.trim()) errors['leader_department'] = "Department is required.";
-    if (!l.semester || !l.semester.trim()) errors['leader_semester'] = "Semester is required.";
-    if (!l.student_id || !l.student_id.trim()) errors['leader_student_id'] = "Student ID is required.";
-    if (!l.tshirt_size) errors['leader_tshirt_size'] = "T-shirt Size is required.";
+    if (!l.university || !l.university.trim()) {
+      errors["leader_university"] = "Institution is required.";
+    } else if (isInternalCompetition && !isSmuctInstitution(l.university)) {
+      errors["leader_university"] =
+        "This competition is open to SMUCT students only.";
+    }
+    if (!l.department || !l.department.trim())
+      errors["leader_department"] = "Department is required.";
+    if (
+      isSemesterRequiredFor(l.university) &&
+      (!l.semester || !l.semester.trim() || l.semester === SEMESTER_PLACEHOLDER)
+    ) {
+      errors["leader_semester"] = "Semester is required for SMUCT students.";
+    }
+    if (!l.student_id || !l.student_id.trim())
+      errors["leader_student_id"] = "Student ID is required.";
+    if (!l.tshirt_size)
+      errors["leader_tshirt_size"] = "T-shirt Size is required.";
 
     // 3. Teammates Details
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -180,12 +295,19 @@ export default function CompetitionRegisterPage() {
         errors[`${prefix}_email`] = `Member ${mNum} Email is required.`;
       } else if (!emailRegex.test(m.email.trim())) {
         errors[`${prefix}_email`] = "Please enter a valid email address.";
-      } else if (m.email.trim().toLowerCase() === l.email.trim().toLowerCase()) {
-        errors[`${prefix}_email`] = `Member ${mNum} has the same email as the Team Leader.`;
+      } else if (
+        m.email.trim().toLowerCase() === l.email.trim().toLowerCase()
+      ) {
+        errors[`${prefix}_email`] =
+          `Member ${mNum} has the same email as the Team Leader.`;
       } else {
         for (let j = 0; j < idx; j++) {
-          if (m.email.trim().toLowerCase() === members[j].email.trim().toLowerCase()) {
-            errors[`${prefix}_email`] = `Member ${mNum} and Member ${j + 2} cannot have the same email address.`;
+          if (
+            m.email.trim().toLowerCase() ===
+            members[j].email.trim().toLowerCase()
+          ) {
+            errors[`${prefix}_email`] =
+              `Member ${mNum} and Member ${j + 2} cannot have the same email address.`;
             break;
           }
         }
@@ -197,33 +319,77 @@ export default function CompetitionRegisterPage() {
         errors[`${prefix}_phone`] = `Member ${mNum}: ${BD_PHONE_HINT}`;
       }
 
-      if (!m.university || !m.university.trim()) errors[`${prefix}_university`] = `Member ${mNum} Institution is required.`;
-      if (!m.department || !m.department.trim()) errors[`${prefix}_department`] = `Member ${mNum} Department is required.`;
-      if (!m.semester || !m.semester.trim()) errors[`${prefix}_semester`] = `Member ${mNum} Semester is required.`;
-      if (!m.student_id || !m.student_id.trim()) errors[`${prefix}_student_id`] = `Member ${mNum} Student ID is required.`;
-      if (!m.tshirt_size) errors[`${prefix}_tshirt_size`] = `Member ${mNum} T-shirt Size is required.`;
+      if (!m.university || !m.university.trim()) {
+        errors[`${prefix}_university`] =
+          `Member ${mNum} Institution is required.`;
+      } else if (isInternalCompetition && !isSmuctInstitution(m.university)) {
+        errors[`${prefix}_university`] =
+          `Member ${mNum}: this competition is open to SMUCT students only.`;
+      }
+      // Department is required only for SMUCT members. For non-SMUCT members
+      // the field is locked + empty, and the backend stores an empty value.
+      if (isSmuctInstitution(m.university)) {
+        if (!m.department || !m.department.trim())
+          errors[`${prefix}_department`] =
+            `Member ${mNum} Department is required.`;
+      }
+      if (
+        isSemesterRequiredFor(m.university) &&
+        (!m.semester ||
+          !m.semester.trim() ||
+          m.semester === SEMESTER_PLACEHOLDER)
+      ) {
+        errors[`${prefix}_semester`] =
+          `Member ${mNum}: Semester is required for SMUCT students.`;
+      }
+      if (!m.student_id || !m.student_id.trim())
+        errors[`${prefix}_student_id`] =
+          `Member ${mNum} Student ID is required.`;
+      if (!m.tshirt_size)
+        errors[`${prefix}_tshirt_size`] =
+          `Member ${mNum} T-shirt Size is required.`;
     });
 
-    // 4. Project Details
+    // 4. Project Details — PDF is required whenever the competition asks for a
+    // submission; video is required only when `isVideoRequired` is true.
     if (competition?.submissionRequired) {
       if (!projectTitle || !projectTitle.trim()) {
-        errors['projectTitle'] = "Project Title is required.";
+        errors["projectTitle"] = "Project Title is required.";
       } else if (projectTitle.trim().length < 5) {
-        errors['projectTitle'] = "Project Title must be at least 5 characters long.";
+        errors["projectTitle"] =
+          "Project Title must be at least 5 characters long.";
       }
-    }
 
-    // 5. YouTube URL validation (optional, but must be valid if provided)
-    if (youtubeDemoUrl && youtubeDemoUrl.trim()) {
-      const trimmedUrl = youtubeDemoUrl.trim();
-      const regex = /^(https?:\/\/)?(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)/;
-      if (!regex.test(trimmedUrl)) {
-        errors['youtubeDemoUrl'] = "Please enter a valid YouTube URL (youtube.com/watch?v=, youtu.be/, or youtube.com/embed/).";
+      if (!pdfFile) {
+        errors["pdf"] = "Project proposal PDF file is required.";
+      }
+
+      const trimmedUrl = (youtubeDemoUrl || "").trim();
+      if (competition.isVideoRequired) {
+        if (!trimmedUrl) {
+          errors["youtubeDemoUrl"] = "YouTube demo URL is required.";
+        } else if (!YOUTUBE_URL_REGEX.test(trimmedUrl)) {
+          errors["youtubeDemoUrl"] =
+            "Please enter a valid YouTube URL (youtube.com/watch?v=, youtu.be/, or youtube.com/embed/).";
+        }
+      } else if (trimmedUrl && !YOUTUBE_URL_REGEX.test(trimmedUrl)) {
+        // Optional when not required, but still validate format.
+        errors["youtubeDemoUrl"] =
+          "Please enter a valid YouTube URL (youtube.com/watch?v=, youtu.be/, or youtube.com/embed/).";
       }
     }
 
     return errors;
-  }, [teamName, leaderForm, members, competition, projectTitle, youtubeDemoUrl]);
+  }, [
+    teamName,
+    leaderForm,
+    members,
+    competition,
+    projectTitle,
+    pdfFile,
+    youtubeDemoUrl,
+    isInternalCompetition,
+  ]);
 
   const handleBlur = (fieldKey: string) => {
     setTouchedFields((prev) => ({ ...prev, [fieldKey]: true }));
@@ -240,48 +406,86 @@ export default function CompetitionRegisterPage() {
   };
 
   const isValidField = (fieldKey: string, value: string) => {
-    return !!value && !allErrors[fieldKey] && (touchedFields[fieldKey] || submittedOnce);
+    return (
+      !!value &&
+      !allErrors[fieldKey] &&
+      (touchedFields[fieldKey] || submittedOnce)
+    );
   };
 
   // Section completeness states
-  const isTeamDetailsComplete = !allErrors['teamName'];
-  const isLeaderComplete = !Object.keys(allErrors).some(k => k.startsWith('leader_'));
-  const isTeammatesComplete = !Object.keys(allErrors).some(k => k.startsWith('member_'));
-  const isProjectComplete = !Object.keys(allErrors).some(k => k.startsWith('project'));
+  const isTeamDetailsComplete = !allErrors["teamName"];
+  const isLeaderComplete = !Object.keys(allErrors).some((k) =>
+    k.startsWith("leader_"),
+  );
+  const isTeammatesComplete = !Object.keys(allErrors).some((k) =>
+    k.startsWith("member_"),
+  );
+  const isProjectComplete = !Object.keys(allErrors).some(
+    (k) =>
+      k.startsWith("project") || k === "pdf" || k === "youtubeDemoUrl",
+  );
 
-  // Initialize teammate cards based on minMembers requirement
+  // Internal competitions are SMUCT-only. The Institution input is disabled
+  // for both leader and teammates, so the user has no way to populate it
+  // manually. Force the canonical SMUCT name into the leader's form as soon
+  // as we know the competition is internal — overriding any stale/empty
+  // value loaded from the user's profile.
+  //
+  // Also seeds the teammate roster from `minMembers` once the competition
+  // data is available. This is the single source of truth for `members`
+  // initialization; `initAuth` and the leader-change cascade only mutate
+  // the existing array after that.
   React.useEffect(() => {
-    if (competition && !rosterInitializedRef.current) {
-      rosterInitializedRef.current = true;
-      const neededTeammatesCount = Math.max(0, competition.minMembers - 1);
-      const initialMembers: MemberState[] = Array.from({ length: neededTeammatesCount }, () => ({
-        full_name: "",
-        email: "",
-        phone: "",
-        university: leaderForm.university,
-        department: leaderForm.department,
-        semester: leaderForm.semester,
-        student_id: "",
-        tshirt_size: "",
-      }));
-      Promise.resolve().then(() => {
-        setMembers(initialMembers);
-      });
+    if (!competition) return;
+    if (isInternalCompetition) {
+      setLeaderForm((prev) =>
+        prev.university === SMUCT_INSTITUTION
+          ? prev
+          : { ...prev, university: SMUCT_INSTITUTION },
+      );
     }
-  }, [competition, leaderForm.university, leaderForm.department, leaderForm.semester]);
+    const needed = Math.max(0, competition.minMembers - 1);
+    setMembers((prev) =>
+      prev.length >= needed
+        ? prev
+        : [
+            ...prev,
+            ...Array.from({ length: needed - prev.length }, () => ({
+              full_name: "",
+              email: "",
+              phone: "",
+              university: getSeedMemberUniversity(
+                isInternalCompetition,
+                eligibility,
+                isSmuct,
+                leaderForm.university,
+              ),
+              department: "",
+              semester: isInternalCompetition
+                ? leaderForm.semester
+                : SEMESTER_PLACEHOLDER,
+              student_id: "",
+              tshirt_size: "",
+            })),
+          ],
+    );
+  }, [competition, isInternalCompetition, eligibility, isSmuct, leaderForm.university, leaderForm.semester]);
 
   // Load User, Profile, and check Existing Registrations in parallel to resolve waterfalls
   React.useEffect(() => {
     async function initAuth() {
       try {
-        setAuthLoading(true);
-        setProfileLoading(true);
-        setCheckingRegistration(true);
+        setIsBootstrapping(true);
 
         const [userRes, profileRes, teamRes] = await Promise.all([
           supabase.auth.getUser(),
-          fetch("/api/profile").then((r) => r.json()).catch(() => ({ success: false })),
-          fetch("/api/teams").then((r) => r.json()).catch(() => ({ success: false })),
+          fetch("/api/profile")
+            .then((r) => r.json())
+            .catch(() => ({ success: false })),
+          fetch("/api/teams")
+            .then((r) => r.json())
+            .catch(() => ({ success: false })),
         ]);
 
         const loggedInUser = userRes.data?.user || null;
@@ -291,42 +495,65 @@ export default function CompetitionRegisterPage() {
           setLeaderForm((prev) => ({
             ...prev,
             email: loggedInUser.email || "",
-            full_name: loggedInUser.user_metadata?.full_name || loggedInUser.user_metadata?.name || "",
+            full_name:
+              loggedInUser.user_metadata?.full_name ||
+              loggedInUser.user_metadata?.name ||
+              "",
           }));
 
           if (profileRes.success && profileRes.data) {
             const profile = profileRes.data;
+            // For internal competitions the Institution field is locked to
+            // SMUCT regardless of what the user's profile stores. Loading
+            // `profile.university` here would overwrite the SMUCT seed (and
+            // the cascade effect's value) with the user's stored value, which
+            // for non-SMUCT profiles could be empty or a different string —
+            // breaking the locked UI and the submit-time check.
+            const leaderUniversity = isInternalCompetition
+              ? SMUCT_INSTITUTION
+              : profile.university || "";
             const updatedLeader = {
               full_name: profile.full_name || "",
               email: loggedInUser.email || "",
               phone: profile.phone || "",
-              university: profile.university || "",
+              university: leaderUniversity,
               department: profile.department || "",
-              semester: profile.semester || "",
+              semester: profile.semester || SEMESTER_PLACEHOLDER,
               student_id: profile.student_id || "",
               tshirt_size: profile.tshirt_size || "",
             };
+            const leaderIsSmuct = isSmuctInstitution(profile.university);
+            setIsSmuct(leaderIsSmuct);
             setLeaderForm(updatedLeader);
 
-            // Sync loaded leader info to any pre-initialized member templates
+            // Sync loaded leader info to any pre-initialized member templates.
+            // Department is intentionally NOT cascaded — each member fills it
+            // independently (SMUCT only; non-SMUCT members keep it locked + empty).
+            //
+            // Institution cascade policy:
+            //  - Internal comps:  force SMUCT for every member (field is locked).
+            //  - "both" comps with leaderIsSmuct=true: cascade SMUCT to every teammate.
+            //  - "both" comps with leaderIsSmuct=false: empty — each teammate fills independently.
+            const cascadedUniversity = getSeedMemberUniversity(
+              isInternalCompetition,
+              eligibility,
+              leaderIsSmuct,
+              updatedLeader.university,
+            );
             setMembers((prev) =>
               prev.map((m) => ({
                 ...m,
-                university: updatedLeader.university,
-                department: updatedLeader.department,
-                semester: updatedLeader.semester,
-              }))
+                university: cascadedUniversity,
+                semester: isInternalCompetition
+                  ? updatedLeader.semester
+                  : SEMESTER_PLACEHOLDER,
+              })),
             );
-
-            if (profile.university) {
-              const isUnivSmuct = profile.university.toLowerCase().includes("smuct") || profile.university.toLowerCase().includes("shanto-mariam");
-              setIsSmuct(isUnivSmuct);
-            }
           }
 
           if (teamRes.success && Array.isArray(teamRes.data)) {
             const hasRegistered = teamRes.data.some(
-              (t: { competition_id: string }) => t.competition_id === compId
+              (t: { competition_id: string }) => t.competition_id === compId,
             );
             setAlreadyRegistered(hasRegistered);
           }
@@ -334,16 +561,14 @@ export default function CompetitionRegisterPage() {
       } catch (err) {
         console.error("Error loading user state:", err);
       } finally {
-        setAuthLoading(false);
-        setProfileLoading(false);
-        setCheckingRegistration(false);
+        setIsBootstrapping(false);
       }
     }
 
     if (compId) {
       initAuth();
     }
-  }, [supabase, compId]);
+  }, [supabase, compId, competition, isInternalCompetition, eligibility]);
 
   // Trigger Google Login
   const handleGoogleSignIn = async () => {
@@ -372,9 +597,19 @@ export default function CompetitionRegisterPage() {
         full_name: "",
         email: "",
         phone: "",
-        university: leaderForm.university,
-        department: leaderForm.department,
-        semester: leaderForm.semester,
+        // On internal comps, Institution is locked to SMUCT for every member.
+        // On "both" comps with a non-SMUCT leader, teammates can be from any
+        // institution — start them empty so each member fills their own.
+        university: getSeedMemberUniversity(
+          isInternalCompetition,
+          eligibility,
+          isSmuct,
+          leaderForm.university,
+        ),
+        department: "",
+        semester: isInternalCompetition
+          ? leaderForm.semester
+          : SEMESTER_PLACEHOLDER,
         student_id: "",
         tshirt_size: "",
       },
@@ -387,21 +622,59 @@ export default function CompetitionRegisterPage() {
   };
 
   // Update member field
-  const handleMemberChange = (index: number, field: keyof MemberState, value: string) => {
+  const handleMemberChange = (
+    index: number,
+    field: keyof MemberState,
+    value: string,
+  ) => {
     setMembers((prev) =>
-      prev.map((m, i) => (i === index ? { ...m, [field]: value } : m))
+      prev.map((m, i) => {
+        if (i !== index) return m;
+        // On internal comps the Institution field is disabled and locked to
+        // SMUCT — ignore any edit attempt so state can't drift from the
+        // disabled-input value.
+        const next: MemberState = {
+          ...m,
+          [field]:
+            isInternalCompetition && field === "university"
+              ? SMUCT_INSTITUTION
+              : value,
+        };
+        // When institution changes away from SMUCT, semester is no longer
+        // collected — reset to the placeholder so backend gets a valid value.
+        if (field === "university" && !isSemesterRequiredFor(value)) {
+          next.semester = SEMESTER_PLACEHOLDER;
+        }
+        return next;
+      }),
     );
   };
 
   // Update leader field
   const handleLeaderChange = (field: keyof MemberState, value: string) => {
-    setLeaderForm((prev) => ({ ...prev, [field]: value }));
+    setLeaderForm((prev) => {
+      const next = { ...prev, [field]: value };
+      // When institution changes away from SMUCT, semester is no longer
+      // collected — reset to the placeholder so backend gets a valid value.
+      if (field === "university" && !isSemesterRequiredFor(value)) {
+        next.semester = SEMESTER_PLACEHOLDER;
+      }
+      return next;
+    });
 
-    // Autofill Institution, Department, and Semester for all members
-    if (field === "university" || field === "department" || field === "semester") {
-      setMembers((prev) =>
-        prev.map((m) => ({ ...m, [field]: value }))
-      );
+    // Autofill Institution for all teammates. Semester is NOT mirrored:
+    // every SMUCT teammate (the only kind that shows a semester chip on
+    // internal comps, and the only kind that shows one on open comps when
+    // SMUCT) fills their own semester independently.
+    //
+    // Skip the cascade when the leader is a non-SMUCT student on a "both"
+    // competition: the team isn't tied to a single institution, so each
+    // teammate enters their own university independently.
+    if (
+      field === "university" &&
+      !(eligibility === ELIGIBILITY_BOTH && !isSmuct)
+    ) {
+      setMembers((prev) => prev.map((m) => ({ ...m, [field]: value })));
     }
   };
 
@@ -419,32 +692,36 @@ export default function CompetitionRegisterPage() {
 
       // Touch all fields to show validation errors immediately
       const touchedAll: Record<string, boolean> = {};
-      touchedAll['teamName'] = true;
-      touchedAll['leader_full_name'] = true;
-      touchedAll['leader_phone'] = true;
-      touchedAll['leader_university'] = true;
-      touchedAll['leader_department'] = true;
-      touchedAll['leader_semester'] = true;
-      touchedAll['leader_student_id'] = true;
-      touchedAll['leader_tshirt_size'] = true;
+      touchedAll["teamName"] = true;
+      touchedAll["leader_full_name"] = true;
+      touchedAll["leader_phone"] = true;
+      touchedAll["leader_university"] = true;
+      touchedAll["leader_department"] = true;
+      if (isSemesterRequiredFor(leaderForm.university)) {
+        touchedAll["leader_semester"] = true;
+      }
+      touchedAll["leader_student_id"] = true;
+      touchedAll["leader_tshirt_size"] = true;
 
-      members.forEach((_, idx) => {
+      members.forEach((m, idx) => {
         touchedAll[`member_${idx}_full_name`] = true;
         touchedAll[`member_${idx}_email`] = true;
         touchedAll[`member_${idx}_phone`] = true;
         touchedAll[`member_${idx}_university`] = true;
         touchedAll[`member_${idx}_department`] = true;
-        touchedAll[`member_${idx}_semester`] = true;
+        if (isSemesterRequiredFor(m.university)) {
+          touchedAll[`member_${idx}_semester`] = true;
+        }
         touchedAll[`member_${idx}_student_id`] = true;
         touchedAll[`member_${idx}_tshirt_size`] = true;
       });
 
       if (competition?.submissionRequired) {
-        touchedAll['projectTitle'] = true;
-      }
-
-      if (youtubeDemoUrl) {
-        touchedAll['youtubeDemoUrl'] = true;
+        touchedAll["projectTitle"] = true;
+        touchedAll["pdf"] = true;
+        if (competition.isVideoRequired || youtubeDemoUrl) {
+          touchedAll["youtubeDemoUrl"] = true;
+        }
       }
 
       setTouchedFields(touchedAll);
@@ -453,7 +730,10 @@ export default function CompetitionRegisterPage() {
       setTimeout(() => {
         const firstInvalidEl = document.querySelector('[aria-invalid="true"]');
         if (firstInvalidEl) {
-          firstInvalidEl.scrollIntoView({ behavior: "smooth", block: "center" });
+          firstInvalidEl.scrollIntoView({
+            behavior: "smooth",
+            block: "center",
+          });
           (firstInvalidEl as HTMLElement).focus();
           firstInvalidEl.classList.add("animate-error-pulse");
           setTimeout(() => {
@@ -478,7 +758,7 @@ export default function CompetitionRegisterPage() {
       const formData = new FormData();
       formData.append("team_name", teamName);
       formData.append("competition_id", compId);
-      
+
       // Leader Profile Details
       formData.append("leader_full_name", leaderForm.full_name);
       formData.append("leader_phone", leaderForm.phone);
@@ -487,10 +767,19 @@ export default function CompetitionRegisterPage() {
       formData.append("leader_semester", leaderForm.semester);
       formData.append("leader_student_id", leaderForm.student_id);
       formData.append("leader_tshirt_size", leaderForm.tshirt_size);
-      
-      // Members (JSON stringified)
-      formData.append("members", JSON.stringify(members));
-      
+
+      // Members (JSON stringified).
+      // For non-SMUCT members the department field is locked + empty in the UI;
+      // substitute the placeholder so the backend schema (>= 2 chars) stays
+      // satisfied. SMUCT members send whatever the user typed.
+      const membersForApi = members.map((m) => ({
+        ...m,
+        department: isSmuctInstitution(m.university)
+          ? m.department
+          : DEPARTMENT_PLACEHOLDER,
+      }));
+      formData.append("members", JSON.stringify(membersForApi));
+
       // Project Details (if applicable)
       if (projectTitle) {
         formData.append("project_title", projectTitle);
@@ -498,7 +787,7 @@ export default function CompetitionRegisterPage() {
       if (projectNotes) {
         formData.append("project_notes", projectNotes);
       }
-      
+
       // Files & YouTube URL (if uploaded)
       if (pdfFile) {
         formData.append("pdf", pdfFile);
@@ -508,56 +797,71 @@ export default function CompetitionRegisterPage() {
       }
 
       // Upload using XHR for progress support
-      const uploadResult = await new Promise<{ success: boolean; message?: string }>(
-        (resolve, reject) => {
-          const xhr = new XMLHttpRequest();
+      const uploadResult = await new Promise<{
+        success: boolean;
+        message?: string;
+      }>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
 
-          xhr.upload.addEventListener("progress", (event) => {
-            if (event.lengthComputable) {
-              const percent = Math.round((event.loaded / event.total) * 100);
-              setUploadProgress(percent);
+        xhr.upload.addEventListener("progress", (event) => {
+          if (event.lengthComputable) {
+            const percent = Math.round((event.loaded / event.total) * 100);
+            setUploadProgress(percent);
+          }
+        });
+
+        xhr.addEventListener("load", () => {
+          try {
+            const data = JSON.parse(xhr.responseText);
+            if (xhr.status >= 200 && xhr.status < 300) {
+              resolve(data);
+            } else {
+              reject(
+                new Error(
+                  data.message || `Registration failed: status ${xhr.status}`,
+                ),
+              );
             }
-          });
+          } catch {
+            reject(new Error("Failed to parse server response."));
+          }
+        });
 
-          xhr.addEventListener("load", () => {
-            try {
-              const data = JSON.parse(xhr.responseText);
-              if (xhr.status >= 200 && xhr.status < 300) {
-                resolve(data);
-              } else {
-                reject(new Error(data.message || `Registration failed: status ${xhr.status}`));
-              }
-            } catch {
-              reject(new Error("Failed to parse server response."));
-            }
-          });
+        xhr.addEventListener("error", () => {
+          reject(
+            new Error(
+              "Network error during registration upload. Please verify connection.",
+            ),
+          );
+        });
 
-          xhr.addEventListener("error", () => {
-            reject(new Error("Network error during registration upload. Please verify connection."));
-          });
-
-          xhr.open("POST", "/api/teams?action=register");
-          xhr.send(formData);
-        }
-      );
+        xhr.open("POST", "/api/teams?action=register");
+        xhr.send(formData);
+      });
 
       if (!uploadResult.success) {
-        throw new Error(uploadResult.message || "Failed to submit team registration.");
+        throw new Error(
+          uploadResult.message || "Failed to submit team registration.",
+        );
       }
       setUploadProgress(100);
 
       // Success!
       setFormStatus("success");
       setSubmitButtonStatus("success");
-      setSuccessMsg("Registration and project submission completed successfully!");
-      
+      setSuccessMsg(
+        "Registration and project submission completed successfully!",
+      );
+
       // Delay redirection to let success state display
       setTimeout(() => {
         router.push("/dashboard");
       }, 1500);
-
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "An unexpected error occurred during registration.";
+      const message =
+        err instanceof Error
+          ? err.message
+          : "An unexpected error occurred during registration.";
       console.error("Submit flow failure:", err);
       setErrorMsg(message);
       setSubmitButtonStatus("failure");
@@ -568,13 +872,15 @@ export default function CompetitionRegisterPage() {
   const isProcessing = formLoading && uploadProgress >= 100;
 
   // Render Loader
-  if (compLoading || (user && checkingRegistration)) {
+  if (compLoading || isBootstrapping) {
     return (
       <div className="flex flex-col min-h-screen bg-background text-on-background bg-grid-pattern">
         <Navbar />
         <main className="grow mx-auto max-w-[1280px] pt-10 pb-20 px-4 md:px-16 w-full flex flex-col items-center justify-center space-y-4">
           <Loader2 className="h-8 w-8 text-primary animate-spin" />
-          <p className="text-sm text-neutral-400 font-sans">Initializing registration workspace...</p>
+          <p className="text-sm text-neutral-400 font-sans">
+            Initializing registration workspace...
+          </p>
         </main>
         <Footer />
       </div>
@@ -592,12 +898,49 @@ export default function CompetitionRegisterPage() {
             Failed to Load Competition
           </h2>
           <p className="text-sm text-neutral-500 font-sans mb-6">
-            The requested competition details could not be loaded. Please try again later.
+            The requested competition details could not be loaded. Please try
+            again later.
           </p>
           <Link href="/competitions">
-            <Button className="bg-primary text-white font-sans font-bold">Return to Catalog</Button>
+            <Button className="bg-primary text-white font-sans font-bold">
+              Return to Catalog
+            </Button>
           </Link>
         </div>
+        <Footer />
+      </div>
+    );
+  }
+
+  const isRegClosed = competition && (
+    competition.status === "registration_closed" || 
+    (competition.registrationEnd && new Date() > new Date(competition.registrationEnd))
+  );
+
+  if (isRegClosed) {
+    return (
+      <div className="flex flex-col min-h-screen bg-gradient-to-br from-[#FAF8FF] via-[#F8F9FF] to-[#FCFBFF] dark:from-neutral-950 dark:via-neutral-900 dark:to-neutral-950 text-on-background relative overflow-hidden bg-noise">
+        <Navbar />
+        <main className="grow flex flex-col items-center justify-center py-24 px-4 text-center z-10 relative">
+          <Card variant="glass" className="max-w-md w-full border-error/20 bg-error/5 p-8 space-y-6">
+            <AlertTriangle className="h-12 w-12 text-error mx-auto animate-pulse" />
+            <div className="space-y-2">
+              <h2 className="text-xl font-heading font-bold text-red-400">
+                Registration Closed
+              </h2>
+              <p className="text-sm text-neutral-450 dark:text-neutral-400 font-sans leading-relaxed">
+                Registration for <strong>{competition?.name}</strong> has closed.
+              </p>
+            </div>
+            <div className="pt-2">
+              <Link href={`/competitions/${compId}`}>
+                <Button className="bg-[#8B5CF6] hover:bg-[#7C3AED] text-white font-sans font-bold py-2.5 px-6 rounded-xl">
+                  Back to Details
+                </Button>
+              </Link>
+            </div>
+          </Card>
+        </main>
         <Footer />
       </div>
     );
@@ -621,10 +964,17 @@ export default function CompetitionRegisterPage() {
 
         {/* Form Title Header */}
         <div className="relative rounded-2xl border border-neutral-850 bg-neutral-950 p-6 md:p-8 overflow-hidden">
-          {(competition.bannerImageUrl || competition.coverImageUrl || COMPETITION_IMAGES[competition.id]) ? (
+          {competition.bannerImageUrl ||
+          competition.coverImageUrl ||
+          COMPETITION_IMAGES[competition.id] ? (
             <>
               <Image
-                src={competition.bannerImageUrl || competition.coverImageUrl || COMPETITION_IMAGES[competition.id] || ""}
+                src={
+                  competition.bannerImageUrl ||
+                  competition.coverImageUrl ||
+                  COMPETITION_IMAGES[competition.id] ||
+                  ""
+                }
                 alt={competition.name}
                 fill
                 className="object-cover opacity-10 pointer-events-none"
@@ -638,8 +988,9 @@ export default function CompetitionRegisterPage() {
           <div className="relative z-10 space-y-3">
             <div className="flex flex-wrap items-center gap-3">
               <span className="text-xs text-neutral-500 font-mono font-semibold">
-                Team size: {competition.minMembers === competition.maxMembers 
-                  ? `${competition.minMembers} Members` 
+                Team size:{" "}
+                {competition.minMembers === competition.maxMembers
+                  ? `${competition.minMembers} Members`
                   : `${competition.minMembers} - ${competition.maxMembers} Members`}
               </span>
             </div>
@@ -647,7 +998,8 @@ export default function CompetitionRegisterPage() {
               REGISTER: {competition.name}
             </h1>
             <p className="text-xs md:text-sm text-neutral-400 font-sans leading-relaxed">
-              Fill out this form to register your team. Ensure all members match eligibility rules.
+              Fill out this form to register your team. Ensure all members match
+              eligibility rules.
             </p>
           </div>
         </div>
@@ -660,20 +1012,20 @@ export default function CompetitionRegisterPage() {
         )}
 
         {/* Authentication Wall */}
-        {authLoading ? (
-          <Card variant="glass" className="bg-glass border-glass p-8 flex flex-col items-center space-y-4">
-            <Loader2 className="h-6 w-6 text-primary animate-spin" />
-            <p className="text-xs text-neutral-400 font-sans">Checking session status...</p>
-          </Card>
-        ) : !user ? (
-          <Card variant="glass" className="bg-glass border-glass p-8 text-center space-y-6">
+        {!user ? (
+          <Card
+            variant="glass"
+            className="bg-glass border-glass p-8 text-center space-y-6"
+          >
             <div className="space-y-2 max-w-md mx-auto">
               <Trophy className="h-10 w-10 text-primary mx-auto" />
               <h2 className="text-lg font-heading font-bold text-neutral-200">
                 Register as Team Leader
               </h2>
               <p className="text-xs text-neutral-400 font-sans leading-relaxed">
-                You must be authenticated to create a team. The authenticated user is automatically designated as the <strong>Team Leader</strong>.
+                You must be authenticated to create a team. The authenticated
+                user is automatically designated as the{" "}
+                <strong>Team Leader</strong>.
               </p>
             </div>
 
@@ -703,20 +1055,32 @@ export default function CompetitionRegisterPage() {
                 </svg>
                 <span>Sign In with Google</span>
               </Button>
-              <Link href={`/login?redirectTo=/competitions/${compId}/register`} className="grow">
-                <Button variant="secondary" className="w-full text-base font-sans py-2.5 h-auto rounded-md">
+              <Link
+                href={`/login?redirectTo=/competitions/${compId}/register`}
+                className="grow"
+              >
+                <Button
+                  variant="secondary"
+                  className="w-full text-base font-sans py-2.5 h-auto rounded-md"
+                >
                   Sign In with Email
                 </Button>
               </Link>
             </div>
           </Card>
         ) : alreadyRegistered ? (
-          <Card variant="glass" className="border-warning/30 bg-warning/10 p-8 text-center space-y-5">
+          <Card
+            variant="glass"
+            className="border-warning/30 bg-warning/10 p-8 text-center space-y-5"
+          >
             <AlertTriangle className="h-10 w-10 text-warning mx-auto animate-pulse" />
             <div className="space-y-2">
-              <h3 className="text-base font-heading font-bold text-amber-300">Already Registered</h3>
+              <h3 className="text-base font-heading font-bold text-amber-300">
+                Already Registered
+              </h3>
               <p className="text-xs text-warning/80 font-sans leading-relaxed max-w-md mx-auto">
-                You are already registered for a team in this competition. To review or update your team, please navigate to your dashboard.
+                You are already registered for a team in this competition. To
+                review or update your team, please navigate to your dashboard.
               </p>
             </div>
             <div className="flex justify-center gap-4">
@@ -737,7 +1101,57 @@ export default function CompetitionRegisterPage() {
           </Card>
         ) : (
           /* REGISTRATION FORM */
-          <form onSubmit={handleRegister} noValidate className="space-y-8 font-sans select-text">
+          <form
+            onSubmit={handleRegister}
+            noValidate
+            className="space-y-8 font-sans select-text"
+          >
+            {/* Eligibility banner */}
+            <Card variant="glass" className="bg-glass border-glass">
+              <CardContent className="p-5 flex flex-col sm:flex-row sm:items-center gap-4">
+                <div className="flex items-center gap-3">
+                  <EligibilityBadge
+                    eligibility={competition?.eligibility}
+                    competitionName={competition?.name}
+                    className="shrink-0"
+                  />
+                </div>
+                <div className="flex-1 text-xs text-neutral-400 font-sans leading-relaxed">
+                  {isInternalCompetition ? (
+                    <>
+                      This competition is open to{" "}
+                      <span className="text-neutral-200 font-medium">
+                        SMUCT students only
+                      </span>
+                      . The Institution field is locked to {SMUCT_INSTITUTION}.
+                      Each member must provide a valid Student ID. Semester is
+                      required for every member.
+                    </>
+                  ) : (
+                    <>
+                      Open to{" "}
+                      <span className="text-neutral-200 font-medium">
+                        {competition?.name?.toLowerCase().includes("idea") ? "all colleges" : "all universities"}
+                      </span>
+                      . {competition?.name?.toLowerCase().includes("idea") ? (
+                        <>Type your college directly.</>
+                      ) : (
+                        <>
+                          Toggle{" "}
+                          <span className="text-neutral-200 font-medium">
+                            SMUCT Student
+                          </span>{" "}
+                          to lock the Institution field; otherwise type your
+                          university directly.
+                        </>
+                      )}{" "}
+                      Each member must provide a valid Student ID. Semester is collected only for SMUCT students.
+                    </>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
             {/* Team details */}
             <Card variant="glass" className="bg-glass border-glass">
               <CardHeader className="border-b border-neutral-850 pb-4">
@@ -746,13 +1160,21 @@ export default function CompetitionRegisterPage() {
                     <Users className="h-5 w-5 text-primary" />
                     <span>Team Details</span>
                   </span>
-                  <span className={`text-xs font-sans font-medium flex items-center gap-1.5 px-2.5 py-1 rounded-full border ${
-                    isTeamDetailsComplete 
-                      ? "bg-success/10 border-success/20 text-success" 
-                      : "bg-warning/10 border-warning/20 text-warning"
-                  }`}>
-                    {isTeamDetailsComplete ? <Check className="h-3.5 w-3.5" /> : <AlertTriangle className="h-3.5 w-3.5" />}
-                    {isTeamDetailsComplete ? "Team Details Complete" : "Team Details Incomplete"}
+                  <span
+                    className={`text-xs font-sans font-medium flex items-center gap-1.5 px-2.5 py-1 rounded-full border ${
+                      isTeamDetailsComplete
+                        ? "bg-success/10 border-success/20 text-success"
+                        : "bg-warning/10 border-warning/20 text-warning"
+                    }`}
+                  >
+                    {isTeamDetailsComplete ? (
+                      <Check className="h-3.5 w-3.5" />
+                    ) : (
+                      <AlertTriangle className="h-3.5 w-3.5" />
+                    )}
+                    {isTeamDetailsComplete
+                      ? "Team Details Complete"
+                      : "Team Details Incomplete"}
                   </span>
                 </CardTitle>
               </CardHeader>
@@ -763,11 +1185,10 @@ export default function CompetitionRegisterPage() {
                   value={teamName}
                   onChange={(e) => {
                     setTeamName(e.target.value);
-                    handleBlur('teamName');
                   }}
-                  onBlur={() => handleBlur('teamName')}
-                  error={getFieldError('teamName')}
-                  isValid={isValidField('teamName', teamName)}
+                  onBlur={() => handleBlur("teamName")}
+                  error={getFieldError("teamName")}
+                  isValid={isValidField("teamName", teamName)}
                   disabled={formLoading}
                   required
                   helperText="Must be unique. 3 characters minimum."
@@ -780,28 +1201,36 @@ export default function CompetitionRegisterPage() {
               <CardHeader className="border-b border-neutral-850 pb-4">
                 <CardTitle className="text-lg md:text-xl font-heading font-bold text-neutral-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2 w-full">
                   <span className="flex items-center gap-2">
-                    <CrownIcon />
+                    <Crown className="h-5 w-5 text-primary" />
                     <span>Team Leader Details (You)</span>
                   </span>
                   <div className="flex items-center gap-2">
-                    <span className={`text-xs font-sans font-medium flex items-center gap-1.5 px-2.5 py-1 rounded-full border ${
-                      isLeaderComplete 
-                        ? "bg-success/10 border-success/20 text-success" 
-                        : "bg-warning/10 border-warning/20 text-warning"
-                    }`}>
-                      {isLeaderComplete ? <Check className="h-3.5 w-3.5" /> : <AlertTriangle className="h-3.5 w-3.5" />}
-                      {isLeaderComplete ? "Team Leader Complete" : "Team Leader Incomplete"}
+                    <span
+                      className={`text-xs font-sans font-medium flex items-center gap-1.5 px-2.5 py-1 rounded-full border ${
+                        isLeaderComplete
+                          ? "bg-success/10 border-success/20 text-success"
+                          : "bg-warning/10 border-warning/20 text-warning"
+                      }`}
+                    >
+                      {isLeaderComplete ? (
+                        <Check className="h-3.5 w-3.5" />
+                      ) : (
+                        <AlertTriangle className="h-3.5 w-3.5" />
+                      )}
+                      {isLeaderComplete
+                        ? "Team Leader Complete"
+                        : "Team Leader Incomplete"}
                     </span>
-                    <Badge variant="secondary" className="text-sm font-mono tracking-widest uppercase">
+                    <Badge
+                      variant="secondary"
+                      className="text-sm font-mono tracking-widest uppercase"
+                    >
                       Leader
                     </Badge>
                   </div>
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-6 space-y-4">
-                {profileLoading && (
-                  <p className="text-sm text-primary animate-pulse">Pre-filling profile details...</p>
-                )}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <Input
                     label="Full Name"
@@ -809,11 +1238,13 @@ export default function CompetitionRegisterPage() {
                     value={leaderForm.full_name}
                     onChange={(e) => {
                       handleLeaderChange("full_name", e.target.value);
-                      handleBlur('leader_full_name');
                     }}
-                    onBlur={() => handleBlur('leader_full_name')}
-                    error={getFieldError('leader_full_name')}
-                    isValid={isValidField('leader_full_name', leaderForm.full_name)}
+                    onBlur={() => handleBlur("leader_full_name")}
+                    error={getFieldError("leader_full_name")}
+                    isValid={isValidField(
+                      "leader_full_name",
+                      leaderForm.full_name,
+                    )}
                     disabled={formLoading}
                     required
                   />
@@ -830,38 +1261,57 @@ export default function CompetitionRegisterPage() {
                     value={leaderForm.phone}
                     onChange={(e) => {
                       handleLeaderChange("phone", e.target.value);
-                      handleBlur('leader_phone');
                     }}
-                    onBlur={() => handleBlur('leader_phone')}
-                    error={getFieldError('leader_phone')}
-                    isValid={isValidField('leader_phone', leaderForm.phone)}
+                    onBlur={() => handleBlur("leader_phone")}
+                    error={getFieldError("leader_phone")}
+                    isValid={isValidField("leader_phone", leaderForm.phone)}
                     disabled={formLoading}
                     required
                   />
-                  <div className="flex items-center space-x-3 w-full h-11 self-end pb-2">
-                    <input
-                      type="checkbox"
-                      id="is-smuct-checkbox"
-                      checked={isSmuct}
-                      onChange={(e) => {
-                        const checked = e.target.checked;
-                        setIsSmuct(checked);
-                        if (checked) {
-                          handleLeaderChange("university", "Shanto-Mariam University of Creative Technology");
-                        } else {
-                          handleLeaderChange("university", "");
-                        }
-                      }}
-                      disabled={formLoading}
-                      className="h-5 w-5 rounded border border-neutral-800 bg-neutral-950 text-primary focus:ring-1 focus:ring-primary focus:ring-offset-0 cursor-pointer accent-primary"
-                    />
-                    <label
-                      htmlFor="is-smuct-checkbox"
-                      className="text-sm font-medium text-neutral-350 cursor-pointer select-none font-sans"
-                    >
-                      SMUCT Student
-                    </label>
-                  </div>
+                  {/* SMUCT Student toggle — hidden for internal competitions.
+                      For open ("both") competitions it only auto-fills the
+                      Institution name; the Institution input becomes read-only
+                      while checked. */}
+                  {!isInternalCompetition && !competition?.name?.toLowerCase().includes("idea") && (
+                    <div className="flex items-center space-x-3 w-full h-11 self-end pb-2">
+                      <input
+                        type="checkbox"
+                        id="is-smuct-checkbox"
+                        checked={isSmuct}
+                        onChange={(e) => {
+                          const checked = e.target.checked;
+                          setIsSmuct(checked);
+                          if (checked) {
+                            handleLeaderChange("university", SMUCT_INSTITUTION);
+                            setMembers((prev) =>
+                              prev.map((m) => ({
+                                ...m,
+                                university: SMUCT_INSTITUTION,
+                              })),
+                            );
+                          } else {
+                            handleLeaderChange("university", "");
+                            setMembers((prev) =>
+                              prev.map((m) => ({
+                                ...m,
+                                university: isSmuctInstitution(m.university)
+                                  ? ""
+                                  : m.university,
+                              })),
+                            );
+                          }
+                        }}
+                        disabled={formLoading}
+                        className="h-5 w-5 rounded border border-neutral-800 bg-neutral-950 text-primary focus:ring-1 focus:ring-primary focus:ring-offset-0 cursor-pointer accent-primary"
+                      />
+                      <label
+                        htmlFor="is-smuct-checkbox"
+                        className="text-sm font-medium text-neutral-350 cursor-pointer select-none font-sans"
+                      >
+                        SMUCT Student
+                      </label>
+                    </div>
+                  )}
 
                   <Input
                     label="Institution"
@@ -869,12 +1319,21 @@ export default function CompetitionRegisterPage() {
                     value={leaderForm.university}
                     onChange={(e) => {
                       handleLeaderChange("university", e.target.value);
-                      handleBlur('leader_university');
                     }}
-                    onBlur={() => handleBlur('leader_university')}
-                    error={getFieldError('leader_university')}
-                    isValid={isValidField('leader_university', leaderForm.university)}
-                    disabled={formLoading || isSmuct}
+                    onBlur={() => handleBlur("leader_university")}
+                    error={getFieldError("leader_university")}
+                    isValid={isValidField(
+                      "leader_university",
+                      leaderForm.university,
+                    )}
+                    // Institution is editable only when the comp is "both" and
+                    // the leader has not flagged themselves as a SMUCT student.
+                    // For internal comps (and for SMUCT-flagged leaders on "both"
+                    // comps) the field is locked so the canonical SMUCT name
+                    // cannot be overridden.
+                    disabled={
+                      formLoading || !isLeaderUniversityEditable()
+                    }
                     required
                   />
                   <Input
@@ -883,39 +1342,78 @@ export default function CompetitionRegisterPage() {
                     value={leaderForm.department}
                     onChange={(e) => {
                       handleLeaderChange("department", e.target.value);
-                      handleBlur('leader_department');
                     }}
-                    onBlur={() => handleBlur('leader_department')}
-                    error={getFieldError('leader_department')}
-                    isValid={isValidField('leader_department', leaderForm.department)}
+                    onBlur={() => handleBlur("leader_department")}
+                    error={getFieldError("leader_department")}
+                    isValid={isValidField(
+                      "leader_department",
+                      leaderForm.department,
+                    )}
                     disabled={formLoading}
                     required
                   />
-                  <Input
-                    label="Semester"
-                    placeholder="e.g. 8th"
-                    value={leaderForm.semester}
-                    onChange={(e) => {
-                      handleLeaderChange("semester", e.target.value);
-                      handleBlur('leader_semester');
-                    }}
-                    onBlur={() => handleBlur('leader_semester')}
-                    error={getFieldError('leader_semester')}
-                    isValid={isValidField('leader_semester', leaderForm.semester)}
-                    disabled={formLoading}
-                    required
-                  />
+                  {/* Semester is only collected for SMUCT students. The payload
+                      always carries a non-null semester (placeholder "N/A" for
+                      non-SMUCT) so the backend contract stays valid. */}
+                  {leaderNeedsSemester && (
+                    <div className="flex flex-col space-y-1.5 w-full">
+                      <label className="text-sm font-medium text-neutral-350 select-none font-sans">
+                        Semester
+                      </label>
+                      <div
+                        className={`p-2 rounded-lg border transition-all duration-200 ${
+                          isInvalid("leader_semester")
+                            ? "border-[#EF4444] bg-[#EF4444]/4"
+                            : "border-transparent"
+                        }`}
+                      >
+                        <div className="flex flex-wrap gap-2 pt-1">
+                          {SEMESTER_OPTIONS.map((sem) => (
+                            <button
+                              key={sem}
+                              type="button"
+                              onClick={() => {
+                                handleLeaderChange("semester", sem);
+                              }}
+                              disabled={formLoading}
+                              className={`min-w-11 px-3 py-2 border rounded-lg text-xs font-bold font-sans transition-all duration-150 ${
+                                leaderForm.semester === sem
+                                  ? "bg-primary text-white border-primary shadow-[0_0_12px_rgba(99,102,241,0.25)]"
+                                  : "bg-neutral-950 border-neutral-800 text-neutral-400 hover:border-neutral-700"
+                              }`}
+                            >
+                              {sem}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      {isInvalid("leader_semester") ? (
+                        <span className="text-xs text-[#DC2626] dark:text-[#FCA5A5] font-sans font-medium tracking-tight flex items-center gap-1 mt-1 animate-fade-in">
+                          <span>✖</span> {allErrors["leader_semester"]}
+                        </span>
+                      ) : isValidField(
+                          "leader_semester",
+                          leaderForm.semester,
+                        ) ? (
+                        <span className="text-xs text-[#10B981] dark:text-[#34D399] font-sans font-medium tracking-tight flex items-center gap-1 mt-1 animate-fade-in">
+                          <span>✓</span>
+                        </span>
+                      ) : null}
+                    </div>
+                  )}
                   <Input
                     label="Student ID"
                     placeholder="e.g. 211071032"
                     value={leaderForm.student_id}
                     onChange={(e) => {
                       handleLeaderChange("student_id", e.target.value);
-                      handleBlur('leader_student_id');
                     }}
-                    onBlur={() => handleBlur('leader_student_id')}
-                    error={getFieldError('leader_student_id')}
-                    isValid={isValidField('leader_student_id', leaderForm.student_id)}
+                    onBlur={() => handleBlur("leader_student_id")}
+                    error={getFieldError("leader_student_id")}
+                    isValid={isValidField(
+                      "leader_student_id",
+                      leaderForm.student_id,
+                    )}
                     disabled={formLoading}
                     required
                   />
@@ -923,11 +1421,13 @@ export default function CompetitionRegisterPage() {
                     <label className="text-sm font-medium text-neutral-350 select-none font-sans">
                       T-shirt Size
                     </label>
-                    <div className={`p-2 rounded-lg border transition-all duration-200 ${
-                      isInvalid('leader_tshirt_size')
-                        ? "border-[#EF4444] bg-[#EF4444]/4"
-                        : "border-transparent"
-                    }`}>
+                    <div
+                      className={`p-2 rounded-lg border transition-all duration-200 ${
+                        isInvalid("leader_tshirt_size")
+                          ? "border-[#EF4444] bg-[#EF4444]/4"
+                          : "border-transparent"
+                      }`}
+                    >
                       <div className="flex flex-wrap gap-2 pt-1">
                         {["S", "M", "L", "XL", "XXL"].map((size) => (
                           <button
@@ -935,7 +1435,6 @@ export default function CompetitionRegisterPage() {
                             type="button"
                             onClick={() => {
                               handleLeaderChange("tshirt_size", size);
-                              handleBlur('leader_tshirt_size');
                             }}
                             disabled={formLoading}
                             className={`px-4 py-2 border rounded-lg text-xs font-bold font-sans transition-all duration-150 ${
@@ -949,11 +1448,14 @@ export default function CompetitionRegisterPage() {
                         ))}
                       </div>
                     </div>
-                    {isInvalid('leader_tshirt_size') ? (
+                    {isInvalid("leader_tshirt_size") ? (
                       <span className="text-xs text-[#DC2626] dark:text-[#FCA5A5] font-sans font-medium tracking-tight flex items-center gap-1 mt-1 animate-fade-in">
-                        <span>✖</span> {allErrors['leader_tshirt_size']}
+                        <span>✖</span> {allErrors["leader_tshirt_size"]}
                       </span>
-                    ) : isValidField('leader_tshirt_size', leaderForm.tshirt_size) ? (
+                    ) : isValidField(
+                        "leader_tshirt_size",
+                        leaderForm.tshirt_size,
+                      ) ? (
                       <span className="text-xs text-[#10B981] dark:text-[#34D399] font-sans font-medium tracking-tight flex items-center gap-1 mt-1 animate-fade-in">
                         <span>✓</span>
                       </span>
@@ -972,23 +1474,34 @@ export default function CompetitionRegisterPage() {
                     <span>Teammates Details</span>
                   </h3>
                   <div className="flex items-center gap-3">
-                    <span className={`text-xs font-sans font-medium flex items-center gap-1.5 px-2.5 py-1 rounded-full border ${
-                      isTeammatesComplete 
-                        ? "bg-success/10 border-success/20 text-success" 
-                        : "bg-warning/10 border-warning/20 text-warning"
-                    }`}>
-                      {isTeammatesComplete ? <Check className="h-3.5 w-3.5" /> : <AlertTriangle className="h-3.5 w-3.5" />}
-                      {isTeammatesComplete ? "Teammates Details Complete" : "Teammates Details Incomplete"}
+                    <span
+                      className={`text-xs font-sans font-medium flex items-center gap-1.5 px-2.5 py-1 rounded-full border ${
+                        isTeammatesComplete
+                          ? "bg-success/10 border-success/20 text-success"
+                          : "bg-warning/10 border-warning/20 text-warning"
+                      }`}
+                    >
+                      {isTeammatesComplete ? (
+                        <Check className="h-3.5 w-3.5" />
+                      ) : (
+                        <AlertTriangle className="h-3.5 w-3.5" />
+                      )}
+                      {isTeammatesComplete
+                        ? "Teammates Details Complete"
+                        : "Teammates Details Incomplete"}
                     </span>
                     <span className="text-xs text-neutral-500 font-mono">
-                      Roster count: {members.length + 1} of {competition.maxMembers} max
+                      Roster count: {members.length + 1} of{" "}
+                      {competition.maxMembers} max
                     </span>
                   </div>
                 </div>
 
                 {members.map((member, index) => {
                   const mNum = index + 2;
-                  const isMemComplete = !Object.keys(allErrors).some(k => k.startsWith(`member_${index}_`));
+                  const isMemComplete = !Object.keys(allErrors).some((k) =>
+                    k.startsWith(`member_${index}_`),
+                  );
                   return (
                     <Card
                       key={index}
@@ -999,13 +1512,21 @@ export default function CompetitionRegisterPage() {
                       <CardHeader className="border-b border-neutral-850 pb-3 flex flex-row items-center justify-between">
                         <CardTitle className="text-base md:text-lg font-heading font-bold text-neutral-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2 w-full">
                           <span>Member {mNum} Details</span>
-                          <span className={`text-xs font-sans font-medium flex items-center gap-1.5 px-2.5 py-1 rounded-full border ${
-                            isMemComplete 
-                              ? "bg-success/10 border-success/20 text-success" 
-                              : "bg-warning/10 border-warning/20 text-warning"
-                          }`}>
-                            {isMemComplete ? <Check className="h-3.5 w-3.5" /> : <AlertTriangle className="h-3.5 w-3.5" />}
-                            {isMemComplete ? `Member ${mNum} Complete` : `Member ${mNum} Missing Information`}
+                          <span
+                            className={`text-xs font-sans font-medium flex items-center gap-1.5 px-2.5 py-1 rounded-full border ${
+                              isMemComplete
+                                ? "bg-success/10 border-success/20 text-success"
+                                : "bg-warning/10 border-warning/20 text-warning"
+                            }`}
+                          >
+                            {isMemComplete ? (
+                              <Check className="h-3.5 w-3.5" />
+                            ) : (
+                              <AlertTriangle className="h-3.5 w-3.5" />
+                            )}
+                            {isMemComplete
+                              ? `Member ${mNum} Complete`
+                              : `Member ${mNum} Missing Information`}
                           </span>
                         </CardTitle>
                         {/* Show delete only if count is greater than the required min size (leader counts as 1) */}
@@ -1028,12 +1549,20 @@ export default function CompetitionRegisterPage() {
                             placeholder="Teammate Full Name"
                             value={member.full_name}
                             onChange={(e) => {
-                              handleMemberChange(index, "full_name", e.target.value);
-                              handleBlur(`member_${index}_full_name`);
+                              handleMemberChange(
+                                index,
+                                "full_name",
+                                e.target.value,
+                              );
                             }}
-                            onBlur={() => handleBlur(`member_${index}_full_name`)}
+                            onBlur={() =>
+                              handleBlur(`member_${index}_full_name`)
+                            }
                             error={getFieldError(`member_${index}_full_name`)}
-                            isValid={isValidField(`member_${index}_full_name`, member.full_name)}
+                            isValid={isValidField(
+                              `member_${index}_full_name`,
+                              member.full_name,
+                            )}
                             disabled={formLoading}
                             required
                           />
@@ -1043,12 +1572,18 @@ export default function CompetitionRegisterPage() {
                             placeholder="member@email.com"
                             value={member.email}
                             onChange={(e) => {
-                              handleMemberChange(index, "email", e.target.value);
-                              handleBlur(`member_${index}_email`);
+                              handleMemberChange(
+                                index,
+                                "email",
+                                e.target.value,
+                              );
                             }}
                             onBlur={() => handleBlur(`member_${index}_email`)}
                             error={getFieldError(`member_${index}_email`)}
-                            isValid={isValidField(`member_${index}_email`, member.email)}
+                            isValid={isValidField(
+                              `member_${index}_email`,
+                              member.email,
+                            )}
                             disabled={formLoading}
                             required
                           />
@@ -1057,12 +1592,18 @@ export default function CompetitionRegisterPage() {
                             placeholder="e.g. 01712345678"
                             value={member.phone}
                             onChange={(e) => {
-                              handleMemberChange(index, "phone", e.target.value);
-                              handleBlur(`member_${index}_phone`);
+                              handleMemberChange(
+                                index,
+                                "phone",
+                                e.target.value,
+                              );
                             }}
                             onBlur={() => handleBlur(`member_${index}_phone`)}
                             error={getFieldError(`member_${index}_phone`)}
-                            isValid={isValidField(`member_${index}_phone`, member.phone)}
+                            isValid={isValidField(
+                              `member_${index}_phone`,
+                              member.phone,
+                            )}
                             disabled={formLoading}
                             required
                           />
@@ -1070,43 +1611,133 @@ export default function CompetitionRegisterPage() {
                             label="Institution"
                             placeholder="Institution"
                             value={member.university}
-                            onBlur={() => handleBlur(`member_${index}_university`)}
+                            onChange={(e) =>
+                              handleMemberChange(
+                                index,
+                                "university",
+                                e.target.value,
+                              )
+                            }
+                            onBlur={() =>
+                              handleBlur(`member_${index}_university`)
+                            }
                             error={getFieldError(`member_${index}_university`)}
-                            isValid={isValidField(`member_${index}_university`, member.university)}
-                            disabled={true}
+                            isValid={isValidField(
+                              `member_${index}_university`,
+                              member.university,
+                            )}
+                            // Institution is editable on "both" comps for any
+                            // non-SMUCT member. On "internal" comps the field
+                            // stays locked to SMUCT. For SMUCT-flagged members
+                            // on "both" comps the field also stays locked.
+                            disabled={
+                              formLoading || !isMemberUniversityEditable(member)
+                            }
                             required
                           />
                           <Input
                             label="Department"
                             placeholder="Department"
                             value={member.department}
-                            onBlur={() => handleBlur(`member_${index}_department`)}
+                            onChange={(e) =>
+                              handleMemberChange(
+                                index,
+                                "department",
+                                e.target.value,
+                              )
+                            }
+                            onBlur={() =>
+                              handleBlur(`member_${index}_department`)
+                            }
                             error={getFieldError(`member_${index}_department`)}
-                            isValid={isValidField(`member_${index}_department`, member.department)}
-                            disabled={true}
+                            isValid={isValidField(
+                              `member_${index}_department`,
+                              member.department,
+                            )}
+                            // Department is always editable. For non-SMUCT
+                            // teammates the value is sent as DEPARTMENT_PLACEHOLDER
+                            // at submit time so the backend contract stays
+                            // valid even if the user types a value here.
+                            disabled={formLoading}
                             required
                           />
-                          <Input
-                            label="Semester"
-                            placeholder="Semester"
-                            value={member.semester}
-                            onBlur={() => handleBlur(`member_${index}_semester`)}
-                            error={getFieldError(`member_${index}_semester`)}
-                            isValid={isValidField(`member_${index}_semester`, member.semester)}
-                            disabled={true}
-                            required
-                          />
+                          {/* Semester only appears for SMUCT teammates. For
+                              non-SMUCT teammates the form sends the
+                              SEMESTER_PLACEHOLDER so the backend contract is
+                              preserved without surfacing a useless field. */}
+                          {membersNeedingSemester[index] && (
+                            <div className="flex flex-col space-y-1.5 w-full">
+                              <label className="text-sm font-medium text-neutral-350 select-none font-sans">
+                                Semester
+                              </label>
+                              <div
+                                className={`p-2 rounded-lg border transition-all duration-200 ${
+                                  isInvalid(`member_${index}_semester`)
+                                    ? "border-[#EF4444] bg-[#EF4444]/4"
+                                    : "border-transparent"
+                                }`}
+                              >
+                                <div className="flex flex-wrap gap-2 pt-1">
+                                  {SEMESTER_OPTIONS.map((sem) => (
+                                    <button
+                                      key={sem}
+                                      type="button"
+                                      onClick={() => {
+                                        handleMemberChange(
+                                          index,
+                                          "semester",
+                                          sem,
+                                        );
+                                      }}
+                                      // Each SMUCT teammate fills their own
+                                      // semester. Internal comps are SMUCT-only
+                                      // so every teammate gets a chip here too.
+                                      disabled={formLoading}
+                                      className={`min-w-11 px-3 py-2 border rounded-lg text-xs font-bold font-sans transition-all duration-150 ${
+                                        member.semester === sem
+                                          ? "bg-primary text-white border-primary shadow-[0_0_12px_rgba(99,102,241,0.25)]"
+                                          : "bg-neutral-950 border-neutral-800 text-neutral-400 hover:border-neutral-700"
+                                      }`}
+                                    >
+                                      {sem}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                              {isInvalid(`member_${index}_semester`) ? (
+                                <span className="text-xs text-[#DC2626] dark:text-[#FCA5A5] font-sans font-medium tracking-tight flex items-center gap-1 mt-1 animate-fade-in">
+                                  <span>✖</span>{" "}
+                                  {allErrors[`member_${index}_semester`]}
+                                </span>
+                              ) : isValidField(
+                                  `member_${index}_semester`,
+                                  member.semester,
+                                ) ? (
+                                <span className="text-xs text-[#10B981] dark:text-[#34D399] font-sans font-medium tracking-tight flex items-center gap-1 mt-1 animate-fade-in">
+                                  <span>✓</span>
+                                </span>
+                              ) : null}
+                            </div>
+                          )}
                           <Input
                             label="Student ID"
                             placeholder="Student ID"
                             value={member.student_id}
                             onChange={(e) => {
-                              handleMemberChange(index, "student_id", e.target.value);
-                              handleBlur(`member_${index}_student_id`);
+                              handleMemberChange(
+                                index,
+                                "student_id",
+                                e.target.value,
+                              );
                             }}
-                            onBlur={() => handleBlur(`member_${index}_student_id`)}
+                            onBlur={() =>
+                              handleBlur(`member_${index}_student_id`)
+                            }
                             error={getFieldError(`member_${index}_student_id`)}
-                            isValid={isValidField(`member_${index}_student_id`, member.student_id)}
+                            isValid={isValidField(
+                              `member_${index}_student_id`,
+                              member.student_id,
+                            )}
                             disabled={formLoading}
                             required
                           />
@@ -1114,19 +1745,24 @@ export default function CompetitionRegisterPage() {
                             <label className="text-sm font-medium text-neutral-350 select-none font-sans">
                               T-shirt Size
                             </label>
-                            <div className={`p-2 rounded-lg border transition-all duration-200 ${
-                              isInvalid(`member_${index}_tshirt_size`)
-                                ? "border-[#EF4444] bg-[#EF4444]/4"
-                                : "border-transparent"
-                            }`}>
+                            <div
+                              className={`p-2 rounded-lg border transition-all duration-200 ${
+                                isInvalid(`member_${index}_tshirt_size`)
+                                  ? "border-[#EF4444] bg-[#EF4444]/4"
+                                  : "border-transparent"
+                              }`}
+                            >
                               <div className="flex flex-wrap gap-2 pt-1">
                                 {["S", "M", "L", "XL", "XXL"].map((size) => (
                                   <button
                                     key={size}
                                     type="button"
                                     onClick={() => {
-                                      handleMemberChange(index, "tshirt_size", size);
-                                      handleBlur(`member_${index}_tshirt_size`);
+                                      handleMemberChange(
+                                        index,
+                                        "tshirt_size",
+                                        size,
+                                      );
                                     }}
                                     disabled={formLoading}
                                     className={`px-4 py-2 border rounded-lg text-xs font-bold font-sans transition-all duration-150 ${
@@ -1142,9 +1778,13 @@ export default function CompetitionRegisterPage() {
                             </div>
                             {isInvalid(`member_${index}_tshirt_size`) ? (
                               <span className="text-xs text-[#DC2626] dark:text-[#FCA5A5] font-sans font-medium tracking-tight flex items-center gap-1 mt-1 animate-fade-in">
-                                <span>✖</span> {allErrors[`member_${index}_tshirt_size`]}
+                                <span>✖</span>{" "}
+                                {allErrors[`member_${index}_tshirt_size`]}
                               </span>
-                            ) : isValidField(`member_${index}_tshirt_size`, member.tshirt_size) ? (
+                            ) : isValidField(
+                                `member_${index}_tshirt_size`,
+                                member.tshirt_size,
+                              ) ? (
                               <span className="text-xs text-[#10B981] dark:text-[#34D399] font-sans font-medium tracking-tight flex items-center gap-1 mt-1 animate-fade-in">
                                 <span>✓</span>
                               </span>
@@ -1180,13 +1820,21 @@ export default function CompetitionRegisterPage() {
                       <Shield className="h-5 w-5 text-accent" />
                       <span>Project Submission Details</span>
                     </span>
-                    <span className={`text-xs font-sans font-medium flex items-center gap-1.5 px-2.5 py-1 rounded-full border ${
-                      isProjectComplete 
-                        ? "bg-success/10 border-success/20 text-success" 
-                        : "bg-warning/10 border-warning/20 text-warning"
-                    }`}>
-                      {isProjectComplete ? <Check className="h-3.5 w-3.5" /> : <AlertTriangle className="h-3.5 w-3.5" />}
-                      {isProjectComplete ? "Project Details Complete" : "Project Details Incomplete"}
+                    <span
+                      className={`text-xs font-sans font-medium flex items-center gap-1.5 px-2.5 py-1 rounded-full border ${
+                        isProjectComplete
+                          ? "bg-success/10 border-success/20 text-success"
+                          : "bg-warning/10 border-warning/20 text-warning"
+                      }`}
+                    >
+                      {isProjectComplete ? (
+                        <Check className="h-3.5 w-3.5" />
+                      ) : (
+                        <AlertTriangle className="h-3.5 w-3.5" />
+                      )}
+                      {isProjectComplete
+                        ? "Project Details Complete"
+                        : "Project Details Incomplete"}
                     </span>
                   </CardTitle>
                 </CardHeader>
@@ -1197,39 +1845,50 @@ export default function CompetitionRegisterPage() {
                     value={projectTitle}
                     onChange={(e) => {
                       setProjectTitle(e.target.value);
-                      handleBlur('projectTitle');
                     }}
-                    onBlur={() => handleBlur('projectTitle')}
-                    error={getFieldError('projectTitle')}
-                    isValid={isValidField('projectTitle', projectTitle)}
+                    onBlur={() => handleBlur("projectTitle")}
+                    error={getFieldError("projectTitle")}
+                    isValid={isValidField("projectTitle", projectTitle)}
                     disabled={formLoading}
                     required
                   />
 
                   <FileDropzone
-                    label="Project PDF Report (Optional)"
+                    label="Project PDF Report"
                     accept="application/pdf"
                     maxSizeMB={5}
-                    required={false}
+                    required={competition.submissionRequired}
                     value={pdfFile}
                     onChange={setPdfFile}
-                    helperText="Optional. Upload your project proposal in PDF format"
+                    helperText={
+                      competition.submissionRequired
+                        ? "Upload your project proposal in PDF format"
+                        : "Optional. Upload your project proposal in PDF format"
+                    }
                     disabled={formLoading}
+                    externalError={getFieldError("pdf")}
                   />
 
                   <Input
-                    label="Project Demo Video Link"
+                    label={
+                      competition.isVideoRequired
+                        ? "Project Demo Video Link"
+                        : "Project Demo Video Link (Optional)"
+                    }
                     placeholder="https://youtube.com/watch?v=..."
                     value={youtubeDemoUrl}
                     onChange={(e) => {
                       setYoutubeDemoUrl(e.target.value);
-                      handleBlur('youtubeDemoUrl');
                     }}
-                    onBlur={() => handleBlur('youtubeDemoUrl')}
-                    error={getFieldError('youtubeDemoUrl')}
-                    isValid={isValidField('youtubeDemoUrl', youtubeDemoUrl)}
+                    onBlur={() => handleBlur("youtubeDemoUrl")}
+                    error={getFieldError("youtubeDemoUrl")}
+                    isValid={isValidField("youtubeDemoUrl", youtubeDemoUrl)}
                     disabled={formLoading}
-                    helperText="Provide an Unlisted YouTube video link demonstrating your project. The video should clearly explain the problem, solution, features, and working demonstration of the project."
+                    helperText={
+                      competition.isVideoRequired
+                        ? "Required. Provide an Unlisted YouTube video link demonstrating your project. The video should clearly explain the problem, solution, features, and working demonstration of the project."
+                        : "Optional. Provide an Unlisted YouTube video link demonstrating your project. The video should clearly explain the problem, solution, features, and working demonstration of the project."
+                    }
                   />
                 </CardContent>
               </Card>
@@ -1241,9 +1900,10 @@ export default function CompetitionRegisterPage() {
                 <div className="flex items-center gap-2">
                   <Loader2 className="h-4.5 w-4.5 text-primary animate-spin" />
                   <p className="text-xs font-semibold text-neutral-200">
-                    {formStatus === "submitting_proposal" && (
-                      isProcessing ? "Processing registration on server..." : "Uploading team registration details..."
-                    )}
+                    {formStatus === "submitting_proposal" &&
+                      (isProcessing
+                        ? "Processing registration on server..."
+                        : "Uploading team registration details...")}
                     {formStatus === "success" && "Registration complete!"}
                   </p>
                 </div>
@@ -1252,7 +1912,9 @@ export default function CompetitionRegisterPage() {
                   <div className="space-y-1.5 pt-1">
                     <div className="flex items-center justify-between text-sm font-mono">
                       <span className="text-neutral-500">Progress</span>
-                      <span className="text-neutral-300 font-bold tabular-nums">{uploadProgress}%</span>
+                      <span className="text-neutral-300 font-bold tabular-nums">
+                        {uploadProgress}%
+                      </span>
                     </div>
                     <div className="h-2 w-full bg-neutral-900 rounded-full overflow-hidden">
                       <div
@@ -1281,9 +1943,13 @@ export default function CompetitionRegisterPage() {
                   <div className="flex items-start gap-2.5">
                     <AlertTriangle className="h-5 w-5 shrink-0 text-[#DC2626] dark:text-[#EF4444] mt-0.5" />
                     <div className="space-y-2 text-sm w-full">
-                      <p className="font-semibold font-sans">Please complete all required fields before submitting.</p>
+                      <p className="font-semibold font-sans">
+                        Please complete all required fields before submitting.
+                      </p>
                       <div className="space-y-1">
-                        <p className="text-xs font-mono uppercase tracking-wider opacity-85">Missing / Invalid Fields:</p>
+                        <p className="text-xs font-mono uppercase tracking-wider opacity-85">
+                          Missing / Invalid Fields:
+                        </p>
                         <ul className="list-disc list-inside text-xs space-y-1 pl-1 font-sans opacity-95">
                           {Object.keys(allErrors).map((key) => (
                             <li key={key}>{getFieldFriendlyName(key)}</li>
@@ -1300,15 +1966,22 @@ export default function CompetitionRegisterPage() {
                 disabled={formLoading || submitButtonStatus === "success"}
                 className={`w-full py-4 h-auto rounded-md text-base font-bold font-sans flex items-center justify-center gap-2 transition-all duration-300 select-none cursor-pointer bg-primary hover:bg-primary/95 text-white hover:shadow-[0_0_20px_rgba(99,102,241,0.35)]`}
               >
-                {submitButtonStatus === "loading" && <Loader2 className="h-5 w-5 animate-spin" />}
-                {submitButtonStatus === "success" && <Check className="h-5 w-5" />}
-                {submitButtonStatus === "failure" && <Send className="h-4 w-4" />}
+                {submitButtonStatus === "loading" && (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                )}
+                {submitButtonStatus === "success" && (
+                  <Check className="h-5 w-5" />
+                )}
+                {submitButtonStatus === "failure" && (
+                  <Send className="h-4 w-4" />
+                )}
                 {submitButtonStatus === "idle" && <Send className="h-4 w-4" />}
 
                 <span>
                   {submitButtonStatus === "idle" && "Register & Submit Team"}
                   {submitButtonStatus === "loading" && "Submitting..."}
-                  {submitButtonStatus === "success" && "Registration Submitted Successfully"}
+                  {submitButtonStatus === "success" &&
+                    "Registration Submitted Successfully"}
                   {submitButtonStatus === "failure" && "Register & Submit Team"}
                 </span>
               </Button>
@@ -1322,45 +1995,24 @@ export default function CompetitionRegisterPage() {
   );
 }
 
-// Inline Custom Crown Icon
-function CrownIcon() {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="20"
-      height="20"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className="text-primary"
-    >
-      <path d="M2 4l3 12h14l3-12-6 7-4-7-4 7-6-7zm3 16h14a1 1 0 0 0 1-1v-1H4v1a1 1 0 0 0 1 1z" />
-    </svg>
-  );
-}
-
 // Field friendly name helper for validation summary
 function getFieldFriendlyName(key: string): string {
   if (key === "teamName") return "Team Name";
   if (key === "projectTitle") return "Project Title";
-  if (key === "isSmuct") return "SMUCT Student Status";
   if (key === "youtubeDemoUrl") return "Project Demo Video Link";
-  
+
   if (key.startsWith("leader_")) {
     const field = key.replace("leader_", "");
     const cleanField = field.replace("_", " ");
     return `Team Leader ${cleanField.charAt(0).toUpperCase() + cleanField.slice(1)}`;
   }
-  
+
   if (key.startsWith("member_")) {
     const parts = key.split("_");
     const index = parseInt(parts[1], 10);
     const field = parts.slice(2).join(" ");
     return `Member ${index + 2} ${field.charAt(0).toUpperCase() + field.slice(1)}`;
   }
-  
+
   return key;
 }

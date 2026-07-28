@@ -18,7 +18,7 @@ export function Timeline() {
   const [mounted, setMounted] = React.useState(false);
   const { data, isLoading } = useSWR<{ success: boolean; data: Competition[] }>(
     "/api/public/competitions",
-    fetcher
+    fetcher,
   );
 
   React.useEffect(() => {
@@ -26,7 +26,10 @@ export function Timeline() {
     return () => clearTimeout(timer);
   }, []);
 
-  const competitions = React.useMemo(() => (data?.success ? data.data : []), [data]);
+  const competitions = React.useMemo(
+    () => (data?.success ? data.data : []),
+    [data],
+  );
 
   const timelineItems = React.useMemo(() => {
     if (!competitions || competitions.length === 0) return [];
@@ -38,7 +41,7 @@ export function Timeline() {
         description: "",
       },
       {
-        date: "3 July",
+        date: "5 July",
         title: "Registration Deadline",
         description: "",
       },
@@ -62,7 +65,10 @@ export function Timeline() {
 
   if (!mounted || isLoading) {
     return (
-      <section id="timeline" className="max-w-[1280px] mx-auto px-4 md:px-16 py-24 border-t border-neutral-850 animate-pulse">
+      <section
+        id="timeline"
+        className="max-w-[1280px] mx-auto px-4 md:px-16 py-24 border-t border-neutral-850 animate-pulse"
+      >
         <div className="h-6 bg-neutral-900 w-32 mx-auto rounded mb-3" />
         <div className="h-10 bg-neutral-900 w-64 mx-auto rounded mb-12" />
         <div className="space-y-8 max-w-lg mx-auto">
@@ -77,7 +83,10 @@ export function Timeline() {
   // Show empty state if there are no published competitions
   if (timelineItems.length === 0) {
     return (
-      <section id="timeline" className="max-w-[1280px] mx-auto px-4 md:px-16 py-24 border-t border-neutral-850 relative">
+      <section
+        id="timeline"
+        className="max-w-[1280px] mx-auto px-4 md:px-16 py-24 border-t border-neutral-850 relative"
+      >
         <div className="text-center mb-12">
           <div className="flex items-center justify-center gap-2 mb-3">
             <div className="h-[2px] w-8 bg-primary" />
@@ -86,15 +95,20 @@ export function Timeline() {
             </span>
             <div className="h-[2px] w-8 bg-primary" />
           </div>
-          <h2 className="font-heading text-4xl font-extrabold text-neutral-100">Festival Roadmap</h2>
+          <h2 className="font-heading text-4xl font-extrabold text-neutral-100">
+            Festival Roadmap
+          </h2>
         </div>
         <div className="py-16 text-center rounded-xl border border-dashed border-neutral-850 bg-neutral-900/10 max-w-xl mx-auto flex flex-col items-center justify-center space-y-4">
           <div className="w-12 h-12 rounded-full bg-neutral-900 border border-neutral-800 flex items-center justify-center text-neutral-600">
             <Sparkles className="h-6 w-6" />
           </div>
-          <h3 className="font-heading font-extrabold text-lg text-neutral-300">Roadmap Updates Coming Soon</h3>
+          <h3 className="font-heading font-extrabold text-lg text-neutral-300">
+            Roadmap Updates Coming Soon
+          </h3>
           <p className="text-xs sm:text-sm text-neutral-500 font-sans max-w-sm leading-relaxed">
-            Specific timeline dates will be populated as soon as the first competitions are published by organizers.
+            Specific timeline dates will be populated as soon as the first
+            competitions are published by organizers.
           </p>
         </div>
       </section>
@@ -102,7 +116,10 @@ export function Timeline() {
   }
 
   return (
-    <section id="timeline" className="max-w-[1280px] mx-auto px-4 md:px-16 py-24 border-t border-neutral-850 relative">
+    <section
+      id="timeline"
+      className="max-w-[1280px] mx-auto px-4 md:px-16 py-24 border-t border-neutral-850 relative"
+    >
       {/* Decorative background glow */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-primary/5 rounded-full blur-[120px] pointer-events-none" />
 
@@ -161,7 +178,12 @@ export function Timeline() {
                 {/* Visual Connector Dot */}
                 <motion.div
                   whileInView={{
-                    borderColor: ["var(--color-neutral-850)", "var(--color-primary)", "var(--color-secondary)", "var(--color-neutral-850)"],
+                    borderColor: [
+                      "var(--color-neutral-850)",
+                      "var(--color-primary)",
+                      "var(--color-secondary)",
+                      "var(--color-neutral-850)",
+                    ],
                   }}
                   viewport={{ once: true }}
                   transition={{ duration: 1.5, delay: idx * 0.15 }}
@@ -184,7 +206,7 @@ export function Timeline() {
                   <div className="bg-glass border border-glass p-5 rounded-2xl hover:border-primary/40 hover:-translate-y-1 hover:shadow-level-3 transition-all duration-normal group cursor-pointer relative overflow-hidden h-full flex flex-col justify-between">
                     {/* Hover Glow Accent Corner */}
                     <div className="absolute top-0 right-0 w-16 h-16 bg-gradient-to-br from-primary/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-normal" />
-                    
+
                     {/* Corner Accents */}
                     <div className="absolute top-0 left-0 w-2 h-2 border-t border-l border-accent/40 transition-all duration-300 group-hover:w-4 group-hover:h-4" />
                     <div className="absolute bottom-0 right-0 w-2 h-2 border-b border-r border-accent/40 transition-all duration-300 group-hover:w-4 group-hover:h-4" />
@@ -197,7 +219,9 @@ export function Timeline() {
                         </span>
                       </div>
 
-                      <h3 className={`font-heading text-base font-bold text-neutral-200 group-hover:text-neutral-50 transition-colors leading-snug ${item.description ? "mb-2" : ""}`}>
+                      <h3
+                        className={`font-heading text-base font-bold text-neutral-200 group-hover:text-neutral-50 transition-colors leading-snug ${item.description ? "mb-2" : ""}`}
+                      >
                         {item.title}
                       </h3>
                       {item.description && (

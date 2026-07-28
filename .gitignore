@@ -70,6 +70,9 @@ Desktop.ini
 skills-lock.json
 skills.txt
 
+# Puku AI local cache (embeddings DB is local-only)
+/.puku/*
+
 
         pm2
         pnpm-workspace.yaml

@@ -17,11 +17,15 @@ interface Competition {
   shortDescription: string;
   teamSize: string;
   fee: string;
+  entryFee?: number;
+  isFeePerPerson?: boolean;
   eligibility: string;
   prizePool: string;
   coverImageUrl?: string;
   rulebookUrl?: string;
   status?: string;
+  registrationStart?: string;
+  registrationEnd?: string;
 }
 
 interface UserTeam {
@@ -65,7 +69,16 @@ export function FeaturedCompetitions() {
     return new Set<string>();
   }, [teamsData]);
 
-  const competitions = React.useMemo(() => (data?.success ? data.data : []), [data]);
+  const competitions = React.useMemo(() => {
+    if (!data?.success || !Array.isArray(data.data)) return [];
+    return [...data.data].sort((a, b) => {
+      const eligibilityA = a.eligibility?.toLowerCase();
+      const eligibilityB = b.eligibility?.toLowerCase();
+      if (eligibilityA === "both" && eligibilityB !== "both") return -1;
+      if (eligibilityA !== "both" && eligibilityB === "both") return 1;
+      return 0;
+    });
+  }, [data]);
 
   if (!mounted || isLoading) {
     return (
@@ -133,7 +146,7 @@ export function FeaturedCompetitions() {
 
       {/* Grid of Competitions */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 relative z-10">
-        {competitions.slice(0, 3).map((comp) => {
+        {competitions.map((comp) => {
           const coverImage =
             comp.coverImageUrl ||
             COMPETITION_FALLBACK_IMAGES[comp.id] ||
@@ -168,21 +181,40 @@ export function FeaturedCompetitions() {
                       {comp.name}
                     </h3>
                     <Badge variant="accent" className="text-sm font-mono shrink-0 uppercase tracking-wider">
-                      {comp.eligibility?.toLowerCase() === "both" ? "INTER-UNI" : comp.eligibility}
+                      {comp.name?.toLowerCase().includes("idea") || comp.id === "dfec0659-6308-42e3-aaf6-dfdc85eb2cfa"
+                        ? "College Only"
+                        : comp.eligibility?.toLowerCase() === "both" || comp.eligibility?.toLowerCase() === "external"
+                        ? "INTER-UNI"
+                        : comp.eligibility}
                     </Badge>
                   </div>
                 </Link>
 
                 <div className="mt-auto space-y-5">
-                  <Link href={`/competitions/${comp.id}`} className="flex justify-between items-center py-4 border-y border-neutral-200/50 dark:border-neutral-800/60 font-mono block hover:text-neutral-600 dark:hover:text-neutral-200 transition-colors">
-                    <span className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-widest">Grand Prize Pool</span>
-                    <span className="text-[#8B5CF6] dark:text-[#A78BFA] text-xl font-black font-heading">{comp.prizePool}</span>
-                  </Link>
+                  <div className="border-y border-neutral-200/50 dark:border-neutral-800/60 divide-y divide-neutral-250/20 dark:divide-neutral-800/50">
+                    <Link href={`/competitions/${comp.id}`} className="flex justify-between items-center py-3.5 font-mono block hover:text-neutral-600 dark:hover:text-neutral-200 transition-colors">
+                      <span className="text-xs font-bold text-neutral-400 uppercase tracking-widest">Grand Prize Pool</span>
+                      <span className="text-[#8B5CF6] dark:text-[#A78BFA] text-xl font-black font-heading">{comp.prizePool}</span>
+                    </Link>
+                    <Link href={`/competitions/${comp.id}`} className="flex justify-between items-start py-3.5 font-mono block hover:text-neutral-600 dark:hover:text-neutral-200 transition-colors">
+                      <span className="text-xs font-bold text-neutral-400 uppercase tracking-widest mt-0.5">Entry Fee</span>
+                      <div className="text-right">
+                        <span className="text-neutral-100 font-bold text-base">
+                          {comp.entryFee === 0 ? "Free" : `${comp.entryFee} BDT`}
+                        </span>
+                        {comp.isFeePerPerson && (
+                          <span className="block text-xs uppercase tracking-wider text-neutral-400 mt-1 font-semibold">
+                            PER PERSON
+                          </span>
+                        )}
+                      </div>
+                    </Link>
+                  </div>
                   <div className="flex gap-3">
-                    {comp.status === "registration_closed" ? (
+                    {(comp.status === "registration_closed" || (comp.registrationEnd && new Date() > new Date(comp.registrationEnd))) ? (
                       <Button
                         disabled
-                        className="grow bg-neutral-200 dark:bg-neutral-900 text-neutral-500 border border-neutral-300 dark:border-neutral-850 py-3.5 h-auto rounded-xl font-heading text-base font-black tracking-widest cursor-not-allowed"
+                        className="grow bg-neutral-900 text-neutral-500 border border-neutral-850 py-3.5 h-auto rounded-xl font-heading text-base font-black tracking-widest cursor-not-allowed"
                       >
                         Registration Closed
                       </Button>
